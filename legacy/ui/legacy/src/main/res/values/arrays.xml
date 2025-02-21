@@ -44,4 +44,30 @@
         <item>Relaxed</item>
     </string-array>
 
+
+    <!-- Arrays for pqc algorithm selection-->
+    <array name="pqc_encryption_algorithms">
+        <item>Kyber</item>
+        <item>NTRU</item>
+        <item>Saber</item>
+    </array>
+
+    <array name="pqc_encryption_algorithms_values">
+        <item>kyber</item>
+        <item>ntru</item>
+        <item>saber</item>
+    </array>
+
+    <array name="pqc_signing_algorithms">
+        <item>Kyber</item>
+        <item>NTRU</item>
+        <item>Saber</item>
+    </array>
+
+    <array name="pqc_signing_algorithms_values">
+        <item>kyber</item>
+        <item>ntru</item>
+        <item>saber</item>
+    </array>
+
 </resources>

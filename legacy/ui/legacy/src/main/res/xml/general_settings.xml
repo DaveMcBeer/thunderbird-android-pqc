@@ -551,4 +551,39 @@
 
     </PreferenceScreen>
 
+    <!-- Added new Item in general Settings to enable/disable PQC -->
+    <PreferenceScreen
+        android:icon="@drawable/ic_lock"
+        android:title="PQC-Extension"
+        android:key="pqc_screen"
+        search:ignore="true">
+
+        <SwitchPreferenceCompat
+            android:key="pqc_enabled"
+            android:title="Enable/Disable PQC"
+            android:summary="Enable or Disable PQC Encryption and Signatures for your Emails"
+            android:defaultValue="true" />
+
+
+        <ListPreference
+            android:key="pqc_encryption_algorithm"
+            android:title="Select PQC encryption algorithm"
+            android:summary="Choose your preferred PQC encryption algorithm"
+            android:entries="@array/pqc_encryption_algorithms"
+            android:entryValues="@array/pqc_encryption_algorithms_values"
+            app:useSimpleSummaryProvider="true"
+            android:dependency="pqc_enabled"/>
+
+
+
+        <ListPreference
+            android:key="pqc_signing_algorithm"
+            android:title="Select PQC signing algorithm"
+            android:summary="Choose your preferred PQC encryption algorithm"
+            android:entries="@array/pqc_signing_algorithms"
+            android:entryValues="@array/pqc_signing_algorithms_values"
+            app:useSimpleSummaryProvider="true"
+            android:dependency="pqc_enabled"/>
+    </PreferenceScreen>
+
 </PreferenceScreen>
