@@ -179,3 +179,4 @@ include(
     ":library:html-cleaner",
     ":library:TokenAutoComplete",
 )
+include(":plugins:pqc-extension")
