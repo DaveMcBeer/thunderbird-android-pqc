@@ -1,0 +1,14 @@
+                        NDK_PROJECT_PATH=null
+APP_BUILD_SCRIPT=C:\Users\david\Desktop\Bachelorarbeit_Code\DaveMcBeer-thunderbird-mail-pqc-2025\library\liboqs-module\jni\Android.mk
+APP_ABI=x86
+NDK_ALL_ABIS=x86
+NDK_DEBUG=0
+APP_PLATFORM=android-21
+NDK_OUT=C:\Users\david\Desktop\Bachelorarbeit_Code\DaveMcBeer-thunderbird-mail-pqc-2025\library\liboqs-module\build\intermediates\cxx\Release\3a444j2x/obj
+NDK_LIBS_OUT=C:\Users\david\Desktop\Bachelorarbeit_Code\DaveMcBeer-thunderbird-mail-pqc-2025\library\liboqs-module\build\intermediates\cxx\Release\3a444j2x/lib
+APP_SHORT_COMMANDS=false
+LOCAL_SHORT_COMMANDS=false
+-B
+-n
+                        Build command args: []
+                        Version: 2

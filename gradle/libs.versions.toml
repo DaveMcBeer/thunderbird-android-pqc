@@ -98,6 +98,12 @@ timber = "5.0.1"
 turbine = "1.2.0"
 xmlpull = "1.0"
 zxing = "3.5.3"
+junitVersion = "1.2.1"
+runner = "1.6.1"
+monitor = "1.7.2"
+junitJupiter = "5.8.1"
+androidxJunit = "1.1.5"
+junitJunit = "4.12"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
@@ -243,6 +249,12 @@ timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 xmlpull = { module = "com.github.cketti:xmlpull-extracted-from-android", version.ref = "xmlpull" }
 zxing = { module = "com.google.zxing:core", version.ref = "zxing" }
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+androidx-runner = { group = "androidx.test", name = "runner", version.ref = "runner" }
+androidx-monitor = { group = "androidx.test", name = "monitor", version.ref = "monitor" }
+junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junitJupiter" }
+ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxJunit" }
+junit-junit = { group = "junit", name = "junit", version.ref = "junitJunit" }
 
 [bundles]
 shared-jvm-main = [
