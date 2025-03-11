@@ -566,11 +566,11 @@
 
 
         <ListPreference
-            android:key="pqc_encryption_algorithm"
+            android:key="pqc_KEM_algorithm"
             android:title="Select PQC encryption algorithm"
             android:summary="Choose your preferred PQC encryption algorithm"
-            android:entries="@array/pqc_encryption_algorithms"
-            android:entryValues="@array/pqc_encryption_algorithms_values"
+            android:entries="@array/pqc_KEM_algorithms"
+            android:entryValues="@array/pqc_KEM_algorithms_values"
             app:useSimpleSummaryProvider="true"
             android:dependency="pqc_enabled"/>
 

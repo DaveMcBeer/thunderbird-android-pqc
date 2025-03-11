@@ -17,9 +17,8 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import timber.log.Timber
 import timber.log.Timber.DebugTree
-import com.core.pqc_extension.PqcEncryptionAlgorithms
+import com.core.pqc_extension.PqcKemAlgorithms
 import com.core.pqc_extension.PqcSigningAlgorithms
-import com.fsck.k9.K9.getEnum
 
 // TODO "Use GeneralSettingsManager and GeneralSettings instead"
 object K9 : KoinComponent {
@@ -279,10 +278,10 @@ object K9 : KoinComponent {
     var isPqcEnabled = false
 
     @JvmStatic
-    var pqcEncrytptionAlgrotihm: PqcEncryptionAlgorithms = PqcEncryptionAlgorithms.NONE
+    var pqcKemAlgrotihm: PqcKemAlgorithms = PqcKemAlgorithms.None
 
     @JvmStatic
-    var pqcSigningAlgorithms: PqcSigningAlgorithms = PqcSigningAlgorithms.NONE
+    var pqcSigningAlgorithm: PqcSigningAlgorithms = PqcSigningAlgorithms.None
 
     // TODO: This is a feature-specific setting that doesn't need to be available to apps that don't include the
     //  feature. Extract `Storage` and `StorageEditor` to a separate module so feature modules can retrieve and store
@@ -426,8 +425,8 @@ object K9 : KoinComponent {
 
         //PQC_loading settings:
         isPqcEnabled = storage.getBoolean("pqc_enabled",false)
-        pqcSigningAlgorithms = storage.getEnum("pqc_signing_algorithm", PqcSigningAlgorithms.NONE)
-        pqcEncrytptionAlgrotihm = storage.getEnum("pqc_encryption_algorithm", PqcEncryptionAlgorithms.NONE)
+        pqcSigningAlgorithm = storage.getEnum("pqc_signing_algorithm",  PqcSigningAlgorithms.None)
+        pqcKemAlgrotihm = storage.getEnum("pqc_KEM_algorithm", PqcKemAlgorithms.None)
 
     }
 
@@ -505,8 +504,8 @@ object K9 : KoinComponent {
 
         //PQC_save_Settings:
         editor.putBoolean("pqc_enabled", isPqcEnabled)
-        editor.putEnum("pqc_signing_algorithm", pqcSigningAlgorithms)
-        editor.putEnum("pqc_encryption_algorithm", pqcEncrytptionAlgrotihm)
+        editor.putEnum("pqc_signing_algorithm", pqcSigningAlgorithm)
+        editor.putEnum("pqc_KEMalgorithm", pqcKemAlgrotihm)
 
         fontSizes.save(editor)
     }
