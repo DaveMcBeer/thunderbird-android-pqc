@@ -32,6 +32,7 @@ import com.fsck.k9.notification.NotificationSettingsUpdater
 import com.fsck.k9.ui.R
 import com.fsck.k9.ui.base.extensions.withArguments
 import com.fsck.k9.ui.endtoend.AutocryptKeyTransferActivity
+import com.fsck.k9.ui.settings.account.pqcExtension.PqcKeyManagementFragment
 import com.fsck.k9.ui.settings.onClick
 import com.fsck.k9.ui.settings.oneTimeClickListener
 import com.fsck.k9.ui.settings.remove
@@ -89,6 +90,7 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
         initializeCryptoSettings(account)
         initializeFolderSettings(account)
         initializeNotifications(account)
+        initializePqcKeyManagement()
     }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
@@ -245,6 +247,56 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
         }
     }
 
+    private fun initializePqcKeyManagement() {
+        val keyManagementPref = findPreference<Preference>("pqc_key_management")
+        val algorithmPref = findPreference<ListPreference>("pqc_signing_algorithm")
+        val isPqcEnabledPref = findPreference<Preference>("pqc_enabled")
+        val account = getAccount()
+
+
+        if (keyManagementPref == null || algorithmPref == null) return
+
+        // Initialer Zustand
+        keyManagementPref.isEnabled = algorithmPref.value != "None"
+
+        // Aktuellen Wert merken
+        val previousAlgorithm = account.pqcSigningAlgorithm
+
+
+        // Initialer Zustand
+        keyManagementPref.isEnabled = algorithmPref.value != "None"
+
+        isPqcEnabledPref?.setOnPreferenceChangeListener{_,newValue ->
+            val enabled = newValue as Boolean
+            keyManagementPref.isEnabled = enabled
+            true
+        }
+
+        algorithmPref.setOnPreferenceChangeListener { _, newValue ->
+            val selected = newValue as String
+
+            keyManagementPref.isEnabled = selected != "None"
+
+            if (!selected.equals(previousAlgorithm, ignoreCase = true)) {
+                // Reset Keys
+                account.pqcPublicSingingKey = null
+                account.pqcSecretSigningKey = null
+                account.pqcKeysetExists = false
+                account.pqcSigningAlgorithm = selected
+
+                dataStore.saveSettingsInBackground()
+            }
+
+            true
+        }
+
+        keyManagementPref.onClick {
+            requireActivity().supportFragmentManager.beginTransaction()
+                .replace(R.id.accountSettingsContainer, PqcKeyManagementFragment.create(accountUuid))
+                .addToBackStack(null)
+                .commit()
+        }
+    }
     private fun maybeUpdateNotificationPreferences(account: Account) {
         if (notificationSoundPreference != null ||
             notificationLightPreference != null ||

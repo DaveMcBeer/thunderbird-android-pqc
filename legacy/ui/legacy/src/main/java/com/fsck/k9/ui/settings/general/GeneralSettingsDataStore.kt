@@ -12,8 +12,6 @@ import com.fsck.k9.SwipeAction
 import com.fsck.k9.UiDensity
 import com.fsck.k9.job.K9JobManager
 import com.fsck.k9.ui.base.AppLanguageManager
-import com.core.pqc_extension.PqcKemAlgorithms
-import com.core.pqc_extension.PqcSigningAlgorithms
 
 class GeneralSettingsDataStore(
     private val jobManager: K9JobManager,
@@ -51,7 +49,6 @@ class GeneralSettingsDataStore(
             "volume_navigation" -> K9.isUseVolumeKeysForNavigation
             "enable_telemetry" -> K9.isTelemetryEnabled
 
-            "pqc_enabled" -> K9.isPqcEnabled
             else -> defValue
         }
     }
@@ -82,7 +79,6 @@ class GeneralSettingsDataStore(
             "sensitive_logging" -> K9.isSensitiveDebugLoggingEnabled = value
             "volume_navigation" -> K9.isUseVolumeKeysForNavigation = value
             "enable_telemetry" -> setTelemetryEnabled(value)
-            "pqc_enabled" -> K9.isPqcEnabled = value
             else -> return
         }
 
@@ -135,8 +131,6 @@ class GeneralSettingsDataStore(
             "message_list_density" -> K9.messageListDensity.toString()
             "post_remove_navigation" -> K9.messageViewPostRemoveNavigation.name
             "post_mark_as_unread_navigation" -> K9.messageViewPostMarkAsUnreadNavigation.name
-            "pqc_KEM_algorithm" -> K9.pqcKemAlgrotihm.name
-            "pqc_signing_algorithm" -> K9.pqcSigningAlgorithm.name
             else -> defValue
         }
     }
@@ -177,8 +171,6 @@ class GeneralSettingsDataStore(
             "post_mark_as_unread_navigation" -> {
                 K9.messageViewPostMarkAsUnreadNavigation = PostMarkAsUnreadNavigation.valueOf(value)
             }
-            "pqc_KEM_algorithm" -> K9.pqcKemAlgrotihm = PqcKemAlgorithms.valueOf(value)
-            "pqc_signing_algorithm" -> K9.pqcSigningAlgorithm = PqcSigningAlgorithms.valueOf(value)
             else -> return
         }
 

@@ -458,4 +458,39 @@
 
     </PreferenceScreen>
 
+    <PreferenceScreen
+        android:icon="@drawable/ic_key"
+        android:key="pqc"
+        android:title="Post-Quantum-Cryptography"
+        >
+
+        <SwitchPreference
+            android:key="pqc_enabled"
+            android:title="Enable PQC Signing"
+            />
+
+        <SwitchPreference
+            android:dependency="pqc_enabled"
+            android:key="pqc_hide_sign_only"
+            android:summaryOff="All PQC signatures will be displayed"
+            android:summaryOn="Only PQC encrypted signatures will be displayed"
+            android:title="Hide unencrypted PQC signatures"
+            />
+
+        <ListPreference
+            android:dependency="pqc_enabled"
+            android:key="pqc_signing_algorithm"
+            android:title="PQC Signing Algorithm"
+            android:entries="@array/pqc_algorithm_entries"
+            android:entryValues="@array/pqc_algorithm_values"
+            app:useSimpleSummaryProvider="true"
+            android:defaultValue="None"
+            />
+
+        <Preference
+            android:key="pqc_key_management"
+            android:title="PQC Signing Key Management"
+            android:summary="Manage PQC signing keys"/>
+    </PreferenceScreen>
+
 </PreferenceScreen>

@@ -179,5 +179,4 @@ include(
     ":library:html-cleaner",
     ":library:TokenAutoComplete",
 )
-include(":feature:pqc-extension")
 include(":library:liboqs-module")

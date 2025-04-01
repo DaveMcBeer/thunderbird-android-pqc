@@ -1,0 +1,1 @@
+C:\Users\david\Desktop\Bachelorarbeit_Code\DaveMcBeer-thunderbird-mail-pqc-2025\library\liboqs-module\jni\Android.mk

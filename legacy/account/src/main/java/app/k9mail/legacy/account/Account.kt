@@ -6,6 +6,7 @@ import com.fsck.k9.mail.Address
 import com.fsck.k9.mail.ServerSettings
 import java.util.Calendar
 import java.util.Date
+import org.openquantumsafe.Sigs
 
 // This needs to be in sync with K9.DEFAULT_VISIBLE_LIMIT
 const val DEFAULT_VISIBLE_LIMIT = 25
@@ -302,6 +303,42 @@ class Account(
     @get:Synchronized
     @set:Synchronized
     var isOpenPgpEncryptAllDrafts = false
+
+
+    //----David B. PQC settings -----
+    @get:Synchronized
+    @set:Synchronized
+    var isPqcEnabled = false
+
+    @get:Synchronized
+    @set:Synchronized
+    var isPqcShowSignature = false
+
+    @get:Synchronized
+    @set:Synchronized
+    var pqcSupportedAlgorithms: ArrayList<String> = Sigs.get_supported_sigs();
+
+    // Used to save the public key (if existent)
+    @get:Synchronized
+    @set:Synchronized
+    var pqcPublicSingingKey: String? = null
+
+    // Used to save the secret key (if existent)
+    @get:Synchronized
+    @set:Synchronized
+    var pqcSecretSigningKey: String? = null
+
+    // Used to save the chosen algorithm
+    @get:Synchronized
+    @set:Synchronized
+    var pqcSigningAlgorithm: String? = null
+
+    // Used to save if the keys have been generated
+    @get:Synchronized
+    @set:Synchronized
+    var pqcKeysetExists: Boolean? = false
+
+    // ----- End PQC Settings -----
 
     @get:Synchronized
     @set:Synchronized

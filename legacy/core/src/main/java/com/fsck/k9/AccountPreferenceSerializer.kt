@@ -199,6 +199,16 @@ class AccountPreferenceSerializer(
 
             shouldMigrateToOAuth = storage.getBoolean("$accountUuid.migrateToOAuth", false)
 
+
+            // -- PQC ADDITIONS --
+            isPqcEnabled = storage.getBoolean("$accountUuid.pqcEnabled", false)
+            isPqcShowSignature = storage.getBoolean("$accountUuid.pqcHideSignOnly", false)
+            pqcSigningAlgorithm = storage.getString("$accountUuid.pqcSigningAlgorithm", null)
+            pqcPublicSingingKey = storage.getString("$accountUuid.pqcPublicKey", null)
+            pqcSecretSigningKey = storage.getString("$accountUuid.pqcSecretKey", null)
+            pqcKeysetExists = storage.getBoolean("$accountUuid.pqcKeysetExists", false)
+            // -- END --
+
             val isFinishedSetup = storage.getBoolean("$accountUuid.isFinishedSetup", true)
             if (isFinishedSetup) markSetupFinished()
 
@@ -361,6 +371,15 @@ class AccountPreferenceSerializer(
             editor.putBoolean("$accountUuid.useCompression", useCompression)
             editor.putBoolean("$accountUuid.sendClientInfo", isSendClientInfoEnabled)
             editor.putBoolean("$accountUuid.migrateToOAuth", shouldMigrateToOAuth)
+
+            // -- PQC ADDITIONS --
+            editor.putBoolean("$accountUuid.pqcEnabled", isPqcEnabled)
+            editor.putBoolean("$accountUuid.pqcHideSignOnly", isPqcShowSignature)
+            editor.putString("$accountUuid.pqcSigningAlgorithm", pqcSigningAlgorithm)
+            editor.putString("$accountUuid.pqcPublicKey", pqcPublicSingingKey)
+            editor.putString("$accountUuid.pqcSecretKey", pqcSecretSigningKey)
+            editor.putBoolean("$accountUuid.pqcKeysetExists", pqcKeysetExists == true)
+            // -- END --
         }
 
         saveIdentities(account, storage, editor)
@@ -478,6 +497,16 @@ class AccountPreferenceSerializer(
         editor.remove("$accountUuid.useCompression")
         editor.remove("$accountUuid.sendClientInfo")
         editor.remove("$accountUuid.migrateToOAuth")
+
+
+        // -- PQC ADDITIONS --
+        editor.remove("$accountUuid.pqcEnabled")
+        editor.remove("$accountUuid.pqcHideSignOnly")
+        editor.remove("$accountUuid.pqcSigningAlgorithm")
+        editor.remove("$accountUuid.pqcPublicKey")
+        editor.remove("$accountUuid.pqcSecretKey")
+        editor.remove("$accountUuid.pqcKeysetExists")
+        //-- END --
 
         deleteIdentities(account, storage, editor)
         // TODO: Remove preference settings that may exist for individual folders in the account.

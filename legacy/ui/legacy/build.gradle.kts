@@ -21,7 +21,7 @@ dependencies {
     implementation(projects.feature.funding.api)
     implementation(projects.feature.settings.import)
     implementation(projects.feature.telemetry.api)
-    implementation(project(":feature:pqc-extension"))
+    implementation(project(":library:liboqs-module"))
 
     compileOnly(projects.mail.protocols.imap)
 

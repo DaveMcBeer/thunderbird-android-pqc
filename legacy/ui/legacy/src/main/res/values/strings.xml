@@ -1083,4 +1083,52 @@ You can keep this message and use it as a backup for your secret key. If you wan
     <string name="settings_ui_telemetry_title">Usage and technical data</string>
     <!-- Description of the "Usage and technical data" setting used in the "data collection" section of the general settings screen -->
     <string name="settings_ui_telemetry_description">Shares performance, usage, hardware and customization data about this app with Mozilla to help us make Thunderbird better</string>
+
+    <!-- PQC Additions -->
+        <string name="account_settings_pq_algorithms_dilithium2">Dilithium2</string>
+        <string name="account_settings_pq_algorithms_dilithium3">Dilithium3</string>
+        <string name="account_settings_pq_algorithms_dilithium5">Dilithium5</string>
+        <string name="account_settings_pq_algorithms_ml_dsa_44">ML-DSA-44</string>
+        <string name="account_settings_pq_algorithms_ml_dsa_65">ML-DSA-65</string>
+        <string name="account_settings_pq_algorithms_ml_dsa_87">ML-DSA-87</string>
+        <string name="account_settings_pq_algorithms_falcon_512">Falcon-512</string>
+        <string name="account_settings_pq_algorithms_falcon_1024">Falcon-1024</string>
+        <string name="account_settings_pq_algorithms_falcon_padded_512">Falcon-padded-512</string>
+        <string name="account_settings_pq_algorithms_falcon_padded_1024">Falcon-padded-1024</string>
+        <string name="account_settings_pq_algorithms_sphincs_sha2_128f_simple">SPHINCS+-SHA2-128f-simple</string>
+        <string name="account_settings_pq_algorithms_sphincs_sha2_128s_simple">SPHINCS+-SHA2-128s-simple</string>
+        <string name="account_settings_pq_algorithms_sphincs_sha2_192f_simple">SPHINCS+-SHA2-192f-simple</string>
+        <string name="account_settings_pq_algorithms_sphincs_sha2_192s_simple">SPHINCS+-SHA2-192s-simple</string>
+        <string name="account_settings_pq_algorithms_sphincs_sha2_256f_simple">SPHINCS+-SHA2-256f-simple</string>
+        <string name="account_settings_pq_algorithms_sphincs_sha2_256s_simple">SPHINCS+-SHA2-256s-simple</string>
+        <string name="account_settings_pq_algorithms_sphincs_shake_128f_simple">SPHINCS+-SHAKE-128f-simple</string>
+        <string name="account_settings_pq_algorithms_sphincs_shake_128s_simple">SPHINCS+-SHAKE-128s-simple</string>
+        <string name="account_settings_pq_algorithms_sphincs_shake_192f_simple">SPHINCS+-SHAKE-192f-simple</string>
+        <string name="account_settings_pq_algorithms_sphincs_shake_192s_simple">SPHINCS+-SHAKE-192s-simple</string>
+        <string name="account_settings_pq_algorithms_sphincs_shake_256f_simple">SPHINCS+-SHAKE-256f-simple</string>
+        <string name="account_settings_pq_algorithms_sphincs_shake_256s_simple">SPHINCS+-SHAKE-256s-simple</string>
+        <string name="account_settings_pq_algorithms_mayo_1">MAYO-1</string>
+        <string name="account_settings_pq_algorithms_mayo_2">MAYO-2</string>
+        <string name="account_settings_pq_algorithms_mayo_3">MAYO-3</string>
+        <string name="account_settings_pq_algorithms_mayo_5">MAYO-5</string>
+        <string name="account_settings_pq_algorithms_cross_rsdp_128_balanced">cross-rsdp-128-balanced</string>
+        <string name="account_settings_pq_algorithms_cross_rsdp_128_fast">cross-rsdp-128-fast</string>
+        <string name="account_settings_pq_algorithms_cross_rsdp_128_small">cross-rsdp-128-small</string>
+        <string name="account_settings_pq_algorithms_cross_rsdp_192_balanced">cross-rsdp-192-balanced</string>
+        <string name="account_settings_pq_algorithms_cross_rsdp_192_fast">cross-rsdp-192-fast</string>
+        <string name="account_settings_pq_algorithms_cross_rsdp_192_small">cross-rsdp-192-small</string>
+        <string name="account_settings_pq_algorithms_cross_rsdp_256_balanced">cross-rsdp-256-balanced</string>
+        <string name="account_settings_pq_algorithms_cross_rsdp_256_fast">cross-rsdp-256-fast</string>
+        <string name="account_settings_pq_algorithms_cross_rsdp_256_small">cross-rsdp-256-small</string>
+        <string name="account_settings_pq_algorithms_cross_rsdpg_128_balanced">cross-rsdpg-128-balanced</string>
+        <string name="account_settings_pq_algorithms_cross_rsdpg_128_fast">cross-rsdpg-128-fast</string>
+        <string name="account_settings_pq_algorithms_cross_rsdpg_128_small">cross-rsdpg-128-small</string>
+        <string name="account_settings_pq_algorithms_cross_rsdpg_192_balanced">cross-rsdpg-192-balanced</string>
+        <string name="account_settings_pq_algorithms_cross_rsdpg_192_fast">cross-rsdpg-192-fast</string>
+        <string name="account_settings_pq_algorithms_cross_rsdpg_192_small">cross-rsdpg-192-small</string>
+        <string name="account_settings_pq_algorithms_cross_rsdpg_256_balanced">cross-rsdpg-256-balanced</string>
+        <string name="account_settings_pq_algorithms_cross_rsdpg_256_fast">cross-rsdpg-256-fast</string>
+        <string name="account_settings_pq_algorithms_cross_rsdpg_256_small">cross-rsdpg-256-small</string>
+        <string name="account_settings_pq_algorithms_none">None</string>
+    <!-- END -->
 </resources>

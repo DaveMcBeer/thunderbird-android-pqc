@@ -11,4 +11,5 @@ dependencies {
     implementation(projects.legacy.notification)
     implementation(projects.mail.common)
     implementation(projects.backend.api)
+    implementation(project(":library:liboqs-module"))
 }
