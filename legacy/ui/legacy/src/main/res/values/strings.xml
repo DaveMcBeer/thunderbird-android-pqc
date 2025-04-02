@@ -1130,5 +1130,10 @@ You can keep this message and use it as a backup for your secret key. If you wan
         <string name="account_settings_pq_algorithms_cross_rsdpg_256_fast">cross-rsdpg-256-fast</string>
         <string name="account_settings_pq_algorithms_cross_rsdpg_256_small">cross-rsdpg-256-small</string>
         <string name="account_settings_pq_algorithms_none">None</string>
+
+        <string name="enable_pqcsign_only">Enable Post Quantum Sign-Only</string>
+        <string name="disable_pqcsign_only">Disable Post Quantum Sign-Only</string>
+        <string name="enable_pqc_encrypt">Enable PQC Encryption</string>
+        <string name="disable_pqc_encrypt">Disable PQC Encryption</string>
     <!-- END -->
 </resources>

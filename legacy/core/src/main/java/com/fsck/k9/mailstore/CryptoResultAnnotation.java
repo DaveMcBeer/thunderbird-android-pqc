@@ -179,6 +179,23 @@ public final class CryptoResultAnnotation {
         return encapsulatedResult;
     }
 
+    //-- PQC Additions --
+
+    public static CryptoResultAnnotation createPqcSignatureAnnotation(MimeBodyPart replacementData) {
+        return new CryptoResultAnnotation(
+            CryptoError.PQC_SIGNED_OK, // oder definiere eigenen Typ z. B. PQC_SIGNED_OK
+            replacementData,
+            null, // no OpenPGP decryption
+            null, // no OpenPGP signature result
+            null, // no pending intent
+            null, // no insecure warning
+            null, // no openpgp error
+            false // no override
+        );
+    }
+    //-- END --
+
+
     public enum CryptoError {
         OPENPGP_OK,
         OPENPGP_UI_CANCELED,
@@ -189,5 +206,15 @@ public final class CryptoResultAnnotation {
         SIGNED_BUT_UNSUPPORTED,
         ENCRYPTED_BUT_UNSUPPORTED,
         OPENPGP_ENCRYPTED_NO_PROVIDER,
+
+        //-- PQC Additions --
+        PQC_SIGNED_OK,
+        PQC_SIGNATURE_ERROR,
+
+        PQC_ENCRYPTED_OK,
+        PQC_ENCRYPTED_ERROR,
+
+        //-- END --
+
     }
 }

@@ -14,4 +14,8 @@ interface CryptoStatus {
     val isEncryptAllDrafts: Boolean
     val isEncryptSubject: Boolean
     fun getRecipientAddresses(): Array<String>
+
+    // -- PQC Additions ---
+    val isPQCSignOnly: Boolean
+    // -- END --
 }

@@ -619,12 +619,16 @@ public class MessageCompose extends K9Activity implements OnClickListener,
             }
 
             PgpMessageBuilder pgpBuilder = PgpMessageBuilder.newInstance();
+            pgpBuilder.setAccount(account);
             recipientPresenter.builderSetProperties(pgpBuilder, cryptoStatus);
             builder = pgpBuilder;
         } else {
             builder = SimpleMessageBuilder.newInstance();
             recipientPresenter.builderSetProperties(builder);
         }
+
+        //cryptoStatus.setPQCSignOnly(recipientPresenter.isPQSignOnly()); => geht noch nicht
+        identity.setPQCSignOnly(recipientPresenter.isPQCSignOnly());
 
         builder.setSubject(Utility.stripNewLines(subjectView.getText().toString()))
                 .setSentDate(new Date())
@@ -941,7 +945,8 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         } else if (id == R.id.openpgp_encrypt_enable) {
             recipientPresenter.onMenuToggleEncryption();
             updateMessageFormat();
-        } else if (id == R.id.openpgp_inline_enable) {
+
+        }else if (id == R.id.openpgp_inline_enable) {
             recipientPresenter.onMenuSetPgpInline(true);
             updateMessageFormat();
         } else if (id == R.id.openpgp_inline_disable) {
@@ -955,7 +960,20 @@ public class MessageCompose extends K9Activity implements OnClickListener,
             attachmentPresenter.onClickAddAttachment(recipientPresenter);
         } else if (id == R.id.read_receipt) {
             onReadReceipt();
-        } else {
+        }
+        //-- PQC Additions --
+        else if (id == R.id.pqc_encrypt) {
+            recipientPresenter.onMenuSetPqcEncrypt(true);
+        } else if (id == R.id.pqc_encrypt_disable) {
+            recipientPresenter.onMenuSetPqcEncrypt(false);
+        }
+        else if (id == R.id.pqc_sign_only) {
+            recipientPresenter.onMenuSetPqcSigning(true);
+        } else if (id == R.id.pqc_sign_only_disable) {
+            recipientPresenter.onMenuSetPqcSigning(false);
+        }
+        //-- END --
+        else {
             return super.onOptionsItemSelected(item);
         }
         return true;

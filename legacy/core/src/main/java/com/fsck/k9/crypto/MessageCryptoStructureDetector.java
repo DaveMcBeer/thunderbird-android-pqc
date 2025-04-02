@@ -74,7 +74,7 @@ public class MessageCryptoStructureDetector {
         if (multipart.getCount() == 0) {
             return null;
         }
-        
+
         BodyPart firstBodyPart = multipart.getBodyPart(0);
 
         Part foundPart;
@@ -100,7 +100,7 @@ public class MessageCryptoStructureDetector {
             if (multipart.getCount() == 0) {
                 return null;
             }
-            
+
             BodyPart firstBodyPart = multipart.getBodyPart(0);
             if (isPartPgpInlineEncryptedOrSigned(firstBodyPart)) {
                 return firstBodyPart;
@@ -228,10 +228,12 @@ public class MessageCryptoStructureDetector {
 
         String protocolParameter = MimeUtility.getHeaderParameter(part.getContentType(), PROTOCOL_PARAMETER);
 
+
         // for partially downloaded messages the protocol parameter isn't yet available, so we'll just assume it's ok
         boolean dataUnavailable = protocolParameter == null && mimeMultipart.getBodyPart(0).getBody() == null;
         boolean protocolMatches = isSameMimeType(protocolParameter, mimeMultipart.getBodyPart(1).getMimeType());
-        return dataUnavailable || protocolMatches;
+
+        return dataUnavailable || protocolMatches ;
     }
 
     public static boolean isPartMultipartEncrypted(Part part) {
@@ -299,5 +301,29 @@ public class MessageCryptoStructureDetector {
         text = text.trim();
         return text.startsWith(PGP_INLINE_START_MARKER);
     }
+
+
+    //-- PQC Additions --
+    public static boolean isPqcSigned(Part part) {
+        try {
+            if (!(part.getBody() instanceof MimeMultipart)) {
+                return false;
+            }
+
+            MimeMultipart multipart = (MimeMultipart) part.getBody();
+            if (multipart.getCount() != 2) {
+                return false;
+            }
+
+            String protocol = MimeUtility.getHeaderParameter(part.getContentType(), PROTOCOL_PARAMETER);
+            BodyPart signaturePart = multipart.getBodyPart(1);
+
+            return isSameMimeType(protocol, "application/pq-signature") &&
+                isSameMimeType(signaturePart.getMimeType(), "application/pq-signature");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    //-- END --
 
 }

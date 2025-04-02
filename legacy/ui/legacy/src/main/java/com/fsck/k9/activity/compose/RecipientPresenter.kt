@@ -109,6 +109,8 @@ class RecipientPresenter(
         }
     }
 
+    var isPQCSignOnly: Boolean? = false
+
     init {
         recipientMvpView.setPresenter(this)
         recipientMvpView.setLoaderManager(loaderManager)
@@ -315,6 +317,19 @@ class RecipientPresenter(
             val showPgpInlineEnable = (isEncrypting || isSignOnly) && !pgpInlineModeEnabled
             menu.findItem(R.id.openpgp_inline_enable).isVisible = showPgpInlineEnable
             menu.findItem(R.id.openpgp_inline_disable).isVisible = pgpInlineModeEnabled
+
+            val showPQSignOnly = !account.isPqcShowSignature
+            isPQCSignOnly = currentCryptoStatus.isSignOnly
+
+            val isPqcSigningOnly = currentCryptoStatus.isPQCSignOnly
+
+            //menu.findItem(R.id.pqc_encrypt).isVisible = !isPqcEncrypt
+            //menu.findItem(R.id.pqc_encrypt_disable).isVisible = isPqcEncrypt
+
+            val isPqcEncrypt = currentCryptoStatus.isPQCSignOnly
+
+            menu.findItem(R.id.pqc_encrypt).isVisible = !isPqcEncrypt
+            menu.findItem(R.id.pqc_encrypt_disable).isVisible = isPqcEncrypt
         } else {
             menu.findItem(R.id.openpgp_inline_enable).isVisible = false
             menu.findItem(R.id.openpgp_inline_disable).isVisible = false
@@ -744,6 +759,20 @@ class RecipientPresenter(
             }
         }
     }
+    fun onMenuSetPqcEncrypt(enable: Boolean) {
+        if (enable) {
+            onCryptoModeChanged(CryptoMode.PQC_ENCRYPT)
+        } else {
+            onCryptoModeChanged(CryptoMode.NO_CHOICE)
+        }
+    }
+    fun onMenuSetPqcSigning(enable: Boolean){
+        if (enable) {
+            onCryptoModeChanged(CryptoMode.PQC_SIGN_ONLY)
+        } else {
+            onCryptoModeChanged(CryptoMode.NO_CHOICE)
+        }
+    }
 
     private fun Array<String>.toAddressArray(): Array<Address> {
         return flatMap { addressString ->
@@ -770,5 +799,7 @@ class RecipientPresenter(
         NO_CHOICE,
         CHOICE_DISABLED,
         CHOICE_ENABLED,
+        PQC_SIGN_ONLY,
+        PQC_ENCRYPT
     }
 }

@@ -37,6 +37,7 @@ dependencies {
     implementation(libs.mime4j.core)
     implementation(libs.mime4j.dom)
     implementation(projects.feature.navigation.drawer)
+    implementation(project(":library:liboqs-module"))
 
 
     testApi(projects.core.testing)

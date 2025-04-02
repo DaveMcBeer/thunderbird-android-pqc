@@ -250,7 +250,6 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
     private fun initializePqcKeyManagement() {
         val keyManagementPref = findPreference<Preference>("pqc_key_management")
         val algorithmPref = findPreference<ListPreference>("pqc_signing_algorithm")
-        val isPqcEnabledPref = findPreference<Preference>("pqc_enabled")
         val account = getAccount()
 
 
@@ -264,11 +263,24 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
 
 
         // Initialer Zustand
-        keyManagementPref.isEnabled = algorithmPref.value != "None"
+        keyManagementPref.isEnabled = algorithmPref.value != "None" && account.isPqcEnabled
 
-        isPqcEnabledPref?.setOnPreferenceChangeListener{_,newValue ->
+        val isPqcEnabledPref = findPreference<SwitchPreference>("pqc_enabled")
+        isPqcEnabledPref?.setOnPreferenceChangeListener{preference,newValue ->
             val enabled = newValue as Boolean
-            keyManagementPref.isEnabled = enabled
+
+            if (enabled && account.openPgpProvider == null) {
+                // Kein OpenPGP Provider vorhanden → zurücksetzen + Hinweis
+                Toast.makeText(requireContext(), R.string.account_settings_openpgp_missing, Toast.LENGTH_LONG).show()
+
+                isPqcEnabledPref.isChecked = false
+                preference.setDefaultValue(false)
+                keyManagementPref.isEnabled = false
+                return@setOnPreferenceChangeListener false
+            }
+            else
+                keyManagementPref.isEnabled = enabled
+
             true
         }
 
@@ -279,7 +291,7 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
 
             if (!selected.equals(previousAlgorithm, ignoreCase = true)) {
                 // Reset Keys
-                account.pqcPublicSingingKey = null
+                account.pqcPublicSigngingKey = null
                 account.pqcSecretSigningKey = null
                 account.pqcKeysetExists = false
                 account.pqcSigningAlgorithm = selected

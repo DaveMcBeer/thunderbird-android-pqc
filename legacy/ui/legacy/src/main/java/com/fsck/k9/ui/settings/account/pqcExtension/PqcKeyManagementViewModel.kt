@@ -14,14 +14,16 @@ import org.openquantumsafe.Signature
 import org.openquantumsafe.Sigs
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
+import androidx.annotation.RequiresApi
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.LiveData
 import java.io.InputStream
-
+import java.util.Base64
 
 /**
  * ViewModel zur Verwaltung von PQC-Schlüsselpaaren (Post-Quantum Cryptography)
@@ -70,6 +72,7 @@ class PqcKeyManagementViewModel(
      * Verwendet den im Account gespeicherten Algorithmus (z. B. Dilithium2).
      * Ergebnis wird im Account gespeichert und persistiert.
      */
+    @RequiresApi(Build.VERSION_CODES.O)
     fun generatePqcKeyPair() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -91,10 +94,10 @@ class PqcKeyManagementViewModel(
                     try {
                         signature.generate_keypair()
 
-                        val publicKey = signature.export_public_key().toHexString()
-                        val privateKey = signature.export_secret_key().toHexString()
+                        val publicKey = Base64.getEncoder().encodeToString(signature.export_public_key())
+                        val privateKey =   Base64.getEncoder().encodeToString(signature.export_secret_key())
 
-                        account.pqcPublicSingingKey = publicKey
+                        account.pqcPublicSigngingKey = publicKey
                         account.pqcSecretSigningKey = privateKey
                         account.pqcKeysetExists = true
 
@@ -132,7 +135,7 @@ class PqcKeyManagementViewModel(
                 }
 
                 withContext(Dispatchers.IO) {
-                    account.pqcPublicSingingKey = null
+                    account.pqcPublicSigngingKey = null
                     account.pqcSecretSigningKey = null
                     account.pqcKeysetExists = false
                     preferences.saveAccount(account)
@@ -165,7 +168,7 @@ class PqcKeyManagementViewModel(
                 }
 
                 val algorithm = account.pqcSigningAlgorithm ?: "Unbekannt"
-                val publicKey = account.pqcPublicSingingKey
+                val publicKey = account.pqcPublicSigngingKey
                 val privateKey = account.pqcSecretSigningKey
 
                 if (publicKey.isNullOrBlank() || privateKey.isNullOrBlank())  {
@@ -223,7 +226,7 @@ class PqcKeyManagementViewModel(
                 val privateKey = json.getString("privateKey")
 
                 account.pqcSigningAlgorithm = algorithm
-                account.pqcPublicSingingKey = publicKey
+                account.pqcPublicSigngingKey = publicKey
                 account.pqcSecretSigningKey = privateKey
                 account.pqcKeysetExists = true
 
@@ -240,7 +243,7 @@ class PqcKeyManagementViewModel(
     }
 
     fun getPublicKey(): String? {
-        return account?.pqcPublicSingingKey
+        return account?.pqcPublicSigngingKey
     }
 
     fun getSecretKey(): String? {
@@ -266,7 +269,7 @@ class PqcKeyManagementViewModel(
     private fun updateKeyStatus() {
         _keyStatus.postValue(
             KeyStatus(
-                publicKey = account?.pqcPublicSingingKey,
+                publicKey = account?.pqcPublicSigngingKey,
                 privateKey = account?.pqcSecretSigningKey,
                 algorithm = account?.pqcSigningAlgorithm
             )

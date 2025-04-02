@@ -11,6 +11,7 @@ data class Identity(
     val signature: String? = null,
     val signatureUse: Boolean = false,
     val replyTo: String? = null,
+    var isPQCSignOnly: Boolean? = false
 ) : Parcelable {
     // TODO remove when callers are converted to Kotlin
     fun withName(name: String?) = copy(name = name)

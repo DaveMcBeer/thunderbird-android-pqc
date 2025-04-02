@@ -204,7 +204,7 @@ class AccountPreferenceSerializer(
             isPqcEnabled = storage.getBoolean("$accountUuid.pqcEnabled", false)
             isPqcShowSignature = storage.getBoolean("$accountUuid.pqcHideSignOnly", false)
             pqcSigningAlgorithm = storage.getString("$accountUuid.pqcSigningAlgorithm", null)
-            pqcPublicSingingKey = storage.getString("$accountUuid.pqcPublicKey", null)
+            pqcPublicSigngingKey = storage.getString("$accountUuid.pqcPublicKey", null)
             pqcSecretSigningKey = storage.getString("$accountUuid.pqcSecretKey", null)
             pqcKeysetExists = storage.getBoolean("$accountUuid.pqcKeysetExists", false)
             // -- END --
@@ -376,7 +376,7 @@ class AccountPreferenceSerializer(
             editor.putBoolean("$accountUuid.pqcEnabled", isPqcEnabled)
             editor.putBoolean("$accountUuid.pqcHideSignOnly", isPqcShowSignature)
             editor.putString("$accountUuid.pqcSigningAlgorithm", pqcSigningAlgorithm)
-            editor.putString("$accountUuid.pqcPublicKey", pqcPublicSingingKey)
+            editor.putString("$accountUuid.pqcPublicKey", pqcPublicSigngingKey)
             editor.putString("$accountUuid.pqcSecretKey", pqcSecretSigningKey)
             editor.putBoolean("$accountUuid.pqcKeysetExists", pqcKeysetExists == true)
             // -- END --

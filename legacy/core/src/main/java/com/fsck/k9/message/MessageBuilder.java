@@ -358,6 +358,9 @@ public abstract class MessageBuilder {
         }
         return body;
     }
+    public String getText() {
+        return text;
+    }
 
     public MessageBuilder setSubject(String subject) {
         this.subject = subject;

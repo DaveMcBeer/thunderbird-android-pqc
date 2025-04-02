@@ -31,6 +31,7 @@ import com.fsck.k9.mail.Part;
 import com.fsck.k9.mail.internet.MessageExtractor;
 import com.fsck.k9.mail.internet.MimeBodyPart;
 import com.fsck.k9.mail.internet.MimeMultipart;
+import com.fsck.k9.mail.internet.MimeUtility;
 import com.fsck.k9.mail.internet.SizeAware;
 import com.fsck.k9.mail.internet.TextBody;
 import com.fsck.k9.mailstore.CryptoResultAnnotation;
@@ -40,6 +41,7 @@ import com.fsck.k9.mailstore.MessageHelper;
 import com.fsck.k9.mailstore.MimePartStreamParser;
 import com.fsck.k9.mailstore.util.FileFactory;
 import com.fsck.k9.provider.DecryptedFileProvider;
+import kotlin.NotImplementedError;
 import org.apache.commons.io.IOUtils;
 import org.openintents.openpgp.IOpenPgpService2;
 import org.openintents.openpgp.OpenPgpDecryptionResult;
@@ -53,6 +55,7 @@ import org.openintents.openpgp.util.OpenPgpApi.OpenPgpDataSink;
 import org.openintents.openpgp.util.OpenPgpApi.OpenPgpDataSource;
 import org.openintents.openpgp.util.OpenPgpServiceConnection;
 import org.openintents.openpgp.util.OpenPgpServiceConnection.OnBound;
+import org.openquantumsafe.Signature;
 import timber.log.Timber;
 
 
@@ -164,6 +167,14 @@ public class MessageCryptoHelper {
                 partsToProcess.add(cryptoPart);
                 continue;
             }
+
+            // -- PQC Addition --
+            if (MessageCryptoStructureDetector.isPqcSigned(part)) {
+                CryptoPart cryptoPart = new CryptoPart(CryptoPartType.PQC_SIGNED, part);
+                partsToProcess.add(cryptoPart);
+                continue;
+            }
+            // -- END --
             MimeBodyPart replacementPart = getMultipartSignedContentPartIfAvailable(part);
             addErrorAnnotation(part, CryptoError.SIGNED_BUT_UNSUPPORTED, replacementPart);
         }
@@ -301,8 +312,19 @@ public class MessageCryptoHelper {
                     callAsyncInlineOperation(apiIntent);
                     return;
                 }
+                // -- PQC Additions --
+                case PQC_SIGNED: {
+                    callPqcVerify(currentCryptoPart.part);
+                    return;
+                }
+                case PQC_ENCRYPTED: {
+                    throw new NotImplementedError("noch zu tun");
+
+                }
+                // -- PQC END --
                 case PLAIN_AUTOCRYPT:
                     throw new IllegalStateException("This part type must have been handled previously!");
+
             }
 
             throw new IllegalStateException("Unknown crypto part type: " + cryptoPartType);
@@ -420,6 +442,60 @@ public class MessageCryptoHelper {
         });
     }
 
+
+    // -- PQC Additinos --
+    private void callPqcVerify(Part part) {
+        try {
+            Multipart multipart = (Multipart) part.getBody();
+
+
+            if (multipart.getCount() < 3) {
+                throw new IllegalStateException("Expected 3-part multipart/signed for PQC message");
+            }
+
+            BodyPart signedContent = multipart.getBodyPart(0); // die eigentliche Nachricht
+            BodyPart signaturePart = multipart.getBodyPart(1); // "signature.asc"
+            BodyPart publicKeyPart = multipart.getBodyPart(2); // "public_key.asc"
+
+            byte[] signatureBytes = getBytes(signaturePart);
+            byte[] publicKeyBytes = getBytes(publicKeyPart);
+            byte[] messageBytes = getBytes(signedContent);
+
+            // Extrahiere Algorithmus
+            String contentType = part.getContentType();
+            String algorithm = MimeUtility.getHeaderParameter(contentType, "micalg");
+
+            if (algorithm == null || algorithm.isEmpty()) {
+                throw new IllegalStateException("Expected used Algorithm \"micalg\" for PQC message");
+            }
+
+            Signature pqcSignatureVerifier = new Signature(algorithm);
+            boolean isValid = pqcSignatureVerifier.verify(messageBytes, signatureBytes, publicKeyBytes);
+
+            pqcSignatureVerifier.dispose_sig();
+
+            MimeBodyPart replacement = (MimeBodyPart) signedContent;
+            CryptoResultAnnotation result = isValid
+                ? CryptoResultAnnotation.createPqcSignatureAnnotation(replacement)
+                : CryptoResultAnnotation.createErrorAnnotation(CryptoError.PQC_SIGNATURE_ERROR, replacement);
+
+            onCryptoOperationSuccess(result);
+
+        } catch (Exception e) {
+            Timber.e(e, "PQC Signature Verification failed");
+            MimeBodyPart replacement = getMultipartSignedContentPartIfAvailable(part);
+            CryptoResultAnnotation result = CryptoResultAnnotation.createErrorAnnotation(CryptoError.PQC_SIGNATURE_ERROR, replacement);
+            onCryptoOperationSuccess(result);
+        }
+    }
+
+    private byte[] getBytes(BodyPart part) throws IOException, MessagingException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        part.getBody().writeTo(outputStream);
+        return outputStream.toByteArray();
+    }
+
+    // -- END --
     private OpenPgpDataSource getDataSourceForSignedData(final Part signedPart) {
         return new OpenPgpDataSource() {
             @Override
@@ -818,7 +894,9 @@ public class MessageCryptoHelper {
         PGP_INLINE,
         PGP_ENCRYPTED,
         PGP_SIGNED,
-        PLAIN_AUTOCRYPT
+        PLAIN_AUTOCRYPT,
+        PQC_SIGNED,
+        PQC_ENCRYPTED
     }
 
     @Nullable

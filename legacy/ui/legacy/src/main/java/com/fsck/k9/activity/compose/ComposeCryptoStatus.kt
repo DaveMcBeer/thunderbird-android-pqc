@@ -55,6 +55,9 @@ data class ComposeCryptoStatus(
     private val isMutualAndNotDisabled = cryptoMode != CryptoMode.CHOICE_DISABLED && canEncryptAndIsMutualDefault()
     private val isReplyAndNotDisabled = cryptoMode != CryptoMode.CHOICE_DISABLED && isReplyToEncrypted
 
+    override val isPQCSignOnly = cryptoMode == CryptoMode.PQC_SIGN_ONLY
+
+
     val isOpenPgpConfigured = openPgpProviderState != OpenPgpProviderState.UNCONFIGURED
 
     override val isSignOnly = cryptoMode == CryptoMode.SIGN_ONLY
@@ -71,7 +74,12 @@ data class ComposeCryptoStatus(
     override fun isProviderStateOk() = openPgpProviderState == OpenPgpProviderState.OK
 
     override fun isUserChoice() = cryptoMode != CryptoMode.NO_CHOICE
-    override fun isSigningEnabled() = cryptoMode == CryptoMode.SIGN_ONLY || isEncryptionEnabled
+
+
+    // -- PQC erweiterung:   cryptoMode == CryptoMode.PQ_SIGN_ONLY --
+    override fun isSigningEnabled() = cryptoMode == CryptoMode.SIGN_ONLY || isEncryptionEnabled || cryptoMode == CryptoMode.PQC_SIGN_ONLY
+
+
     val recipientAddressesAsArray = recipientAddresses.toTypedArray()
 
     private val displayTypeFromProviderError = when (openPgpProviderState) {

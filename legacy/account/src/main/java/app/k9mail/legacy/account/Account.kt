@@ -321,7 +321,7 @@ class Account(
     // Used to save the public key (if existent)
     @get:Synchronized
     @set:Synchronized
-    var pqcPublicSingingKey: String? = null
+    var pqcPublicSigngingKey: String? = null
 
     // Used to save the secret key (if existent)
     @get:Synchronized
