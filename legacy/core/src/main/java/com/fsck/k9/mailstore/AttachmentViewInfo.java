@@ -5,6 +5,7 @@ import android.net.Uri;
 
 import com.fsck.k9.helper.MimeTypeUtil;
 import com.fsck.k9.mail.Part;
+import com.fsck.k9.mail.internet.MimeBodyPart;
 
 
 public class AttachmentViewInfo {
@@ -49,7 +50,25 @@ public class AttachmentViewInfo {
         }
 
         return MimeTypeUtil.isSupportedImageType(mimeType) || (
-                MimeTypeUtil.isSameMimeType(MimeTypeUtil.DEFAULT_ATTACHMENT_MIME_TYPE, mimeType) &&
+            MimeTypeUtil.isSameMimeType(MimeTypeUtil.DEFAULT_ATTACHMENT_MIME_TYPE, mimeType) &&
                 MimeTypeUtil.isSupportedImageExtension(displayName));
     }
+
+    //--- PQC Addition ---
+
+    /**
+     * Gibt den Anhang als {@link MimeBodyPart} zurück.
+     *
+     * - Prüft, ob das zugrunde liegende Part-Objekt eine Instanz von {@code MimeBodyPart} ist.
+     * - Gibt es zurück, wenn ja; wirft sonst eine {@link IllegalStateException}, wenn der Typ nicht passt.
+     */
+
+    public MimeBodyPart toBodyPart() {
+        if (part instanceof MimeBodyPart) {
+            return (MimeBodyPart) part;
+        } else {
+            throw new IllegalStateException("Attachment part is not a MimeBodyPart!");
+        }
+    }
+    //--- END ---
 }

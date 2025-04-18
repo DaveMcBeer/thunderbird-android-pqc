@@ -1,16 +1,15 @@
 package com.fsck.k9.mailstore;
 
-
 import android.app.PendingIntent;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.fsck.k9.mail.internet.MimeBodyPart;
-
+import com.fsck.k9.mailstore.pqc.PqcDecryptionResult;
+import com.fsck.k9.mailstore.pqc.PqcSignatureResult;
 import org.openintents.openpgp.OpenPgpDecryptionResult;
 import org.openintents.openpgp.OpenPgpError;
 import org.openintents.openpgp.OpenPgpSignatureResult;
-
 
 public final class CryptoResultAnnotation {
     @NonNull private final CryptoError errorType;
@@ -24,14 +23,23 @@ public final class CryptoResultAnnotation {
     private final boolean overrideCryptoWarning;
 
     private final CryptoResultAnnotation encapsulatedResult;
+//--- PQC Erweiterung ---
+    private final PqcDecryptionResult pqcDecryptionResult;
+    private final PqcSignatureResult pqcSignatureResult;
+//--- ENDE ---
 
-    private CryptoResultAnnotation(@NonNull CryptoError errorType, MimeBodyPart replacementData,
-            OpenPgpDecryptionResult openPgpDecryptionResult,
-            OpenPgpSignatureResult openPgpSignatureResult,
-            PendingIntent openPgpPendingIntent,
-            PendingIntent openPgpInsecureWarningPendingIntent,
-            OpenPgpError openPgpError,
-            boolean overrideCryptoWarning) {
+    private CryptoResultAnnotation(
+        @NonNull CryptoError errorType,
+        MimeBodyPart replacementData,
+        OpenPgpDecryptionResult openPgpDecryptionResult,
+        OpenPgpSignatureResult openPgpSignatureResult,
+        PendingIntent openPgpPendingIntent,
+        PendingIntent openPgpInsecureWarningPendingIntent,
+        OpenPgpError openPgpError,
+        boolean overrideCryptoWarning,
+        PqcDecryptionResult pqcDecryptionResult,    //--- PQC Erweiterung ---
+        PqcSignatureResult pqcSignatureResult   //--- PQC Erweiterung ---
+    ) {
         this.errorType = errorType;
         this.replacementData = replacementData;
 
@@ -43,6 +51,11 @@ public final class CryptoResultAnnotation {
         this.overrideCryptoWarning = overrideCryptoWarning;
 
         this.encapsulatedResult = null;
+
+        //--- PQC Erweiterung ---
+        this.pqcDecryptionResult = pqcDecryptionResult;
+        this.pqcSignatureResult = pqcSignatureResult;
+        //--- ENDE ---
     }
 
     private CryptoResultAnnotation(CryptoResultAnnotation annotation, CryptoResultAnnotation encapsulatedResult) {
@@ -61,38 +74,43 @@ public final class CryptoResultAnnotation {
         this.overrideCryptoWarning = annotation.overrideCryptoWarning;
 
         this.encapsulatedResult = encapsulatedResult;
+
+        //--- PQC Erweiterung ---
+        this.pqcDecryptionResult = annotation.pqcDecryptionResult;
+        this.pqcSignatureResult = annotation.pqcSignatureResult;
+        //--- ENDE ---
     }
 
-
+    // OpenPGP Factories
     public static CryptoResultAnnotation createOpenPgpResultAnnotation(OpenPgpDecryptionResult decryptionResult,
             OpenPgpSignatureResult signatureResult, PendingIntent pendingIntent,
             PendingIntent insecureWarningPendingIntent, MimeBodyPart replacementPart,
             boolean overrideCryptoWarning) {
         return new CryptoResultAnnotation(CryptoError.OPENPGP_OK, replacementPart,
                 decryptionResult, signatureResult, pendingIntent, insecureWarningPendingIntent, null,
-                overrideCryptoWarning);
+                overrideCryptoWarning, null, null);  //--- PQC Erweiterung: null,null zusätzlich ---
     }
 
     public static CryptoResultAnnotation createErrorAnnotation(CryptoError error, MimeBodyPart replacementData) {
-        if (error == CryptoError.OPENPGP_OK) {
-            throw new AssertionError("CryptoError must be actual error state!");
+        if (error == CryptoError.OPENPGP_OK || error == CryptoError.PQC_ENCRYPTED_OK || error == CryptoError.PQC_SIGNED_OK) { //--- PQC Erweiterung ---
+            throw new AssertionError("CryptoError must be an actual error state!");
         }
-        return new CryptoResultAnnotation(error, replacementData, null, null, null, null, null, false);
+        return new CryptoResultAnnotation(error, replacementData, null, null, null, null, null, false, null, null);
     }
 
     public static CryptoResultAnnotation createOpenPgpCanceledAnnotation() {
-        return new CryptoResultAnnotation(CryptoError.OPENPGP_UI_CANCELED, null, null, null, null, null, null, false);
+        return new CryptoResultAnnotation(CryptoError.OPENPGP_UI_CANCELED, null, null, null, null, null, null, false, null, null);  //--- PQC Erweiterung: null,null zusätzlich ---
     }
 
     public static CryptoResultAnnotation createOpenPgpSignatureErrorAnnotation(
             OpenPgpError error, MimeBodyPart replacementData) {
         return new CryptoResultAnnotation(
-                CryptoError.OPENPGP_SIGNED_API_ERROR, replacementData, null, null, null, null, error, false);
+                CryptoError.OPENPGP_SIGNED_API_ERROR, replacementData, null, null, null, null, error, false, null, null);    //--- PQC Erweiterung: null,null zusätzlich ---
     }
 
     public static CryptoResultAnnotation createOpenPgpEncryptionErrorAnnotation(OpenPgpError error) {
         return new CryptoResultAnnotation(
-                CryptoError.OPENPGP_ENCRYPTED_API_ERROR, null, null, null, null, null, error, false);
+                CryptoError.OPENPGP_ENCRYPTED_API_ERROR, null, null, null, null, null, error, false, null, null);   //--- PQC Erweiterung: null,null zusätzlich ---
     }
 
     public boolean isOpenPgpResult() {
@@ -179,22 +197,39 @@ public final class CryptoResultAnnotation {
         return encapsulatedResult;
     }
 
-    //-- PQC Additions --
+    //--- PQC Erweiterung ---
+    public boolean isPqcResult() {
+        return pqcDecryptionResult != null || pqcSignatureResult != null;
+    }
 
-    public static CryptoResultAnnotation createPqcSignatureAnnotation(MimeBodyPart replacementData) {
+    @Nullable
+    public PqcDecryptionResult getPqcDecryptionResult() {
+        return pqcDecryptionResult;
+    }
+
+    public static CryptoResultAnnotation createPqcSignatureAnnotation(PqcDecryptionResult decryptionResult, PqcSignatureResult signatureResult,MimeBodyPart replacementData) {
         return new CryptoResultAnnotation(
-            CryptoError.PQC_SIGNED_OK, // oder definiere eigenen Typ z. B. PQC_SIGNED_OK
+            CryptoError.PQC_SIGNED_OK,
             replacementData,
             null, // no OpenPGP decryption
             null, // no OpenPGP signature result
             null, // no pending intent
             null, // no insecure warning
             null, // no openpgp error
-            false // no override
+            false,
+            decryptionResult,
+            signatureResult
         );
     }
-    //-- END --
+    @Nullable
+    public PqcSignatureResult getPqcSignatureResult() {
+        return pqcSignatureResult;
+    }
 
+    public boolean isPqcEncrypted() {
+        return pqcDecryptionResult != null && pqcDecryptionResult.result == PqcDecryptionResult.RESULT_ENCRYPTED; //--- PQC Erweiterung ---
+    }
+    //--- ENDE ---
 
     public enum CryptoError {
         OPENPGP_OK,
@@ -207,14 +242,12 @@ public final class CryptoResultAnnotation {
         ENCRYPTED_BUT_UNSUPPORTED,
         OPENPGP_ENCRYPTED_NO_PROVIDER,
 
-        //-- PQC Additions --
+        //--- PQC Erweiterung ---
         PQC_SIGNED_OK,
         PQC_SIGNATURE_ERROR,
-
         PQC_ENCRYPTED_OK,
-        PQC_ENCRYPTED_ERROR,
+        PQC_ENCRYPTED_ERROR
 
-        //-- END --
-
+        //--- ENDE ---
     }
 }

@@ -249,6 +249,15 @@ enum class MessageCryptoDisplayStatus(
         ): MessageCryptoDisplayStatus {
             return when (cryptoResult?.errorType) {
                 null -> DISABLED
+                // --- PQC Erweiterung ---
+                CryptoError.PQC_SIGNED_OK,
+                CryptoError.PQC_ENCRYPTED_OK,
+                CryptoError.PQC_SIGNATURE_ERROR,
+                CryptoError.PQC_ENCRYPTED_ERROR,
+                    -> getDisplayStatusForPqcResult(cryptoResult)
+
+                //--- ENDE --
+
                 CryptoError.OPENPGP_OK -> getDisplayStatusForPgpResult(cryptoResult)
                 CryptoError.OPENPGP_ENCRYPTED_BUT_INCOMPLETE -> INCOMPLETE_ENCRYPTED
                 CryptoError.OPENPGP_SIGNED_BUT_INCOMPLETE -> INCOMPLETE_SIGNED
@@ -293,7 +302,18 @@ enum class MessageCryptoDisplayStatus(
                 else -> throw AssertionError("all cases must be handled, this is a bug!")
             }
         }
-
+        private fun getDisplayStatusForPqcResult(
+            cryptoResult: CryptoResultAnnotation,
+        ): MessageCryptoDisplayStatus {
+            // Hier kannst du später auch Details auslesen, z.B. SenderStatus usw.
+            return when (cryptoResult.errorType) {
+                CryptoError.PQC_SIGNED_OK -> UNENCRYPTED_SIGN_VERIFIED
+                CryptoError.PQC_ENCRYPTED_OK -> ENCRYPTED_SIGN_VERIFIED
+                CryptoError.PQC_SIGNATURE_ERROR -> UNENCRYPTED_SIGN_ERROR
+                CryptoError.PQC_ENCRYPTED_ERROR -> ENCRYPTED_ERROR
+                else -> error("Unhandled PQC case!")
+            }
+        }
         private fun getStatusForPgpEncryptedResult(
             signatureResult: OpenPgpSignatureResult,
         ): MessageCryptoDisplayStatus {

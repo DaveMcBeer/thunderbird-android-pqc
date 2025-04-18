@@ -6,10 +6,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
-import java.util.Objects;
 
-import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.content.Intent;
 
@@ -17,7 +14,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.content.IntentCompat;
-import app.k9mail.legacy.account.Account;
 import com.fsck.k9.CoreResourceProvider;
 import app.k9mail.legacy.di.DI;
 import com.fsck.k9.K9;
@@ -46,7 +42,6 @@ import org.apache.james.mime4j.util.MimeUtil;
 import org.openintents.openpgp.OpenPgpError;
 import org.openintents.openpgp.util.OpenPgpApi;
 import org.openintents.openpgp.util.OpenPgpApi.OpenPgpDataSource;
-import org.openquantumsafe.Signature;
 import timber.log.Timber;
 
 
@@ -64,7 +59,6 @@ public class PgpMessageBuilder extends MessageBuilder {
     private MimeMessage currentProcessedMimeMessage;
     private MimeBodyPart messageContentBodyPart;
     private CryptoStatus cryptoStatus;
-    private Account account;
 
 
     public static PgpMessageBuilder newInstance() {
@@ -74,13 +68,13 @@ public class PgpMessageBuilder extends MessageBuilder {
         AutocryptOpenPgpApiInteractor autocryptOpenPgpApiInteractor = AutocryptOpenPgpApiInteractor.getInstance();
         CoreResourceProvider resourceProvider = DI.get(CoreResourceProvider.class);
         return new PgpMessageBuilder(messageIdGenerator, boundaryGenerator, autocryptOperations,
-                autocryptOpenPgpApiInteractor, resourceProvider);
+            autocryptOpenPgpApiInteractor, resourceProvider);
     }
 
     @VisibleForTesting
     PgpMessageBuilder(MessageIdGenerator messageIdGenerator, BoundaryGenerator boundaryGenerator,
-            AutocryptOperations autocryptOperations, AutocryptOpenPgpApiInteractor autocryptOpenPgpApiInteractor,
-            CoreResourceProvider resourceProvider) {
+        AutocryptOperations autocryptOperations, AutocryptOpenPgpApiInteractor autocryptOpenPgpApiInteractor,
+        CoreResourceProvider resourceProvider) {
         super(messageIdGenerator, boundaryGenerator, resourceProvider);
 
         this.autocryptOperations = autocryptOperations;
@@ -130,18 +124,18 @@ public class PgpMessageBuilder extends MessageBuilder {
     private void addAutocryptHeaderIfAvailable(long openPgpKeyId) {
         Address address = currentProcessedMimeMessage.getFrom()[0];
         byte[] keyData = autocryptOpenPgpApiInteractor.getKeyMaterialForKeyId(
-                openPgpApi, openPgpKeyId, address.getAddress());
+            openPgpApi, openPgpKeyId, address.getAddress());
         if (keyData != null) {
             autocryptOperations.addAutocryptHeaderToMessage(currentProcessedMimeMessage, keyData,
-                    address.getAddress(), cryptoStatus.isSenderPreferEncryptMutual());
+                address.getAddress(), cryptoStatus.isSenderPreferEncryptMutual());
         }
     }
 
     private void addDraftStateHeader() {
         AutocryptDraftStateHeader autocryptDraftStateHeader =
-                AutocryptDraftStateHeader.fromCryptoStatus(cryptoStatus);
+            AutocryptDraftStateHeader.fromCryptoStatus(cryptoStatus);
         currentProcessedMimeMessage.setHeader(AutocryptDraftStateHeader.AUTOCRYPT_DRAFT_STATE_HEADER,
-                autocryptDraftStateHeader.toHeaderValue());
+            autocryptDraftStateHeader.toHeaderValue());
     }
 
     @Override
@@ -157,14 +151,14 @@ public class PgpMessageBuilder extends MessageBuilder {
             boolean shouldSign = cryptoStatus.isSigningEnabled() && !isDraft();
             boolean shouldEncrypt = cryptoStatus.isEncryptionEnabled() || (isDraft() && cryptoStatus.isEncryptAllDrafts());
             boolean isPgpInlineMode = cryptoStatus.isPgpInlineModeEnabled() && !isDraft();
-            boolean isPQCSignOnly = cryptoStatus.isPQCSignOnly() && !isDraft();
+
             if (!shouldSign && !shouldEncrypt) {
                 queueMessageBuildSuccess(currentProcessedMimeMessage);
                 return;
             }
 
             boolean isSimpleTextMessage =
-                    MimeUtility.isSameMimeType("text/plain", currentProcessedMimeMessage.getMimeType());
+                MimeUtility.isSameMimeType("text/plain", currentProcessedMimeMessage.getMimeType());
             if (isPgpInlineMode && !isSimpleTextMessage) {
                 throw new MessagingException("Attachments are not supported in PGP/INLINE format!");
             }
@@ -194,7 +188,7 @@ public class PgpMessageBuilder extends MessageBuilder {
             }
 
             PendingIntent returnedPendingIntent = launchOpenPgpApiIntent(pgpApiIntent, messageContentBodyPart,
-                    shouldEncrypt || isPgpInlineMode, shouldEncrypt || !isPgpInlineMode, isPgpInlineMode);
+                shouldEncrypt || isPgpInlineMode, shouldEncrypt || !isPgpInlineMode, isPgpInlineMode);
             if (returnedPendingIntent != null) {
                 queueMessageBuildPendingIntent(returnedPendingIntent, REQUEST_USER_INTERACTION);
                 return;
@@ -225,7 +219,7 @@ public class PgpMessageBuilder extends MessageBuilder {
         String[] subjects = currentProcessedMimeMessage.getHeader(MimeHeader.SUBJECT);
         if (subjects.length > 0) {
             messageContentBodyPart.setHeader(MimeHeader.HEADER_CONTENT_TYPE,
-                    messageContentBodyPart.getContentType() + "; protected-headers=\"v1\"");
+                messageContentBodyPart.getContentType() + "; protected-headers=\"v1\"");
             messageContentBodyPart.setHeader(MimeHeader.SUBJECT, subjects[0]);
             currentProcessedMimeMessage.setSubject(REPLACEMENT_SUBJECT);
         }
@@ -264,7 +258,7 @@ public class PgpMessageBuilder extends MessageBuilder {
 
     @NonNull
     private Intent buildOpenPgpApiIntent(boolean shouldSign, boolean shouldEncrypt, boolean encryptToSelfOnly,
-            boolean isPgpInlineMode) {
+        boolean isPgpInlineMode) {
         Intent pgpApiIntent;
 
         Long openPgpKeyId = cryptoStatus.getOpenPgpKeyId();
@@ -291,7 +285,7 @@ public class PgpMessageBuilder extends MessageBuilder {
     }
 
     private PendingIntent launchOpenPgpApiIntent(@NonNull Intent openPgpIntent, MimeBodyPart bodyPart,
-            boolean captureOutputPart, boolean capturedOutputPartIs7Bit, boolean writeBodyContentOnly) throws MessagingException {
+        boolean captureOutputPart, boolean capturedOutputPartIs7Bit, boolean writeBodyContentOnly) throws MessagingException {
         OpenPgpDataSource dataSource = createOpenPgpDataSourceFromBodyPart(bodyPart, writeBodyContentOnly);
 
         BinaryTempFileBody pgpResultTempBody = null;
@@ -299,7 +293,7 @@ public class PgpMessageBuilder extends MessageBuilder {
         if (captureOutputPart) {
             try {
                 pgpResultTempBody = new BinaryTempFileBody(
-                        capturedOutputPartIs7Bit ? MimeUtil.ENC_7BIT : MimeUtil.ENC_8BIT);
+                    capturedOutputPartIs7Bit ? MimeUtil.ENC_7BIT : MimeUtil.ENC_8BIT);
                 outputStream = pgpResultTempBody.getOutputStream();
                 // OpenKeychain/BouncyCastle at this point use the system newline for formatting, which is LF on android.
                 // we need this to be CRLF, so we convert the data after receiving.
@@ -355,8 +349,8 @@ public class PgpMessageBuilder extends MessageBuilder {
 
     @NonNull
     private OpenPgpDataSource createOpenPgpDataSourceFromBodyPart(final MimeBodyPart bodyPart,
-            final boolean writeBodyContentOnly)
-            throws MessagingException {
+        final boolean writeBodyContentOnly)
+        throws MessagingException {
         return new OpenPgpDataSource() {
             @Override
             public void writeTo(OutputStream os) throws IOException {
@@ -376,8 +370,8 @@ public class PgpMessageBuilder extends MessageBuilder {
     }
 
     private void mimeBuildMessage(
-            @NonNull Intent result, @NonNull MimeBodyPart bodyPart, @Nullable BinaryTempFileBody pgpResultTempBody)
-            throws MessagingException {
+        @NonNull Intent result, @NonNull MimeBodyPart bodyPart, @Nullable BinaryTempFileBody pgpResultTempBody)
+        throws MessagingException {
         if (pgpResultTempBody == null) {
             boolean shouldHaveResultPart = cryptoStatus.isPgpInlineModeEnabled() || cryptoStatus.isEncryptionEnabled();
             if (shouldHaveResultPart) {
@@ -401,104 +395,31 @@ public class PgpMessageBuilder extends MessageBuilder {
             throw new IllegalStateException("call to mimeBuildSignedMessage while signing isn't enabled!");
         }
 
+        byte[] signedData = result.getByteArrayExtra(OpenPgpApi.RESULT_DETACHED_SIGNATURE);
+        if (signedData == null) {
+            throw new MessagingException("didn't find expected RESULT_DETACHED_SIGNATURE in api call result");
+        }
+
         MimeMultipart multipartSigned = createMimeMultipart();
         multipartSigned.setSubType("signed");
         multipartSigned.addBodyPart(signedBodyPart);
+        multipartSigned.addBodyPart(
+            MimeBodyPart.create(new BinaryMemoryBody(signedData, MimeUtil.ENC_7BIT),
+                "application/pgp-signature; name=\"signature.asc\""));
+        MimeMessageHelper.setBody(currentProcessedMimeMessage, multipartSigned);
 
-        if(getAccount().isPqcEnabled())
-        {
-            // -- POST-QUANTUM SIGNATUR --
-            multipartSigned.addBodyPart(
-                MimeBodyPart.create(new BinaryMemoryBody(generateSignatureText(), MimeUtil.ENC_7BIT),
-                    "application/pcq-signature; name=\"signature.asc\""));
-
-            multipartSigned.addBodyPart(
-                MimeBodyPart.create(new BinaryMemoryBody(generateKey(), MimeUtil.ENC_7BIT),
-                    "application/pcq-signature; name=\"public_key.asc\""));
-
-            MimeMessageHelper.setBody(currentProcessedMimeMessage, multipartSigned);
-
-            String contentType = String.format(
-                "multipart/signed; boundary=\"%s\";\r\n  protocol=\"application/pcq-signature\"",
-                multipartSigned.getBoundary());
-
-            contentType += String.format("; micalg=\"%s\"", getAccount().getPqcSigningAlgorithm());
-            currentProcessedMimeMessage.setHeader(MimeHeader.HEADER_CONTENT_TYPE, contentType);
-            // -- END --
-        }else{
-            byte[] signedData = result.getByteArrayExtra(OpenPgpApi.RESULT_DETACHED_SIGNATURE);
-            if (signedData == null) {
-                throw new MessagingException("didn't find expected RESULT_DETACHED_SIGNATURE in api call result");
-            }
-
-
-            multipartSigned.addBodyPart(
-                MimeBodyPart.create(new BinaryMemoryBody(signedData, MimeUtil.ENC_7BIT),
-                    "application/pgp-signature; name=\"signature.asc\""));
-            MimeMessageHelper.setBody(currentProcessedMimeMessage, multipartSigned);
-
-            String contentType = String.format(
-                "multipart/signed; boundary=\"%s\";\r\n  protocol=\"application/pgp-signature\"",
-                multipartSigned.getBoundary());
-            if (result.hasExtra(OpenPgpApi.RESULT_SIGNATURE_MICALG)) {
-                String micAlgParameter = result.getStringExtra(OpenPgpApi.RESULT_SIGNATURE_MICALG);
-                contentType += String.format("; micalg=\"%s\"", micAlgParameter);
-            } else {
-                Timber.e("missing micalg parameter for pgp multipart/signed!");
-            }
-            currentProcessedMimeMessage.setHeader(MimeHeader.HEADER_CONTENT_TYPE, contentType);
+        String contentType = String.format(
+            "multipart/signed; boundary=\"%s\";\r\n  protocol=\"application/pgp-signature\"",
+            multipartSigned.getBoundary());
+        if (result.hasExtra(OpenPgpApi.RESULT_SIGNATURE_MICALG)) {
+            String micAlgParameter = result.getStringExtra(OpenPgpApi.RESULT_SIGNATURE_MICALG);
+            contentType += String.format("; micalg=\"%s\"", micAlgParameter);
+        } else {
+            Timber.e("missing micalg parameter for pgp multipart/signed!");
         }
+        currentProcessedMimeMessage.setHeader(MimeHeader.HEADER_CONTENT_TYPE, contentType);
     }
 
-    @SuppressLint("NewApi")
-    private byte[] generateSignatureText() throws MessagingException {
-        var account = getAccount();
-        if(account != null){
-            if (account.getPqcSigningAlgorithm() == null || account.getPqcSigningAlgorithm().equals("None")) {
-                throw new MessagingException("No PQC Algorithm selected, please select one in the Account settings");
-            }
-            if (account.getPqcKeysetExists() == null || !account.getPqcKeysetExists())
-            {
-                throw new MessagingException("No PQC Keyset exist, please generate or import a keyset in Account settings");
-            }
-            String secretKeystr = account.getPqcSecretSigningKey();
-            byte[] secretKey = Base64.getDecoder().decode(secretKeystr);
-
-            Signature signature= new Signature(account.getPqcSigningAlgorithm(),secretKey);
-            StringBuilder output = new StringBuilder();
-            byte[] signatureArray = signature.sign(getText().getBytes());
-            output.append("------ BEGIN POST QUANTUM SIGNATURE USING ").append(
-                    Objects.requireNonNull(getAccount().getPqcSigningAlgorithm()).toUpperCase())
-                .append(" ------");
-            output.append("\r\n");
-            output.append(java.util.Base64.getMimeEncoder().encodeToString(signatureArray));
-            output.append("\r\n");
-            output.append("------ END POST QUANTUM SIGNATURE USING ").append(getAccount().getPqcSigningAlgorithm().toUpperCase())
-                .append(" ------");
-
-            signature.dispose_sig();
-            return output.toString().getBytes();
-
-        }
-        else
-            throw new MessagingException("Could not find Account");
-    }
-
-
-    private byte[] generateKey() throws MessagingException {
-        if(getAccount().getPqcKeysetExists() == null || !getAccount().getPqcKeysetExists())
-            throw new MessagingException("No PQC Keyset exist, please generate or import a keyset in Account settings");
-        StringBuilder output = new StringBuilder();
-        output.append("------ BEGIN POST QUANTUM PUBLIC KEY USING ").append(
-                Objects.requireNonNull(getAccount().getPqcSigningAlgorithm()).toUpperCase())
-            .append(" ------");
-        output.append("\r\n");
-        output.append(getAccount().getPqcPublicSigngingKey());
-        output.append("\r\n");
-        output.append("------ END POST QUANTUM PUBLIC KEY USING ").append(getAccount().getPqcSigningAlgorithm().toUpperCase())
-            .append(" ------");
-        return output.toString().getBytes();
-    }
     private void mimeBuildEncryptedMessage(@NonNull Body encryptedBodyPart) throws MessagingException {
         MimeMultipart multipartEncrypted = createMimeMultipart();
         multipartEncrypted.setSubType("encrypted");
@@ -509,8 +430,8 @@ public class PgpMessageBuilder extends MessageBuilder {
         MimeMessageHelper.setBody(currentProcessedMimeMessage, multipartEncrypted);
 
         String contentType = String.format(
-                "multipart/encrypted; boundary=\"%s\";\r\n  protocol=\"application/pgp-encrypted\"",
-                multipartEncrypted.getBoundary());
+            "multipart/encrypted; boundary=\"%s\";\r\n  protocol=\"application/pgp-encrypted\"",
+            multipartEncrypted.getBoundary());
         currentProcessedMimeMessage.setHeader(MimeHeader.HEADER_CONTENT_TYPE, contentType);
     }
 
@@ -528,13 +449,5 @@ public class PgpMessageBuilder extends MessageBuilder {
 
     public void setCryptoStatus(CryptoStatus cryptoStatus) {
         this.cryptoStatus = cryptoStatus;
-    }
-
-    public void setAccount(Account account) {
-        this.account = account;
-    }
-
-    private Account getAccount() {
-        return this.account;
     }
 }

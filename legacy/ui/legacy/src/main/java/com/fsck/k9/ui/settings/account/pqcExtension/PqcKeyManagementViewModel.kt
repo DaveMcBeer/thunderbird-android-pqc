@@ -1,5 +1,14 @@
 package com.fsck.k9.ui.settings.account.pqcExtension
 
+/**
+ * ViewModel zur Verwaltung von PQC-Schlüsselpaaren für einen E-Mail-Account.
+ *
+ * Enthält Funktionen zum:
+ * - Generieren eines PQC-Schlüsselpaars (mit liboqs),
+ * - Zurücksetzen bestehender Schlüssel,
+ * - Exportieren (als verschlüsselte Datei) und Importieren von Schlüsselpaaren,
+ * - Statusverfolgung und Fehlerbehandlung über LiveData.
+ */
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
@@ -25,31 +34,26 @@ import androidx.lifecycle.LiveData
 import java.io.InputStream
 import java.util.Base64
 
-/**
- * ViewModel zur Verwaltung von PQC-Schlüsselpaaren (Post-Quantum Cryptography)
- * für einen Mail-Account. Beinhaltet Generieren, Zurücksetzen, Export und Import.
- */
-
 class PqcKeyManagementViewModel(
     private val accountManager: AccountManager,
     private val preferences: Preferences,
     accountUuid: String
 ) : ViewModel() {
 
+    // Statusdaten für UI
     private val _keyStatus = MutableLiveData<KeyStatus>()
     val keyStatus: LiveData<KeyStatus> = _keyStatus
-
 
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
 
-
     private val _errorMessage = MutableLiveData<Event<String>>()
     val errorMessage: LiveData<Event<String>> = _errorMessage
 
-    // Alle Accounts als LiveData verfügbar (falls mehrere Accounts unterstützt werden sollen)
+    // Alle Accounts (zur Anzeige/Verwaltung in der UI)
     val accounts = accountManager.getAccountsFlow().asLiveData()
 
+    // Aktuell ausgewählter Account
     private val account: Account? = try {
         loadAccount(accountUuid).also {
             if (it == null) {
@@ -61,24 +65,20 @@ class PqcKeyManagementViewModel(
         null
     }
 
-
-     /** lade Account daten, des ausgewählten accounts*/
+    /** Lädt einen Account anhand der UUID */
     private fun loadAccount(accountUuid: String): Account? {
         return accountManager.getAccount(accountUuid)
     }
 
     /**
      * Generiert ein neues PQC-Schlüsselpaar (public/private) für den aktuellen Account.
-     * Verwendet den im Account gespeicherten Algorithmus (z. B. Dilithium2).
-     * Ergebnis wird im Account gespeichert und persistiert.
+     * Schlüssel werden in Base64 gespeichert und dauerhaft im Account hinterlegt.
      */
     @RequiresApi(Build.VERSION_CODES.O)
     fun generatePqcKeyPair() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-
-
                 if (account == null) {
                     _errorMessage.postValue(Event("Account konnte nicht geladen werden."))
                     return@launch
@@ -86,25 +86,25 @@ class PqcKeyManagementViewModel(
 
                 withContext(Dispatchers.IO) {
                     val algorithm = account.pqcSigningAlgorithm ?: "Dilithium2"
+
                     if (!Sigs.is_sig_enabled(algorithm)) {
                         throw RuntimeException("PQC algorithm '$algorithm' not enabled.")
                     }
 
-                    val signature =  Signature(algorithm)
+                    val signature = Signature(algorithm)
                     try {
                         signature.generate_keypair()
 
-                        val publicKey = Base64.getEncoder().encodeToString(signature.export_public_key())
-                        val privateKey =   Base64.getEncoder().encodeToString(signature.export_secret_key())
+                        // Exportiere Schlüssel und speichere im Account
+                        val publicKey = Base64.getMimeEncoder().encodeToString(signature.export_public_key())
+                        val secretKey = Base64.getMimeEncoder().encodeToString(signature.export_secret_key())
 
                         account.pqcPublicSigngingKey = publicKey
-                        account.pqcSecretSigningKey = privateKey
+                        account.pqcSecretSigningKey = secretKey
                         account.pqcKeysetExists = true
 
                         preferences.saveAccount(account)
-                    }
-                    finally
-                    {
+                    } finally {
                         signature.dispose_sig()
                     }
                 }
@@ -118,17 +118,13 @@ class PqcKeyManagementViewModel(
         }
     }
 
-
     /**
-     * Setzt das aktuelle PQC-Schlüsselpaar des Accounts zurück (löscht beide Schlüssel).
-     * Danach wird der Account aktualisiert gespeichert.
+     * Setzt das aktuelle PQC-Schlüsselpaar zurück (löscht public/private Keys).
      */
     fun resetKeyPair() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-
-
                 if (account == null) {
                     _errorMessage.postValue(Event("Account konnte nicht geladen werden."))
                     return@launch
@@ -140,7 +136,6 @@ class PqcKeyManagementViewModel(
                     account.pqcKeysetExists = false
                     preferences.saveAccount(account)
                 }
-
             } catch (e: Exception) {
                 e.printStackTrace()
                 _errorMessage.value = Event("Fehler beim Zurücksetzen des Schlüsselpaars: ${e.message}")
@@ -151,17 +146,12 @@ class PqcKeyManagementViewModel(
         }
     }
 
-
     /**
-     * Exportiert das aktuelle PQC-Schlüsselpaar in eine Datei auf dem Gerät.
-     * Die Datei wird JSON-formatiert, verschlüsselt und im Dokumente-Ordner gespeichert.
+     * Exportiert das aktuelle Schlüsselpaar in eine verschlüsselte JSON-Datei.
      */
     fun exportKeyFile(context: Context, password: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-
-
-
                 if (account == null) {
                     _errorMessage.postValue(Event("Account konnte nicht geladen werden."))
                     return@launch
@@ -171,7 +161,7 @@ class PqcKeyManagementViewModel(
                 val publicKey = account.pqcPublicSigngingKey
                 val privateKey = account.pqcSecretSigningKey
 
-                if (publicKey.isNullOrBlank() || privateKey.isNullOrBlank())  {
+                if (publicKey.isNullOrBlank() || privateKey.isNullOrBlank()) {
                     _errorMessage.postValue(Event("Schlüsselpaar konnte nicht geladen werden."))
                     return@launch
                 }
@@ -183,11 +173,9 @@ class PqcKeyManagementViewModel(
                 }
 
                 val encrypted = CryptoUtils.encrypt(json.toString(), password)
-
                 val exportDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
-
-
                 val file = File(exportDir, "pqkeys_${account.name}.pqk")
+
                 FileOutputStream(file).use { it.write(encrypted) }
 
             } catch (e: Exception) {
@@ -199,7 +187,6 @@ class PqcKeyManagementViewModel(
 
     /**
      * Importiert ein PQC-Schlüsselpaar aus einer zuvor exportierten Datei.
-     * Die Datei wird entschlüsselt, validiert und in den aktuellen Account übernommen.
      */
     fun importKeyFile(context: Context, uri: Uri, password: String) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -218,16 +205,12 @@ class PqcKeyManagementViewModel(
 
                 val encryptedBytes = inputStream.readBytes()
                 val decrypted = CryptoUtils.decrypt(encryptedBytes, password)
-
                 val json = JSONObject(decrypted)
 
-                val algorithm = json.getString("algorithm")
-                val publicKey = json.getString("publicKey")
-                val privateKey = json.getString("privateKey")
-
-                account.pqcSigningAlgorithm = algorithm
-                account.pqcPublicSigngingKey = publicKey
-                account.pqcSecretSigningKey = privateKey
+                // Werte aus Datei setzen
+                account.pqcSigningAlgorithm = json.getString("algorithm")
+                account.pqcPublicSigngingKey = json.getString("publicKey")
+                account.pqcSecretSigningKey = json.getString("privateKey")
                 account.pqcKeysetExists = true
 
                 preferences.saveAccount(account)
@@ -235,37 +218,31 @@ class PqcKeyManagementViewModel(
             } catch (e: Exception) {
                 e.printStackTrace()
                 _errorMessage.postValue(Event("Fehler beim Importieren: ${e.message}"))
-            }
-            finally {
+            } finally {
                 updateKeyStatus()
             }
         }
     }
 
-    fun getPublicKey(): String? {
-        return account?.pqcPublicSigngingKey
-    }
-
-    fun getSecretKey(): String? {
-        return account?.pqcSecretSigningKey
-    }
-
-
-    fun getCurrentAlgorithm(): String? {
-        return account?.pqcSigningAlgorithm
-    }
+    // Getter für Zugriff auf Schlüssel im UI
+    fun getPublicKey(): String? = account?.pqcPublicSigngingKey
+    fun getSecretKey(): String? = account?.pqcSecretSigningKey
+    fun getCurrentAlgorithm(): String? = account?.pqcSigningAlgorithm
 
     private fun ByteArray.toHexString(): String {
         return joinToString("") { "%02x".format(it) }
     }
 
-
+    /**
+     * Datenklasse für den aktuellen Key-Zustand des Accounts.
+     */
     data class KeyStatus(
         val publicKey: String?,
         val privateKey: String?,
         val algorithm: String?
     )
 
+    /** Aktualisiert den LiveData-KeyStatus zur Anzeige im UI */
     private fun updateKeyStatus() {
         _keyStatus.postValue(
             KeyStatus(
@@ -277,6 +254,9 @@ class PqcKeyManagementViewModel(
     }
 }
 
+/**
+ * Wrapper-Klasse für einmalige Events (z. B. Fehlermeldungen), damit sie nicht mehrfach verarbeitet werden.
+ */
 class Event<out T>(private val content: T) {
     private var hasBeenHandled = false
 

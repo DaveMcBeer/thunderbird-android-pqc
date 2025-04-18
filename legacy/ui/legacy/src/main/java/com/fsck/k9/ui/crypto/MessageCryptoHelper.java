@@ -5,19 +5,26 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Deque;
 import java.util.List;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Parcelable;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
 import androidx.core.content.IntentCompat;
+import app.k9mail.legacy.account.Account;
 import com.fsck.k9.autocrypt.AutocryptOperations;
 import com.fsck.k9.crypto.MessageCryptoStructureDetector;
 import com.fsck.k9.mail.Address;
@@ -39,6 +46,8 @@ import com.fsck.k9.mailstore.CryptoResultAnnotation.CryptoError;
 import com.fsck.k9.mailstore.MessageCryptoAnnotations;
 import com.fsck.k9.mailstore.MessageHelper;
 import com.fsck.k9.mailstore.MimePartStreamParser;
+import com.fsck.k9.mailstore.pqc.PqcDecryptionResult;
+import com.fsck.k9.mailstore.pqc.PqcSignatureResult;
 import com.fsck.k9.mailstore.util.FileFactory;
 import com.fsck.k9.provider.DecryptedFileProvider;
 import kotlin.NotImplementedError;
@@ -76,6 +85,8 @@ public class MessageCryptoHelper {
 
     private Message currentMessage;
     private OpenPgpDecryptionResult cachedDecryptionResult;
+
+    private PqcDecryptionResult cachedPqcDecryptionResult ;
     private MessageCryptoAnnotations queuedResult;
     private PendingIntent queuedPendingIntent;
 
@@ -88,19 +99,20 @@ public class MessageCryptoHelper {
     private CancelableBackgroundOperation cancelableBackgroundOperation;
     private boolean isCancelled;
     private boolean processSignedOnly;
-
+    private Account account;
     private OpenPgpApi openPgpApi;
     private OpenPgpServiceConnection openPgpServiceConnection;
     private OpenPgpApiFactory openPgpApiFactory;
 
 
     public MessageCryptoHelper(Context context, OpenPgpApiFactory openPgpApiFactory,
-            AutocryptOperations autocryptOperations, @NonNull String openPgpProvider) {
+            AutocryptOperations autocryptOperations, @Nullable  String openPgpProvider,Account account) { //Anpassung um pqc unabh. von pgp zu verwenden
         this.context = context.getApplicationContext();
 
         this.autocryptOperations = autocryptOperations;
         this.openPgpApiFactory = openPgpApiFactory;
         this.openPgpProvider = openPgpProvider;
+        this.account =account;
     }
 
     public boolean isConfiguredForOpenPgpProvider(String openPgpProvider) {
@@ -108,16 +120,23 @@ public class MessageCryptoHelper {
     }
 
     public void asyncStartOrResumeProcessingMessage(Message message, MessageCryptoCallback callback,
-            OpenPgpDecryptionResult cachedDecryptionResult, boolean processSignedOnly) {
+        Parcelable cachedDecryptionResult, boolean processSignedOnly) {
         if (this.currentMessage != null) {
             reattachCallback(message, callback);
             return;
         }
+        if (cachedDecryptionResult instanceof OpenPgpDecryptionResult) {
+            this.cachedDecryptionResult = (OpenPgpDecryptionResult) cachedDecryptionResult;
+        } else if (cachedDecryptionResult instanceof PqcDecryptionResult) {
+            this.cachedPqcDecryptionResult = (PqcDecryptionResult) cachedDecryptionResult;
+        } else if (cachedDecryptionResult != null) {
+            Timber.e("Unknown decryption result type: %s", cachedDecryptionResult.getClass().getName());
+        }
+
 
         this.messageAnnotations = new MessageCryptoAnnotations();
         this.state = State.START;
         this.currentMessage = message;
-        this.cachedDecryptionResult = cachedDecryptionResult;
         this.callback = callback;
         this.processSignedOnly = processSignedOnly;
 
@@ -149,7 +168,17 @@ public class MessageCryptoHelper {
     private void findPartsForMultipartSignaturePass() {
         List<Part> signedParts = MessageCryptoStructureDetector
                 .findMultipartSignedParts(currentMessage, messageAnnotations);
+
         for (Part part : signedParts) {
+
+            // -- PQC Addition --
+            if (MessageCryptoStructureDetector.isPartMultipartPqcSigned(part)) {
+                CryptoPart cryptoPart = new CryptoPart(CryptoPartType.PQC_SIGNED, part);
+                partsToProcess.add(cryptoPart);
+                continue;
+            }
+            // -- END --
+
             if (!processSignedOnly) {
                 boolean isEncapsulatedSignature =
                         messageAnnotations.findKeyForAnnotationWithReplacementPart(part) != null;
@@ -168,13 +197,7 @@ public class MessageCryptoHelper {
                 continue;
             }
 
-            // -- PQC Addition --
-            if (MessageCryptoStructureDetector.isPqcSigned(part)) {
-                CryptoPart cryptoPart = new CryptoPart(CryptoPartType.PQC_SIGNED, part);
-                partsToProcess.add(cryptoPart);
-                continue;
-            }
-            // -- END --
+
             MimeBodyPart replacementPart = getMultipartSignedContentPartIfAvailable(part);
             addErrorAnnotation(part, CryptoError.SIGNED_BUT_UNSUPPORTED, replacementPart);
         }
@@ -232,7 +255,7 @@ public class MessageCryptoHelper {
             return;
         }
 
-        if (!isBoundToCryptoProviderService()) {
+        if (!isBoundToCryptoProviderService() && !account.isPqcEnabled()) {
             connectToCryptoProviderService();
             return;
         }
@@ -312,7 +335,7 @@ public class MessageCryptoHelper {
                     callAsyncInlineOperation(apiIntent);
                     return;
                 }
-                // -- PQC Additions --
+                // --- PQC Erweiterung ---
                 case PQC_SIGNED: {
                     callPqcVerify(currentCryptoPart.part);
                     return;
@@ -321,7 +344,7 @@ public class MessageCryptoHelper {
                     throw new NotImplementedError("noch zu tun");
 
                 }
-                // -- PQC END --
+                // --- ENDE ---
                 case PLAIN_AUTOCRYPT:
                     throw new IllegalStateException("This part type must have been handled previously!");
 
@@ -448,45 +471,84 @@ public class MessageCryptoHelper {
         try {
             Multipart multipart = (Multipart) part.getBody();
 
-
             if (multipart.getCount() < 3) {
                 throw new IllegalStateException("Expected 3-part multipart/signed for PQC message");
             }
 
-            BodyPart signedContent = multipart.getBodyPart(0); // die eigentliche Nachricht
-            BodyPart signaturePart = multipart.getBodyPart(1); // "signature.asc"
-            BodyPart publicKeyPart = multipart.getBodyPart(2); // "public_key.asc"
+            BodyPart signedContent = multipart.getBodyPart(0);
+            BodyPart signaturePart = multipart.getBodyPart(1);
+            BodyPart publicKeyPart = multipart.getBodyPart(2);
 
-            byte[] signatureBytes = getBytes(signaturePart);
-            byte[] publicKeyBytes = getBytes(publicKeyPart);
-            byte[] messageBytes = getBytes(signedContent);
+            byte[] signatureBytes = parseArmoredPart(signaturePart);
+            byte[] publicKeyBytes = parseArmoredPart(publicKeyPart);
+            byte[] canonicalMessage = canonicalize(signedContent);
 
-            // Extrahiere Algorithmus
             String contentType = part.getContentType();
             String algorithm = MimeUtility.getHeaderParameter(contentType, "micalg");
 
             if (algorithm == null || algorithm.isEmpty()) {
-                throw new IllegalStateException("Expected used Algorithm \"micalg\" for PQC message");
+                throw new IllegalStateException("Expected algorithm \"micalg\" for PQC message");
             }
 
             Signature pqcSignatureVerifier = new Signature(algorithm);
-            boolean isValid = pqcSignatureVerifier.verify(messageBytes, signatureBytes, publicKeyBytes);
-
+            boolean isValid = pqcSignatureVerifier.verify(canonicalMessage, signatureBytes, publicKeyBytes);
             pqcSignatureVerifier.dispose_sig();
 
             MimeBodyPart replacement = (MimeBodyPart) signedContent;
-            CryptoResultAnnotation result = isValid
-                ? CryptoResultAnnotation.createPqcSignatureAnnotation(replacement)
-                : CryptoResultAnnotation.createErrorAnnotation(CryptoError.PQC_SIGNATURE_ERROR, replacement);
 
-            onCryptoOperationSuccess(result);
+            PqcSignatureResult pqcSignatureResult = new PqcSignatureResult(
+                            isValid ? PqcSignatureResult.RESULT_VALID_KEY_CONFIRMED : PqcSignatureResult.RESULT_INVALID_SIGNATURE,
+                            /* keyId = */ null,
+                            /* primaryUserId = */ 0L,
+                            /* userIds = */ new ArrayList<>(),
+                            /* confirmedUserIds = */ new ArrayList<>(),
+                            /* senderStatusResult = */ PqcSignatureResult.SenderStatusResult.UNKNOWN
+                        );
+
+            CryptoResultAnnotation resultAnnotation = CryptoResultAnnotation.createPqcSignatureAnnotation(
+                null,
+                pqcSignatureResult,
+                (MimeBodyPart) signedContent
+            );
+
+            // Direkt Erfolgsmeldung
+            onCryptoOperationSuccess(resultAnnotation);
 
         } catch (Exception e) {
             Timber.e(e, "PQC Signature Verification failed");
+
             MimeBodyPart replacement = getMultipartSignedContentPartIfAvailable(part);
-            CryptoResultAnnotation result = CryptoResultAnnotation.createErrorAnnotation(CryptoError.PQC_SIGNATURE_ERROR, replacement);
-            onCryptoOperationSuccess(result);
+            CryptoResultAnnotation resultAnnotation = CryptoResultAnnotation.createErrorAnnotation(CryptoError.PQC_SIGNATURE_ERROR, replacement);
+
+            onCryptoOperationSuccess(resultAnnotation);
         }
+    }
+
+
+    private void runOnCryptoThread(Runnable runnable) {
+        if (Thread.currentThread().getName().contains("Crypto") || Thread.currentThread().getName().contains("Worker")) {
+            runnable.run();
+        } else {
+            // Einfach zur Sicherheit über Handler posten, je nach Umgebung
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(runnable);
+        }
+    }
+    @SuppressLint("NewApi")
+    private byte[] parseArmoredPart(BodyPart part) throws IOException, MessagingException {
+        String armoredText = new String(getBytes(part));
+
+        // Entferne Header/Footer
+        String[] lines = armoredText.split("\r\n|\r|\n");
+        StringBuilder base64Data = new StringBuilder();
+
+        for (String line : lines) {
+            if (line.startsWith("------")) {
+                continue; // Skip armor lines
+            }
+            base64Data.append(line.trim());
+        }
+
+        return Base64.getMimeDecoder().decode(base64Data.toString());
     }
 
     private byte[] getBytes(BodyPart part) throws IOException, MessagingException {
@@ -495,6 +557,37 @@ public class MessageCryptoHelper {
         return outputStream.toByteArray();
     }
 
+    private byte[] canonicalize(BodyPart part) throws IOException, MessagingException {
+        Charset charset = getCharsetFromBodyPart(part);
+        byte[] inputBytes = getBytes(part);
+
+        String input = new String(inputBytes, charset);
+
+        // 1. Zeilenenden normalisieren: \r\n
+        String normalized = input.replaceAll("(?<!\r)\n", "\r\n");
+
+        // 2. Trailing Whitespaces entfernen
+        String[] lines = normalized.split("\r\n");
+        StringBuilder canonicalizedBuilder = new StringBuilder();
+        for (String line : lines) {
+            canonicalizedBuilder.append(line.stripTrailing()).append("\r\n");
+        }
+
+        return canonicalizedBuilder.toString().getBytes(charset);
+    }
+
+    private Charset getCharsetFromBodyPart(BodyPart part) {
+        try {
+            String contentType = part.getContentType();
+            String charsetName = MimeUtility.getHeaderParameter(contentType, "charset");
+            if (charsetName != null) {
+                return Charset.forName(charsetName);
+            }
+        } catch (Exception e) {
+            Timber.w(e, "Failed to get charset from body part, falling back to UTF-8");
+        }
+        return StandardCharsets.UTF_8;
+    }
     // -- END --
     private OpenPgpDataSource getDataSourceForSignedData(final Part signedPart) {
         return new OpenPgpDataSource() {

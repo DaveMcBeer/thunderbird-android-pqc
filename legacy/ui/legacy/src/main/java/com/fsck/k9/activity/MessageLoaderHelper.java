@@ -30,6 +30,7 @@ import com.fsck.k9.mailstore.LocalMessage;
 import com.fsck.k9.mailstore.MessageCryptoAnnotations;
 import com.fsck.k9.mailstore.MessageViewInfo;
 import com.fsck.k9.mailstore.MessageViewInfoExtractor;
+import com.fsck.k9.mailstore.pqc.PqcDecryptionResult;
 import com.fsck.k9.ui.crypto.MessageCryptoCallback;
 import com.fsck.k9.ui.crypto.MessageCryptoHelper;
 import com.fsck.k9.ui.crypto.OpenPgpApiFactory;
@@ -98,6 +99,7 @@ public class MessageLoaderHelper {
 
     private MessageCryptoHelper messageCryptoHelper;
 
+    private PqcDecryptionResult cachedPqcDecryptionResult;
 
     public MessageLoaderHelper(Context context, LoaderManager loaderManager, FragmentManager fragmentManager,
             @NonNull MessageLoaderCallbacks callback, MessageViewInfoExtractor messageViewInfoExtractor) {
@@ -117,12 +119,12 @@ public class MessageLoaderHelper {
         this.messageReference = messageReference;
         this.account = Preferences.getPreferences().getAccount(messageReference.getAccountUuid());
 
-        if (cachedDecryptionResult != null) {
-            if (cachedDecryptionResult instanceof OpenPgpDecryptionResult) {
-                this.cachedDecryptionResult = (OpenPgpDecryptionResult) cachedDecryptionResult;
-            } else {
-                Timber.e("Got decryption result of unknown type - ignoring");
-            }
+        if (cachedDecryptionResult instanceof OpenPgpDecryptionResult) {
+            this.cachedDecryptionResult = (OpenPgpDecryptionResult) cachedDecryptionResult;
+        } else if (cachedDecryptionResult instanceof PqcDecryptionResult) {
+            this.cachedPqcDecryptionResult = (PqcDecryptionResult) cachedDecryptionResult;
+        } else {
+            Timber.e("Got decryption result of unknown type - ignoring");
         }
 
         startOrResumeLocalMessageLoader();
@@ -154,9 +156,14 @@ public class MessageLoaderHelper {
         cancelAndClearDecodeLoader();
 
         String openPgpProvider = account.getOpenPgpProvider();
-        if (openPgpProvider != null) {
+        boolean isPqcSigningOrEncryption = account.isPqcEnabled();
+        if (isPqcSigningOrEncryption ) {
             startOrResumeCryptoOperation(openPgpProvider);
-        } else {
+        }
+        else  if (openPgpProvider != null ) {
+            startOrResumeCryptoOperation(openPgpProvider);
+        }
+        else {
             startOrResumeDecodeMessage();
         }
     }
@@ -241,6 +248,13 @@ public class MessageLoaderHelper {
             return;
         }
 
+        boolean isPqcEnabled = account.isPqcEnabled();
+        if (isPqcEnabled) {
+            startOrResumePQCCryptoOperation();
+            return;
+        }
+
+
         String openPgpProvider = account.getOpenPgpProvider();
         if (openPgpProvider != null) {
             startOrResumeCryptoOperation(openPgpProvider);
@@ -309,7 +323,7 @@ public class MessageLoaderHelper {
         }
         if (messageCryptoHelper == null || !messageCryptoHelper.isConfiguredForOpenPgpProvider(openPgpProvider)) {
             messageCryptoHelper = new MessageCryptoHelper(
-                    context, new OpenPgpApiFactory(), AutocryptOperations.getInstance(), openPgpProvider);
+                    context, new OpenPgpApiFactory(), AutocryptOperations.getInstance(), openPgpProvider,account);
             retainCryptoHelperFragment.setData(messageCryptoHelper);
         }
         messageCryptoHelper.asyncStartOrResumeProcessingMessage(
@@ -528,4 +542,31 @@ public class MessageLoaderHelper {
         void onDownloadErrorNetworkError();
     }
 
+
+    //--- PQC Erweiterung ---
+    private void startOrResumePQCCryptoOperation() {
+        RetainFragment<MessageCryptoHelper> retainCryptoHelperFragment = getMessageCryptoHelperRetainFragment(true);
+        if (retainCryptoHelperFragment.hasData()) {
+            messageCryptoHelper = retainCryptoHelperFragment.getData();
+        }
+        if (messageCryptoHelper == null) {
+            messageCryptoHelper = new MessageCryptoHelper(
+                context,
+                new OpenPgpApiFactory(),
+                AutocryptOperations.getInstance(),
+                null, account // Kein OpenPGP Provider
+            );
+            retainCryptoHelperFragment.setData(messageCryptoHelper);
+        }
+
+        messageCryptoHelper.asyncStartOrResumeProcessingMessage(
+            localMessage,
+            messageCryptoCallback,
+            cachedPqcDecryptionResult,
+            !account.isOpenPgpHideSignOnly()
+        );
+    }
+
+
+    //--- ENDE ---
 }

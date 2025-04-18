@@ -119,3 +119,4 @@ public class OpenPgpDecryptionResult implements Parcelable {
     }
 
 }
+

@@ -13,6 +13,15 @@ import org.openintents.openpgp.OpenPgpApiManager.OpenPgpProviderState
  * during email composition to apply cryptographic operations before sending
  * or saving as draft.
  */
+
+/**--- PQC Erweiterungen ---
+ Erweiterung der ComposeCryptoStatus-Klasse um Unterstützung für Post-Quantum-Kryptografie (PQC):
+ - Neue Modi: PQC_SIGN_ONLY und PQC_ENCRYPT als Erweiterung des bestehenden CryptoMode.
+ - Erweiterung von isEncryptionEnabled() und isSigningEnabled(), um PQC-Modi korrekt zu berücksichtigen.
+ - Anpassung der Anzeige-Logik (displayType & specialModeDisplayType), um PQC-spezifische Zustände korrekt zu visualisieren.
+ - Ziel: nahtlose Integration von PQC-Funktionalität in die bestehende E-Mail-Verschlüsselungslogik.
+--- ENDE PQC Erweiterungen --- */
+
 data class ComposeCryptoStatus(
     private val openPgpProviderState: OpenPgpProviderState,
     override val openPgpKeyId: Long?,
@@ -55,16 +64,20 @@ data class ComposeCryptoStatus(
     private val isMutualAndNotDisabled = cryptoMode != CryptoMode.CHOICE_DISABLED && canEncryptAndIsMutualDefault()
     private val isReplyAndNotDisabled = cryptoMode != CryptoMode.CHOICE_DISABLED && isReplyToEncrypted
 
-    override val isPQCSignOnly = cryptoMode == CryptoMode.PQC_SIGN_ONLY
-
-
     val isOpenPgpConfigured = openPgpProviderState != OpenPgpProviderState.UNCONFIGURED
 
     override val isSignOnly = cryptoMode == CryptoMode.SIGN_ONLY
 
+    //--- PQC Erweiterung ---
+    override val isPQCSignOnly = cryptoMode == CryptoMode.PQC_SIGN_ONLY
+    override val isPQCEncrypt = cryptoMode == CryptoMode.PQC_ENCRYPT
+    //--- ENDE ---
+
     override val isEncryptionEnabled = when {
         openPgpProviderState == OpenPgpProviderState.UNCONFIGURED -> false
         isSignOnly -> false
+        isPQCSignOnly -> false  //--- PQC Erweiterung ---
+        isPQCEncrypt -> true    //--- PQC Erweiterung ---
         isExplicitlyEnabled -> true
         isMutualAndNotDisabled -> true
         isReplyAndNotDisabled -> true
@@ -76,7 +89,7 @@ data class ComposeCryptoStatus(
     override fun isUserChoice() = cryptoMode != CryptoMode.NO_CHOICE
 
 
-    // -- PQC erweiterung:   cryptoMode == CryptoMode.PQ_SIGN_ONLY --
+    // -- PQC Erweiterung:   cryptoMode == CryptoMode.PQ_SIGN_ONLY --
     override fun isSigningEnabled() = cryptoMode == CryptoMode.SIGN_ONLY || isEncryptionEnabled || cryptoMode == CryptoMode.PQC_SIGN_ONLY
 
 
@@ -112,22 +125,33 @@ data class ComposeCryptoStatus(
         else -> null
     }
 
+    // --- PQC Erweiterung ---
+    private val displayTypeFromPqcSignOnly = when {
+        isPQCSignOnly -> CryptoStatusDisplayType.SIGN_ONLY
+        else -> null
+    }
+    // --- ENDE ---
+
     val displayType =
-        displayTypeFromProviderError
+        displayTypeFromPqcSignOnly //--- PQC Erweiterung: ✅ PQC Sign-Only zuerst prüfen, da vorrang zu OpenPGP ---
+            ?: displayTypeFromProviderError
             ?: displayTypeFromAutocryptError
             ?: displayTypeFromEnabledAutocryptStatus
             ?: displayTypeFromSignOnly
             ?: displayTypeFromEncryptionAvailable
-            ?: CryptoStatusDisplayType.UNAVAILABLE
+            ?: if (isPQCEncrypt) CryptoStatusDisplayType.ENABLED else null
+                ?: CryptoStatusDisplayType.UNAVAILABLE
 
-    val specialModeDisplayType = when {
+    val specialModeDisplayType =
+        when {
+        isPQCEncrypt -> CryptoSpecialModeDisplayType.SIGN_ONLY_PGP_INLINE   //--- PQC Addition ---
+        isPQCSignOnly -> CryptoSpecialModeDisplayType.SIGN_ONLY     //--- PQC Addition ---
         openPgpProviderState != OpenPgpProviderState.OK -> CryptoSpecialModeDisplayType.NONE
         isSignOnly && isPgpInlineModeEnabled -> CryptoSpecialModeDisplayType.SIGN_ONLY_PGP_INLINE
         isSignOnly -> CryptoSpecialModeDisplayType.SIGN_ONLY
         allRecipientsCanEncrypt() && isPgpInlineModeEnabled -> CryptoSpecialModeDisplayType.PGP_INLINE
         else -> CryptoSpecialModeDisplayType.NONE
     }
-
     val autocryptPendingIntent = recipientAutocryptStatus?.intent
 
     val sendErrorStateOrNull = when {

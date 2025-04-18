@@ -144,8 +144,14 @@ public class MessageCryptoPresenter {
     }
 
     public Parcelable getDecryptionResultForReply() {
-        if (cryptoResultAnnotation != null && cryptoResultAnnotation.isOpenPgpResult()) {
-            return cryptoResultAnnotation.getOpenPgpDecryptionResult();
+        //--- PQC Erweiterung: Anpassungen ---
+        if (cryptoResultAnnotation != null) {
+            if (cryptoResultAnnotation.isOpenPgpResult()) {
+                return cryptoResultAnnotation.getOpenPgpDecryptionResult();
+            } else if (cryptoResultAnnotation.isPqcResult()) {
+                return cryptoResultAnnotation.getPqcDecryptionResult();
+            }
+        //--- ENDE ---
         }
         return null;
     }

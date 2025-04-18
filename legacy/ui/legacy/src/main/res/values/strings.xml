@@ -1084,7 +1084,7 @@ You can keep this message and use it as a backup for your secret key. If you wan
     <!-- Description of the "Usage and technical data" setting used in the "data collection" section of the general settings screen -->
     <string name="settings_ui_telemetry_description">Shares performance, usage, hardware and customization data about this app with Mozilla to help us make Thunderbird better</string>
 
-    <!-- PQC Additions -->
+    <!-- PQC Erweiterung -->
         <string name="account_settings_pq_algorithms_dilithium2">Dilithium2</string>
         <string name="account_settings_pq_algorithms_dilithium3">Dilithium3</string>
         <string name="account_settings_pq_algorithms_dilithium5">Dilithium5</string>
@@ -1131,9 +1131,18 @@ You can keep this message and use it as a backup for your secret key. If you wan
         <string name="account_settings_pq_algorithms_cross_rsdpg_256_small">cross-rsdpg-256-small</string>
         <string name="account_settings_pq_algorithms_none">None</string>
 
-        <string name="enable_pqcsign_only">Enable Post Quantum Sign-Only</string>
-        <string name="disable_pqcsign_only">Disable Post Quantum Sign-Only</string>
+        <string name="enable_pqcsign_only">Enable PQC Sign-Only</string>
+        <string name="disable_pqcsign_only">Disable PQC Sign-Only</string>
         <string name="enable_pqc_encrypt">Enable PQC Encryption</string>
         <string name="disable_pqc_encrypt">Disable PQC Encryption</string>
-    <!-- END -->
+
+
+        <string name="pqc_dialog_sign_only_title">PQC Sign-Only Mode</string>
+        <string name="pqc_dialog_sign_only_text">In this mode, your post-quantum cryptographic (PQC) key will be used to create a digital signature for your unencrypted email.</string>
+        <string name="pqc_dialog_sign_only_plus_verified">This does not encrypt the email, but confirms that it was sent from you and has not been altered.</string>
+        <string name="pqc_dialog_sign_only_minus_break">Signatures might become invalid if the email is modified by mailing lists or forwarding services.</string>
+        <string name="pqc_dialog_sign_only_minus_attach">Some email clients might show the signature as an attachment named \'signature.asc\'.</string>
+        <string name="pqc_dialog_sign_only_neutral_encsigned">Encrypted emails will always include a signature as well.</string>
+
+    <!-- ENDE -->
 </resources>

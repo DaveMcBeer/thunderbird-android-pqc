@@ -90,7 +90,10 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
         initializeCryptoSettings(account)
         initializeFolderSettings(account)
         initializeNotifications(account)
+
+        //--- PQC Addition ---
         initializePqcKeyManagement()
+        //--- END ---
     }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
@@ -247,68 +250,7 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
         }
     }
 
-    private fun initializePqcKeyManagement() {
-        val keyManagementPref = findPreference<Preference>("pqc_key_management")
-        val algorithmPref = findPreference<ListPreference>("pqc_signing_algorithm")
-        val account = getAccount()
 
-
-        if (keyManagementPref == null || algorithmPref == null) return
-
-        // Initialer Zustand
-        keyManagementPref.isEnabled = algorithmPref.value != "None"
-
-        // Aktuellen Wert merken
-        val previousAlgorithm = account.pqcSigningAlgorithm
-
-
-        // Initialer Zustand
-        keyManagementPref.isEnabled = algorithmPref.value != "None" && account.isPqcEnabled
-
-        val isPqcEnabledPref = findPreference<SwitchPreference>("pqc_enabled")
-        isPqcEnabledPref?.setOnPreferenceChangeListener{preference,newValue ->
-            val enabled = newValue as Boolean
-
-            if (enabled && account.openPgpProvider == null) {
-                // Kein OpenPGP Provider vorhanden → zurücksetzen + Hinweis
-                Toast.makeText(requireContext(), R.string.account_settings_openpgp_missing, Toast.LENGTH_LONG).show()
-
-                isPqcEnabledPref.isChecked = false
-                preference.setDefaultValue(false)
-                keyManagementPref.isEnabled = false
-                return@setOnPreferenceChangeListener false
-            }
-            else
-                keyManagementPref.isEnabled = enabled
-
-            true
-        }
-
-        algorithmPref.setOnPreferenceChangeListener { _, newValue ->
-            val selected = newValue as String
-
-            keyManagementPref.isEnabled = selected != "None"
-
-            if (!selected.equals(previousAlgorithm, ignoreCase = true)) {
-                // Reset Keys
-                account.pqcPublicSigngingKey = null
-                account.pqcSecretSigningKey = null
-                account.pqcKeysetExists = false
-                account.pqcSigningAlgorithm = selected
-
-                dataStore.saveSettingsInBackground()
-            }
-
-            true
-        }
-
-        keyManagementPref.onClick {
-            requireActivity().supportFragmentManager.beginTransaction()
-                .replace(R.id.accountSettingsContainer, PqcKeyManagementFragment.create(accountUuid))
-                .addToBackStack(null)
-                .commit()
-        }
-    }
     private fun maybeUpdateNotificationPreferences(account: Account) {
         if (notificationSoundPreference != null ||
             notificationLightPreference != null ||
@@ -544,4 +486,77 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
             PreferenceFragmentCompat.ARG_PREFERENCE_ROOT to rootKey,
         )
     }
+
+    //--- PQC Erweiterung ---
+    /**
+     * Initialisiert die Einstellungen für die Verwaltung von PQC-Schlüsseln (Post-Quantum Cryptography).
+     *
+     * - Verknüpft die UI-Präferenzen für PQC-Aktivierung, Algorithmuswahl und Schlüsselverwaltung.
+     * - Aktiviert oder deaktiviert die Schlüsselauswahl basierend auf dem gewählten Algorithmus und ob PQC aktiviert ist.
+     * - Reagiert auf Änderungen der PQC-Aktivierung und Algorithmuswahl, aktualisiert dabei die gespeicherten Schlüssel und Einstellungen.
+     * - Öffnet bei Klick auf die Schlüsselverwaltungsoption ein neues Fragment zur Verwaltung der PQC-Schlüssel.
+     */
+    private fun initializePqcKeyManagement() {
+        val keyManagementPref = findPreference<Preference>("pqc_key_management")
+        val algorithmPref = findPreference<ListPreference>("pqc_signing_algorithm")
+        val account = getAccount()
+
+
+        if (keyManagementPref == null || algorithmPref == null) return
+
+        // Initialer Zustand
+        keyManagementPref.isEnabled = algorithmPref.value != "None"
+
+        // Aktuellen Wert merken
+        val previousAlgorithm = account.pqcSigningAlgorithm
+
+
+        // Initialer Zustand
+        keyManagementPref.isEnabled = algorithmPref.value != "None" && account.isPqcEnabled
+
+        val isPqcEnabledPref = findPreference<SwitchPreference>("pqc_enabled")
+        isPqcEnabledPref?.setOnPreferenceChangeListener{preference,newValue ->
+            val enabled = newValue as Boolean
+
+            /*if (enabled && account.openPgpProvider == null) {
+                // Kein OpenPGP Provider vorhanden → zurücksetzen + Hinweis
+                Toast.makeText(requireContext(), R.string.account_settings_openpgp_missing, Toast.LENGTH_LONG).show()
+
+                isPqcEnabledPref.isChecked = false
+                preference.setDefaultValue(false)
+                keyManagementPref.isEnabled = false
+                return@setOnPreferenceChangeListener false
+            }
+            else*/
+            keyManagementPref.isEnabled = enabled
+
+            true
+        }
+
+        algorithmPref.setOnPreferenceChangeListener { _, newValue ->
+            val selected = newValue as String
+
+            keyManagementPref.isEnabled = selected != "None"
+
+            if (!selected.equals(previousAlgorithm, ignoreCase = true)) {
+                // Reset Keys
+                account.pqcPublicSigngingKey = null
+                account.pqcSecretSigningKey = null
+                account.pqcKeysetExists = false
+                account.pqcSigningAlgorithm = selected
+
+                dataStore.saveSettingsInBackground()
+            }
+
+            true
+        }
+
+        keyManagementPref.onClick {
+            requireActivity().supportFragmentManager.beginTransaction()
+                .replace(R.id.accountSettingsContainer, PqcKeyManagementFragment.create(accountUuid))
+                .addToBackStack(null)
+                .commit()
+        }
+    }
+    //--- ENDE ---
 }

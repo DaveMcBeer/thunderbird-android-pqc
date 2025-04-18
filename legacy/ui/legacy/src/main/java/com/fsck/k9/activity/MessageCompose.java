@@ -51,6 +51,7 @@ import app.k9mail.legacy.account.Account;
 import app.k9mail.legacy.account.Account.MessageFormat;
 import app.k9mail.legacy.di.DI;
 import app.k9mail.legacy.account.Identity;
+import com.fsck.k9.message.pqc.PqcMessageBuilder;
 import com.fsck.k9.K9;
 import com.fsck.k9.Preferences;
 import com.fsck.k9.activity.MessageLoaderHelper.MessageLoaderCallbacks;
@@ -64,6 +65,7 @@ import com.fsck.k9.activity.compose.IdentityAdapter.IdentityContainer;
 import com.fsck.k9.activity.compose.PgpEnabledErrorDialog.OnOpenPgpDisableListener;
 import com.fsck.k9.activity.compose.PgpInlineDialog.OnOpenPgpInlineChangeListener;
 import com.fsck.k9.activity.compose.PgpSignOnlyDialog.OnOpenPgpSignOnlyChangeListener;
+import com.fsck.k9.activity.compose.PqcSignOnlyDialog.OnPqcSignOnlyChangeListener;
 import com.fsck.k9.activity.compose.RecipientMvpView;
 import com.fsck.k9.activity.compose.RecipientPresenter;
 import com.fsck.k9.activity.compose.ReplyToPresenter;
@@ -126,7 +128,7 @@ import timber.log.Timber;
 public class MessageCompose extends K9Activity implements OnClickListener,
     CancelListener, AttachmentDownloadCancelListener, OnFocusChangeListener,
     OnOpenPgpInlineChangeListener, OnOpenPgpSignOnlyChangeListener, MessageBuilder.Callback,
-    AttachmentPresenter.AttachmentsChangedListener, OnOpenPgpDisableListener {
+    AttachmentPresenter.AttachmentsChangedListener, OnOpenPgpDisableListener, OnPqcSignOnlyChangeListener {
 
     private static final int DIALOG_SAVE_OR_DISCARD_DRAFT_MESSAGE = 1;
     private static final int DIALOG_CONFIRM_DISCARD_ON_BACK = 2;
@@ -611,7 +613,16 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         }
 
         boolean shouldUsePgpMessageBuilder = cryptoStatus.isOpenPgpConfigured();
-        if (shouldUsePgpMessageBuilder) {
+        if (account.isPqcEnabled()) {
+            Timber.d("Using PqcMessageBuilder");
+            PqcMessageBuilder pqcBuilder = PqcMessageBuilder.newInstance();
+            pqcBuilder.setAccount(account);
+            pqcBuilder.setCryptoStatus(cryptoStatus);
+            recipientPresenter.builderSetProperties(pqcBuilder, cryptoStatus);
+            builder = pqcBuilder;
+            identity.setPQCSignOnly(recipientPresenter.isPQCSignOnly());
+        }
+        else if(shouldUsePgpMessageBuilder) {
             SendErrorState maybeSendErrorState = cryptoStatus.getSendErrorStateOrNull();
             if (maybeSendErrorState != null) {
                 recipientPresenter.showPgpSendError(maybeSendErrorState);
@@ -619,7 +630,6 @@ public class MessageCompose extends K9Activity implements OnClickListener,
             }
 
             PgpMessageBuilder pgpBuilder = PgpMessageBuilder.newInstance();
-            pgpBuilder.setAccount(account);
             recipientPresenter.builderSetProperties(pgpBuilder, cryptoStatus);
             builder = pgpBuilder;
         } else {
@@ -627,8 +637,6 @@ public class MessageCompose extends K9Activity implements OnClickListener,
             recipientPresenter.builderSetProperties(builder);
         }
 
-        //cryptoStatus.setPQCSignOnly(recipientPresenter.isPQSignOnly()); => geht noch nicht
-        identity.setPQCSignOnly(recipientPresenter.isPQCSignOnly());
 
         builder.setSubject(Utility.stripNewLines(subjectView.getText().toString()))
                 .setSentDate(new Date())
@@ -897,6 +905,11 @@ public class MessageCompose extends K9Activity implements OnClickListener,
     }
 
     @Override
+    public void onPqcSignOnlyChange(boolean enabled) {
+        recipientPresenter.onCryptoPqcSignOnlyDisabled();
+    }
+
+    @Override
     public void onOpenPgpClickDisable() {
         recipientPresenter.onCryptoPgpClickDisable();
     }
@@ -961,7 +974,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         } else if (id == R.id.read_receipt) {
             onReadReceipt();
         }
-        //-- PQC Additions --
+        //--- PQC Erweiterung ---
         else if (id == R.id.pqc_encrypt) {
             recipientPresenter.onMenuSetPqcEncrypt(true);
         } else if (id == R.id.pqc_encrypt_disable) {
@@ -972,7 +985,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         } else if (id == R.id.pqc_sign_only_disable) {
             recipientPresenter.onMenuSetPqcSigning(false);
         }
-        //-- END --
+        //--- END ---
         else {
             return super.onOptionsItemSelected(item);
         }
@@ -1389,6 +1402,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
 
         quotedMessagePresenter.processDraftMessage(messageViewInfo, k9identity);
     }
+
 
     static class SendMessageTask extends AsyncTask<Void, Void, Void> {
         final MessagingController messagingController;
