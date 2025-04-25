@@ -75,7 +75,7 @@ public class MessageViewInfo {
         return new MessageViewInfo(message, isMessageIncomplete, null, subject, false, null, null, null, null, null, null, null);
     }
 
-   public MessageViewInfo withCryptoData(CryptoResultAnnotation rootPartAnnotation, String extraViewableText, //--- PQC Erweiterung: public, vielleicht anders machen? ---
+    MessageViewInfo withCryptoData(CryptoResultAnnotation rootPartAnnotation, String extraViewableText,
             List<AttachmentViewInfo> extraAttachmentInfos) {
         return new MessageViewInfo(
                 message, isMessageIncomplete, rootPart, subject, isSubjectEncrypted, text, attachments,

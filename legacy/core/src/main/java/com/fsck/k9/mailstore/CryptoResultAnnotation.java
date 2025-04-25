@@ -119,7 +119,7 @@ public final class CryptoResultAnnotation {
 
     public boolean hasSignatureResult() {
         return openPgpSignatureResult != null &&
-                openPgpSignatureResult.getResult() != OpenPgpSignatureResult.RESULT_NO_SIGNATURE;
+                openPgpSignatureResult.getResult() != OpenPgpSignatureResult.RESULT_NO_SIGNATURE || pqcSignatureResult != null && pqcSignatureResult.getResult() != PqcSignatureResult.RESULT_NO_SIGNATURE;
     }
 
     @Nullable
@@ -207,20 +207,79 @@ public final class CryptoResultAnnotation {
         return pqcDecryptionResult;
     }
 
-    public static CryptoResultAnnotation createPqcSignatureAnnotation(PqcDecryptionResult decryptionResult, PqcSignatureResult signatureResult,MimeBodyPart replacementData) {
+    public static CryptoResultAnnotation createPqcSignatureSuccessAnnotation(
+        @Nullable PqcDecryptionResult decryptionResult,
+        @NonNull PqcSignatureResult signatureResult,
+        @Nullable MimeBodyPart replacementData
+    ) {
         return new CryptoResultAnnotation(
             CryptoError.PQC_SIGNED_OK,
             replacementData,
-            null, // no OpenPGP decryption
-            null, // no OpenPGP signature result
-            null, // no pending intent
-            null, // no insecure warning
-            null, // no openpgp error
+            null, // OpenPGP Decryption
+            null, // OpenPGP Signature
+            null,
+            null,
+            null,
             false,
             decryptionResult,
             signatureResult
         );
     }
+    public static CryptoResultAnnotation createPqcSignatureErrorAnnotation(
+        @Nullable PqcDecryptionResult decryptionResult,
+        @NonNull PqcSignatureResult signatureResult,
+        @Nullable MimeBodyPart replacementData
+    ) {
+        return new CryptoResultAnnotation(
+            CryptoError.PQC_SIGNATURE_ERROR,
+            replacementData,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false,
+            decryptionResult,
+            signatureResult
+        );
+    }
+    public static CryptoResultAnnotation createPqcEncryptionSuccessAnnotation(
+        @NonNull PqcDecryptionResult decryptionResult,
+        @Nullable MimeBodyPart replacementData
+    ) {
+        return new CryptoResultAnnotation(
+            CryptoError.PQC_ENCRYPTED_OK,
+            replacementData,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false,
+            decryptionResult,
+            null
+        );
+    }
+
+    public static CryptoResultAnnotation createPqcEncryptionErrorAnnotation(
+        @NonNull PqcDecryptionResult decryptionResult,
+        @Nullable MimeBodyPart replacementData
+    ) {
+        return new CryptoResultAnnotation(
+            CryptoError.PQC_ENCRYPTED_ERROR,
+            replacementData,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false,
+            decryptionResult,
+            null
+        );
+    }
+
+
     @Nullable
     public PqcSignatureResult getPqcSignatureResult() {
         return pqcSignatureResult;

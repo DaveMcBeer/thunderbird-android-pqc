@@ -137,7 +137,7 @@ public class MessageCryptoStructureDetector {
 
             Body body = part.getBody();
 
-            if (isPartMultipartPqcSigned(part) || isPartMultipartSigned(part)) {
+            if (isPartMixedWithPqcSignature(part) || isPartMultipartSigned(part)) {
                 signedParts.add(part);
                 continue;
             }
@@ -179,19 +179,42 @@ public class MessageCryptoStructureDetector {
     }
 
     public static byte[] getSignatureData(Part part) throws IOException, MessagingException {
-        if (isPartMultipartSigned(part) || isPartMultipartPqcSigned(part)) {
-            MimeMultipart mimeMultipart = (MimeMultipart) part.getBody();
-            BodyPart signatureBody = mimeMultipart.getBodyPart(1);
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            signatureBody.getBody().writeTo(bos);
-            return bos.toByteArray();
+        // Direkter multipart/signed Fall
+        if (isSameMimeType(part.getMimeType(), "multipart/signed") && part.getBody() instanceof MimeMultipart) {
+            MimeMultipart signedMultipart = (MimeMultipart) part.getBody();
+            if (signedMultipart.getCount() > 1) {
+                BodyPart signatureBody = signedMultipart.getBodyPart(1);
+                ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                signatureBody.getBody().writeTo(bos);
+                return bos.toByteArray();
+            }
+        }
+
+        // Eingebetteter multipart/signed in multipart/mixed
+        if (isSameMimeType(part.getMimeType(), "multipart/mixed") && part.getBody() instanceof MimeMultipart) {
+            MimeMultipart mixedMultipart = (MimeMultipart) part.getBody();
+            for (int i = 0; i < mixedMultipart.getCount(); i++) {
+                BodyPart innerPart = mixedMultipart.getBodyPart(i);
+                if (isSameMimeType(innerPart.getMimeType(), "multipart/signed") &&
+                    innerPart.getBody() instanceof MimeMultipart) {
+
+                    MimeMultipart signedMultipart = (MimeMultipart) innerPart.getBody();
+                    if (signedMultipart.getCount() > 1) {
+                        BodyPart signatureBody = signedMultipart.getBodyPart(1);
+                        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                        signatureBody.getBody().writeTo(bos);
+                        return bos.toByteArray();
+                    }
+                }
+            }
         }
 
         return null;
+
     }
 
     private static boolean isPartEncryptedOrSigned(Part part) {
-        return isPartMultipartPqcSigned(part) || isPartMultipartPqcEncrypted(part)
+        return isPartMixedWithPqcSignature(part) || isPartMultipartPqcEncrypted(part)
             || isPartMultipartEncrypted(part) || isPartMultipartSigned(part)
             || isPartPgpInlineEncryptedOrSigned(part);
     }
@@ -284,8 +307,8 @@ public class MessageCryptoStructureDetector {
     }
 
     // --- PQC Erweiterung ---
-    public static boolean isPartMultipartPqcSigned(Part part) {
-        if (!isSameMimeType(part.getMimeType(), MULTIPART_SIGNED)) {
+    public static boolean isPartMixedWithPqcSignature(Part part) {
+        if (!isSameMimeType(part.getMimeType(), "multipart/mixed")) {
             return false;
         }
 
@@ -293,24 +316,32 @@ public class MessageCryptoStructureDetector {
             return false;
         }
 
-        MimeMultipart mimeMultipart = (MimeMultipart) part.getBody();
-        if (mimeMultipart.getCount() < 2) {
-            return false;
-        }
+        MimeMultipart multipart = (MimeMultipart) part.getBody();
+        boolean hasMultipartSigned = false;
+        boolean hasPqcSig = false;
+        boolean hasPqcPubKey = false;
 
-        String protocolParameter = MimeUtility.getHeaderParameter(part.getContentType(), PROTOCOL_PARAMETER);
-        if (!APPLICATION_PQC_SIGNATURE.equalsIgnoreCase(protocolParameter)) {
-            return false;
-        }
+        for (int i = 0; i < multipart.getCount(); i++) {
+            BodyPart bp;
+            bp = multipart.getBodyPart(i);
 
-        for (int i = 0; i < mimeMultipart.getCount(); i++) {
-            BodyPart bodyPart = mimeMultipart.getBodyPart(i);
-            if (isSameMimeType(bodyPart.getMimeType(), APPLICATION_PQC_SIGNATURE)) {
-                return true;
+
+            if (bp.isMimeType("multipart/signed")) {
+                hasMultipartSigned = true;
+            }
+            if (bp.isMimeType("application/pqc-signature")) {
+                String contentType = bp.getContentType();
+                String filename = MimeUtility.getHeaderParameter(contentType, "name");
+
+                if ("pqc_signature.asc".equalsIgnoreCase(filename)) {
+                    hasPqcSig = true;
+                } else if ("pqc_public_key.asc".equalsIgnoreCase(filename)) {
+                    hasPqcPubKey = true;
+                }
             }
         }
 
-        return false;
+        return hasMultipartSigned && hasPqcSig && hasPqcPubKey;
     }
 
     public static boolean isPartMultipartPqcEncrypted(Part part) {

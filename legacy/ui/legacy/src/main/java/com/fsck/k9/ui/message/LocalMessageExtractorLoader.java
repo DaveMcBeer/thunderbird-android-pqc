@@ -1,20 +1,15 @@
 package com.fsck.k9.ui.message;
 
 
-import java.util.ArrayList;
-
 import android.content.Context;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
 import androidx.loader.content.AsyncTaskLoader;
-import com.fsck.k9.mailstore.AttachmentViewInfo;
-import com.fsck.k9.mailstore.CryptoResultAnnotation;
 import com.fsck.k9.mailstore.LocalMessage;
 import com.fsck.k9.mailstore.MessageCryptoAnnotations;
 import com.fsck.k9.mailstore.MessageViewInfo;
 import com.fsck.k9.mailstore.MessageViewInfoExtractor;
-import com.fsck.k9.mailstore.pqc.PqcSignatureResult;
 import timber.log.Timber;
 
 
@@ -56,47 +51,7 @@ public class LocalMessageExtractorLoader extends AsyncTaskLoader<MessageViewInfo
     @WorkerThread
     public MessageViewInfo loadInBackground() {
         try {
-            //--- PQC Erweiterung ---
-            if (annotations == null) {
-                annotations = new MessageCryptoAnnotations();
-            }
-            MessageViewInfo messageViewInfo = messageViewInfoExtractor.extractMessageForView(
-                message,
-                annotations,
-                message.getAccount().isOpenPgpProviderConfigured()
-            );
-
-            if (messageViewInfo.attachments != null && !messageViewInfo.attachments.isEmpty()) {
-                for (AttachmentViewInfo attachment : messageViewInfo.attachments) {
-                    String mimeType = attachment.mimeType;
-
-                    if ("application/pqc-signature".equalsIgnoreCase(mimeType)) {
-                        Timber.d("PQC Signature attachment detected!");
-
-                        PqcSignatureResult pqcSignatureResult = new PqcSignatureResult(
-                            PqcSignatureResult.RESULT_VALID_KEY_CONFIRMED,
-                            null,
-                            0L,
-                            new ArrayList<>(),
-                            new ArrayList<>(),
-                            PqcSignatureResult.SenderStatusResult.UNKNOWN
-                        );
-
-                        return messageViewInfo.withCryptoData(
-                            CryptoResultAnnotation.createPqcSignatureAnnotation(
-                                null,
-                                pqcSignatureResult,
-                                attachment.toBodyPart()
-                            ),
-                            messageViewInfo.extraText,
-                            messageViewInfo.extraAttachments
-                        );
-                    }
-                }
-            }
-
-            return messageViewInfo;
-            //--- ENDE ---
+            return messageViewInfoExtractor.extractMessageForView(message, annotations, message.getAccount().isOpenPgpProviderConfigured());
         } catch (Exception e) {
             Timber.e(e, "Error while decoding message");
             return null;

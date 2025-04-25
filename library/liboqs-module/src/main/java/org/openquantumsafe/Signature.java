@@ -146,7 +146,7 @@ public class Signature {
     private native boolean verify(byte[] message, long message_len,
                                 byte[] signature, long signature_len,
                                 byte[] public_key);
-    
+
     /**
      * \brief Wrapper for OQS_API OQS_STATUS OQS_SIG_sign_with_ctx_str(const OQS_SIG *sig,
      *                                              uint8_t *signature,
@@ -265,7 +265,7 @@ public class Signature {
 
         return verify(message, message.length, signature, signature.length, public_key);
     }
-    
+
     /**
      * \brief Invoke native sign method
      * \param message
@@ -282,7 +282,7 @@ public class Signature {
         Mutable<Long> signature_len_ret = new Mutable<>();
         int ctx_len = (ctx == null) ? 0 : ctx.length;
         int rv_= sign_with_ctx_str(signature, signature_len_ret,
-                        message, message.length, 
+                        message, message.length,
                         ctx, ctx_len,
                         this.secret_key_);
         long actual_signature_len = signature_len_ret.value;
@@ -311,7 +311,7 @@ public class Signature {
         }
 
         int ctx_len = (ctx == null) ? 0 : ctx.length;
-        
+
         return verify_with_ctx_str(message, message.length, signature, signature.length, ctx, ctx_len, public_key);
     }
 

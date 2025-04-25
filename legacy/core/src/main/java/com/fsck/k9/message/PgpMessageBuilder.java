@@ -4,9 +4,13 @@ package com.fsck.k9.message;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
+import java.util.Objects;
 
+import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.content.Intent;
 
@@ -14,6 +18,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.content.IntentCompat;
+import app.k9mail.legacy.account.Account;
 import com.fsck.k9.CoreResourceProvider;
 import app.k9mail.legacy.di.DI;
 import com.fsck.k9.K9;
@@ -37,11 +42,13 @@ import com.fsck.k9.mail.internet.MimeMultipart;
 import com.fsck.k9.mail.internet.MimeUtility;
 import com.fsck.k9.mail.internet.TextBody;
 import com.fsck.k9.mailstore.BinaryMemoryBody;
+import com.fsck.k9.message.pqc.PqcMessageHelper;
 import org.apache.commons.io.IOUtils;
 import org.apache.james.mime4j.util.MimeUtil;
 import org.openintents.openpgp.OpenPgpError;
 import org.openintents.openpgp.util.OpenPgpApi;
 import org.openintents.openpgp.util.OpenPgpApi.OpenPgpDataSource;
+import org.openquantumsafe.Signature;
 import timber.log.Timber;
 
 
@@ -59,6 +66,10 @@ public class PgpMessageBuilder extends MessageBuilder {
     private MimeMessage currentProcessedMimeMessage;
     private MimeBodyPart messageContentBodyPart;
     private CryptoStatus cryptoStatus;
+
+    //--- PQC Erweiterung ---
+    private Account account;
+    //--- ENDE ---
 
 
     public static PgpMessageBuilder newInstance() {
@@ -85,8 +96,7 @@ public class PgpMessageBuilder extends MessageBuilder {
     public void setOpenPgpApi(OpenPgpApi openPgpApi) {
         this.openPgpApi = openPgpApi;
     }
-
-    @Override
+        @Override
     protected void buildMessageInternal() {
         if (currentProcessedMimeMessage != null) {
             throw new IllegalStateException("message can only be built once!");
@@ -400,24 +410,70 @@ public class PgpMessageBuilder extends MessageBuilder {
             throw new MessagingException("didn't find expected RESULT_DETACHED_SIGNATURE in api call result");
         }
 
+        // === Multipart/Signed erstellen ===
         MimeMultipart multipartSigned = createMimeMultipart();
         multipartSigned.setSubType("signed");
         multipartSigned.addBodyPart(signedBodyPart);
         multipartSigned.addBodyPart(
             MimeBodyPart.create(new BinaryMemoryBody(signedData, MimeUtil.ENC_7BIT),
                 "application/pgp-signature; name=\"signature.asc\""));
-        MimeMessageHelper.setBody(currentProcessedMimeMessage, multipartSigned);
 
-        String contentType = String.format(
+        String signedContentType = String.format(
             "multipart/signed; boundary=\"%s\";\r\n  protocol=\"application/pgp-signature\"",
             multipartSigned.getBoundary());
+
         if (result.hasExtra(OpenPgpApi.RESULT_SIGNATURE_MICALG)) {
-            String micAlgParameter = result.getStringExtra(OpenPgpApi.RESULT_SIGNATURE_MICALG);
-            contentType += String.format("; micalg=\"%s\"", micAlgParameter);
+            String micAlg = result.getStringExtra(OpenPgpApi.RESULT_SIGNATURE_MICALG);
+            signedContentType += String.format("; micalg=\"%s\"", micAlg);
         } else {
             Timber.e("missing micalg parameter for pgp multipart/signed!");
         }
-        currentProcessedMimeMessage.setHeader(MimeHeader.HEADER_CONTENT_TYPE, contentType);
+
+        // multipart/signed als BodyPart kapseln
+        MimeBodyPart pgpSignedBodyPart = new MimeBodyPart(multipartSigned);
+        pgpSignedBodyPart.setHeader(MimeHeader.HEADER_CONTENT_TYPE, signedContentType);
+
+
+        //--- PQC Erweiterung ---
+        if (account != null && account.isPqcEnabled()) {
+            try {
+                // PQC-Signatur berechnen
+                byte[] canonicalBytes = PqcMessageHelper.canonicalize(this.messageContentBodyPart);
+                byte[] pqcSignatureBytes = generateSignature(canonicalBytes);
+                byte[] pqcPublicKeyBytes = generatePublicKey();
+
+                String armoredSig = PqcMessageHelper.toAsciiArmor(pqcSignatureBytes, "PQC SIGNATURE");
+                String armoredKey = PqcMessageHelper.toAsciiArmor(pqcPublicKeyBytes, "PQC PUBLIC KEY");
+
+
+
+                MimeMultipart multipartMixed = createMimeMultipart();
+                multipartMixed.setSubType("mixed");
+                multipartMixed.addBodyPart(pgpSignedBodyPart);
+
+                multipartMixed.addBodyPart(
+                    MimeBodyPart.create(new BinaryMemoryBody(armoredSig.getBytes(StandardCharsets.US_ASCII), MimeUtil.ENC_7BIT),
+                        "application/pqc-signature; name=\"pqc_signature.asc\""));
+
+                multipartMixed.addBodyPart(
+                    MimeBodyPart.create(new BinaryMemoryBody(armoredKey.getBytes(StandardCharsets.US_ASCII), MimeUtil.ENC_7BIT),
+                        "application/pqc-signature; name=\"pqc_public_key.asc\""));
+
+                MimeMessageHelper.setBody(currentProcessedMimeMessage, multipartMixed);
+
+                currentProcessedMimeMessage.setHeader(MimeHeader.HEADER_CONTENT_TYPE,
+                    String.format("multipart/mixed; boundary=\"%s\"", multipartMixed.getBoundary()));
+
+                currentProcessedMimeMessage.setHeader("X-PQC-Signature-Algorithm", account.getPqcSigningAlgorithm());
+                return;
+            } catch (Exception e) {
+                Timber.e(e, "Fehler beim Hinzufügen von PQC-Signaturen – sende nur PGP");
+            }
+        }
+
+        // === Fallback nur PGP ===
+        MimeMessageHelper.setBody(currentProcessedMimeMessage, multipartSigned);
+        currentProcessedMimeMessage.setHeader(MimeHeader.HEADER_CONTENT_TYPE, signedContentType);
     }
 
     private void mimeBuildEncryptedMessage(@NonNull Body encryptedBodyPart) throws MessagingException {
@@ -450,4 +506,45 @@ public class PgpMessageBuilder extends MessageBuilder {
     public void setCryptoStatus(CryptoStatus cryptoStatus) {
         this.cryptoStatus = cryptoStatus;
     }
+
+
+    //--- PQC Erweiterung ---
+
+    public void setAccount(Account account) {
+        this.account = account;
+    }
+    /**
+     * Signiert den normalisierten Nachrichtentext mit dem PQC-Algorithmus.
+     */
+    @SuppressLint("BinaryOperationInTimber")
+    private byte[] generateSignature(byte[] dataToSign) throws MessagingException {
+        ensureAccountConfigured();
+        byte[] secretKey = Base64.getMimeDecoder().decode(account.getPqcSecretSigningKey());
+        Signature signature = new Signature(account.getPqcSigningAlgorithm(), secretKey);
+
+        byte[] signatureArray = signature.sign(dataToSign);
+        signature.dispose_sig();
+        return signatureArray;
+    }
+    /**
+     * Bereitet den öffentlichen Schlüssel als ASCII-armored Text auf.
+     */
+    private byte[] generatePublicKey() throws MessagingException {
+        ensureAccountConfigured();
+        return Base64.getMimeDecoder().decode(account.getPqcPublicSigngingKey());
+    }
+
+
+    /**
+     * Prüft, ob der Account korrekt für PQC konfiguriert ist.
+     */
+    private void ensureAccountConfigured() throws MessagingException {
+        if (account == null || account.getPqcSigningAlgorithm() == null || account.getPqcSigningAlgorithm().equals("None")) {
+            throw new MessagingException("PQC Account or algorithm not properly configured");
+        }
+        if (account.getPqcKeysetExists() == null || !account.getPqcKeysetExists()) {
+            throw new MessagingException("No PQC Keyset exists, please generate or import in account settings");
+        }
+    }
+    //--- ENDE ---
 }

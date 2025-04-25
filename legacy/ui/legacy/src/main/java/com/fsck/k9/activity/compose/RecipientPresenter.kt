@@ -12,7 +12,6 @@ import android.view.Menu
 import androidx.core.content.ContextCompat
 import androidx.loader.app.LoaderManager
 import app.k9mail.legacy.account.Account
-import com.fsck.k9.message.pqc.PqcMessageBuilder
 import com.fsck.k9.K9
 import com.fsck.k9.activity.compose.ComposeCryptoStatus.AttachErrorState
 import com.fsck.k9.activity.compose.ComposeCryptoStatus.SendErrorState
@@ -109,8 +108,6 @@ class RecipientPresenter(
             }
         }
     }
-
-    var isPQCSignOnly: Boolean? = false
 
     init {
         recipientMvpView.setPresenter(this)
@@ -303,13 +300,8 @@ class RecipientPresenter(
 
     fun onPrepareOptionsMenu(menu: Menu) {
         val currentCryptoStatus = currentCachedCryptoStatus
-        //--- PQC Erweiterung ---
-        val isCryptoAvailable = currentCryptoStatus != null
-        val isPqcSignOnly = currentCryptoStatus?.isPQCSignOnly == true
-        val isPqcEncrypt = currentCryptoStatus?.isPQCEncrypt == true
-        val isPqcActive = isPqcSignOnly || isPqcEncrypt
-        //--- ENDE ---
-        if (currentCryptoStatus != null && currentCryptoStatus.isProviderStateOk()&& !isPqcActive) { //--- PQC Erweiterung: isPqcActive ---
+
+        if (currentCryptoStatus != null && currentCryptoStatus.isProviderStateOk()) {
             val isEncrypting = currentCryptoStatus.isEncryptionEnabled
             menu.findItem(R.id.openpgp_encrypt_enable).isVisible = !isEncrypting
             menu.findItem(R.id.openpgp_encrypt_disable).isVisible = isEncrypting
@@ -323,7 +315,6 @@ class RecipientPresenter(
             val showPgpInlineEnable = (isEncrypting || isSignOnly) && !pgpInlineModeEnabled
             menu.findItem(R.id.openpgp_inline_enable).isVisible = showPgpInlineEnable
             menu.findItem(R.id.openpgp_inline_disable).isVisible = pgpInlineModeEnabled
-
         } else {
             menu.findItem(R.id.openpgp_inline_enable).isVisible = false
             menu.findItem(R.id.openpgp_inline_disable).isVisible = false
@@ -333,20 +324,6 @@ class RecipientPresenter(
             menu.findItem(R.id.openpgp_sign_only_disable).isVisible = false
         }
 
-        // --- PQC Erweitrung: Unabhängig von OpenPGP machen ---
-        if (isCryptoAvailable) {
-            menu.findItem(R.id.pqc_encrypt).isVisible = !isPqcEncrypt
-            menu.findItem(R.id.pqc_encrypt_disable).isVisible = isPqcEncrypt
-
-            menu.findItem(R.id.pqc_sign_only).isVisible = !isPqcSignOnly
-            menu.findItem(R.id.pqc_sign_only_disable).isVisible = isPqcSignOnly
-        } else {
-            menu.findItem(R.id.pqc_encrypt).isVisible = false
-            menu.findItem(R.id.pqc_encrypt_disable).isVisible = false
-            menu.findItem(R.id.pqc_sign_only).isVisible = false
-            menu.findItem(R.id.pqc_sign_only_disable).isVisible = false
-        }
-        //--- ENDE ---
         menu.findItem(R.id.add_from_contacts).isVisible = hasContactPermission() && hasContactPicker()
     }
 
@@ -462,28 +439,10 @@ class RecipientPresenter(
     private fun redrawCachedCryptoStatusIcon() {
         val cryptoStatus = checkNotNull(currentCachedCryptoStatus) { "must have cached crypto status to redraw it!" }
 
-        when {
-            // --- PQC Erweiterung ---
-            cryptoStatus.isPQCEncrypt -> {
-                recipientMvpView.setRecipientTokensShowCryptoEnabled(true)
-                recipientMvpView.showCryptoStatus(cryptoStatus.displayType)
-                recipientMvpView.showCryptoSpecialMode(cryptoStatus.specialModeDisplayType)
-            }
-            cryptoStatus.isPQCSignOnly -> {
-                recipientMvpView.setRecipientTokensShowCryptoEnabled(false) // SignOnly: Kein aktives Schloss
-                recipientMvpView.showCryptoStatus(cryptoStatus.displayType)
-                recipientMvpView.showCryptoSpecialMode(cryptoStatus.specialModeDisplayType)
-            }
-            // --- ENDE ---
-
-            else -> {
-                recipientMvpView.setRecipientTokensShowCryptoEnabled(cryptoStatus.isEncryptionEnabled)
-                recipientMvpView.showCryptoStatus(cryptoStatus.displayType)
-                recipientMvpView.showCryptoSpecialMode(cryptoStatus.specialModeDisplayType)
-            }
-        }
+        recipientMvpView.setRecipientTokensShowCryptoEnabled(cryptoStatus.isEncryptionEnabled)
+        recipientMvpView.showCryptoStatus(cryptoStatus.displayType)
+        recipientMvpView.showCryptoSpecialMode(cryptoStatus.specialModeDisplayType)
     }
-
 
     fun onToTokenAdded() {
         asyncUpdateCryptoStatus()
@@ -602,23 +561,6 @@ class RecipientPresenter(
     }
 
     fun onClickCryptoStatus() {
-        //--- PQC Erweiterung: Anpassen der Methode um PQC getrennt von OpenPGP zu behandeln ----
-        val currentCryptoStatus = currentCachedCryptoStatus
-        if (currentCryptoStatus == null) {
-            Timber.e("click on crypto status while crypto status not available - should not really happen?!")
-            return
-        }
-        // ✅ PQC Handling ergänzen, VOR dem bestehenden OpenPGP Code
-        if (currentCryptoStatus.isPQCEncrypt) {
-            toggleEncryptionState(false)
-            return
-        }
-
-        if (currentCryptoStatus.isPQCSignOnly) {
-            toggleEncryptionState(false)
-            return
-        }
-        //--- ENDE ---
         when (openPgpApiManager.openPgpProviderState) {
             OpenPgpProviderState.UNCONFIGURED -> {
                 Timber.e("click on crypto status while unconfigured - this should not really happen?!")
@@ -649,8 +591,7 @@ class RecipientPresenter(
             return
         }
 
-        //--- PQC Erweiterung to Do: PQC encryption handling ---
-        if (currentCryptoMode == CryptoMode.SIGN_ONLY || currentCryptoMode == CryptoMode.PQC_SIGN_ONLY) {
+        if (currentCryptoMode == CryptoMode.SIGN_ONLY) {
             recipientMvpView.showErrorIsSignOnly()
             return
         }
@@ -714,9 +655,10 @@ class RecipientPresenter(
     }
 
     fun builderSetProperties(messageBuilder: MessageBuilder) {
-        require(messageBuilder !is PgpMessageBuilder && messageBuilder !is PqcMessageBuilder) { //--- PQC Erweiterung: PqcMessageBuilder ---
-            "${messageBuilder.javaClass.simpleName} must be called with ComposeCryptoStatus argument!"
+        require(messageBuilder !is PgpMessageBuilder) {
+            "PpgMessageBuilder must be called with ComposeCryptoStatus argument!"
         }
+
         messageBuilder.setTo(toAddresses)
         messageBuilder.setCc(ccAddresses)
         messageBuilder.setBcc(bccAddresses)
@@ -794,31 +736,12 @@ class RecipientPresenter(
             currentCryptoMode == CryptoMode.SIGN_ONLY -> {
                 recipientMvpView.showOpenPgpSignOnlyDialog(false)
             }
-            //--- PQC Erweiterung ---
-            currentCryptoMode == CryptoMode.PQC_SIGN_ONLY -> {
-                recipientMvpView.showPQCSignOnlyDialog(false)
-            }
-            //--- ENDE ---
             isForceTextMessageFormat -> {
                 recipientMvpView.showOpenPgpInlineDialog(false)
             }
             else -> {
                 error("This icon should not be clickable while no special mode is active!")
             }
-        }
-    }
-    fun onMenuSetPqcEncrypt(enable: Boolean) {
-        if (enable) {
-            onCryptoModeChanged(CryptoMode.PQC_ENCRYPT)
-        } else {
-            onCryptoModeChanged(CryptoMode.NO_CHOICE)
-        }
-    }
-    fun onMenuSetPqcSigning(enable: Boolean){
-        if (enable) {
-            onCryptoModeChanged(CryptoMode.PQC_SIGN_ONLY)
-        } else {
-            onCryptoModeChanged(CryptoMode.NO_CHOICE)
         }
     }
 
@@ -842,26 +765,10 @@ class RecipientPresenter(
         else -> throw AssertionError("Unhandled case: $this")
     }
 
-    //--- PQC Erweiterung ---
-    fun builderSetProperties(pqcMessageBuilder: PqcMessageBuilder, cryptoStatus: ComposeCryptoStatus) {
-        pqcMessageBuilder.setAccount(account)
-        pqcMessageBuilder.setCryptoStatus(cryptoStatus)
-        pqcMessageBuilder.setTo(toAddresses)
-        pqcMessageBuilder.setCc(ccAddresses)
-        pqcMessageBuilder.setBcc(bccAddresses)
-    }
-
-    fun onCryptoPqcSignOnlyDisabled() {
-        onCryptoModeChanged(CryptoMode.NO_CHOICE)
-    }
-    //--- ENDE ---
-
     enum class CryptoMode {
         SIGN_ONLY,
         NO_CHOICE,
         CHOICE_DISABLED,
         CHOICE_ENABLED,
-        PQC_SIGN_ONLY,
-        PQC_ENCRYPT
     }
 }

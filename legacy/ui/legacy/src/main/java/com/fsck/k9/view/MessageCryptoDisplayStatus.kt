@@ -199,6 +199,17 @@ enum class MessageCryptoDisplayStatus(
         titleTextRes = R.string.crypto_msg_title_encrypted_unknown,
         descriptionTextRes = R.string.crypto_msg_unsupported_signed,
     ),
+    MIXED_SIGN_VERIFIED(
+        colorAttr = R.attr.openpgp_green,
+        statusIconRes = R.drawable.status_lock_dots_3,
+        titleTextRes = R.string.crypto_msg_title_mixed_signed,
+        descriptionTextRes = R.string.crypto_msg_mixed_sign_verified
+    ),MIXED_SIGN_PQC_FAILED(
+        colorAttr = R.attr.openpgp_red,
+        statusIconRes = Icons.Outlined.Error,
+        titleTextRes = R.string.crypto_msg_title_mixed_signed_error,
+        descriptionTextRes = R.string.crypto_msg_mixed_sign_pqc_failed,
+    ),
     ;
 
     fun hasAssociatedKey(): Boolean {
@@ -249,15 +260,8 @@ enum class MessageCryptoDisplayStatus(
         ): MessageCryptoDisplayStatus {
             return when (cryptoResult?.errorType) {
                 null -> DISABLED
-                // --- PQC Erweiterung ---
-                CryptoError.PQC_SIGNED_OK,
-                CryptoError.PQC_ENCRYPTED_OK,
-                CryptoError.PQC_SIGNATURE_ERROR,
-                CryptoError.PQC_ENCRYPTED_ERROR,
-                    -> getDisplayStatusForPqcResult(cryptoResult)
-
-                //--- ENDE --
-
+                CryptoError.PQC_SIGNATURE_ERROR -> MIXED_SIGN_PQC_FAILED
+                CryptoError.PQC_SIGNED_OK -> MIXED_SIGN_VERIFIED
                 CryptoError.OPENPGP_OK -> getDisplayStatusForPgpResult(cryptoResult)
                 CryptoError.OPENPGP_ENCRYPTED_BUT_INCOMPLETE -> INCOMPLETE_ENCRYPTED
                 CryptoError.OPENPGP_SIGNED_BUT_INCOMPLETE -> INCOMPLETE_SIGNED
@@ -300,18 +304,6 @@ enum class MessageCryptoDisplayStatus(
                 RESULT_ENCRYPTED -> getStatusForPgpEncryptedResult(signatureResult)
                 RESULT_INSECURE -> ENCRYPTED_INSECURE
                 else -> throw AssertionError("all cases must be handled, this is a bug!")
-            }
-        }
-        private fun getDisplayStatusForPqcResult(
-            cryptoResult: CryptoResultAnnotation,
-        ): MessageCryptoDisplayStatus {
-            // Hier kannst du später auch Details auslesen, z.B. SenderStatus usw.
-            return when (cryptoResult.errorType) {
-                CryptoError.PQC_SIGNED_OK -> UNENCRYPTED_SIGN_VERIFIED
-                CryptoError.PQC_ENCRYPTED_OK -> ENCRYPTED_SIGN_VERIFIED
-                CryptoError.PQC_SIGNATURE_ERROR -> UNENCRYPTED_SIGN_ERROR
-                CryptoError.PQC_ENCRYPTED_ERROR -> ENCRYPTED_ERROR
-                else -> error("Unhandled PQC case!")
             }
         }
         private fun getStatusForPgpEncryptedResult(

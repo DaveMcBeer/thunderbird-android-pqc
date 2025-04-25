@@ -13,15 +13,6 @@ import org.openintents.openpgp.OpenPgpApiManager.OpenPgpProviderState
  * during email composition to apply cryptographic operations before sending
  * or saving as draft.
  */
-
-/**--- PQC Erweiterungen ---
- Erweiterung der ComposeCryptoStatus-Klasse um Unterstützung für Post-Quantum-Kryptografie (PQC):
- - Neue Modi: PQC_SIGN_ONLY und PQC_ENCRYPT als Erweiterung des bestehenden CryptoMode.
- - Erweiterung von isEncryptionEnabled() und isSigningEnabled(), um PQC-Modi korrekt zu berücksichtigen.
- - Anpassung der Anzeige-Logik (displayType & specialModeDisplayType), um PQC-spezifische Zustände korrekt zu visualisieren.
- - Ziel: nahtlose Integration von PQC-Funktionalität in die bestehende E-Mail-Verschlüsselungslogik.
---- ENDE PQC Erweiterungen --- */
-
 data class ComposeCryptoStatus(
     private val openPgpProviderState: OpenPgpProviderState,
     override val openPgpKeyId: Long?,
@@ -68,16 +59,9 @@ data class ComposeCryptoStatus(
 
     override val isSignOnly = cryptoMode == CryptoMode.SIGN_ONLY
 
-    //--- PQC Erweiterung ---
-    override val isPQCSignOnly = cryptoMode == CryptoMode.PQC_SIGN_ONLY
-    override val isPQCEncrypt = cryptoMode == CryptoMode.PQC_ENCRYPT
-    //--- ENDE ---
-
     override val isEncryptionEnabled = when {
         openPgpProviderState == OpenPgpProviderState.UNCONFIGURED -> false
         isSignOnly -> false
-        isPQCSignOnly -> false  //--- PQC Erweiterung ---
-        isPQCEncrypt -> true    //--- PQC Erweiterung ---
         isExplicitlyEnabled -> true
         isMutualAndNotDisabled -> true
         isReplyAndNotDisabled -> true
@@ -87,12 +71,7 @@ data class ComposeCryptoStatus(
     override fun isProviderStateOk() = openPgpProviderState == OpenPgpProviderState.OK
 
     override fun isUserChoice() = cryptoMode != CryptoMode.NO_CHOICE
-
-
-    // -- PQC Erweiterung:   cryptoMode == CryptoMode.PQ_SIGN_ONLY --
-    override fun isSigningEnabled() = cryptoMode == CryptoMode.SIGN_ONLY || isEncryptionEnabled || cryptoMode == CryptoMode.PQC_SIGN_ONLY
-
-
+    override fun isSigningEnabled() = cryptoMode == CryptoMode.SIGN_ONLY || isEncryptionEnabled
     val recipientAddressesAsArray = recipientAddresses.toTypedArray()
 
     private val displayTypeFromProviderError = when (openPgpProviderState) {
@@ -125,33 +104,22 @@ data class ComposeCryptoStatus(
         else -> null
     }
 
-    // --- PQC Erweiterung ---
-    private val displayTypeFromPqcSignOnly = when {
-        isPQCSignOnly -> CryptoStatusDisplayType.SIGN_ONLY
-        else -> null
-    }
-    // --- ENDE ---
-
     val displayType =
-        displayTypeFromPqcSignOnly //--- PQC Erweiterung: ✅ PQC Sign-Only zuerst prüfen, da vorrang zu OpenPGP ---
-            ?: displayTypeFromProviderError
+        displayTypeFromProviderError
             ?: displayTypeFromAutocryptError
             ?: displayTypeFromEnabledAutocryptStatus
             ?: displayTypeFromSignOnly
             ?: displayTypeFromEncryptionAvailable
-            ?: if (isPQCEncrypt) CryptoStatusDisplayType.ENABLED else null
-                ?: CryptoStatusDisplayType.UNAVAILABLE
+            ?: CryptoStatusDisplayType.UNAVAILABLE
 
-    val specialModeDisplayType =
-        when {
-        isPQCEncrypt -> CryptoSpecialModeDisplayType.SIGN_ONLY_PGP_INLINE   //--- PQC Addition ---
-        isPQCSignOnly -> CryptoSpecialModeDisplayType.SIGN_ONLY     //--- PQC Addition ---
+    val specialModeDisplayType = when {
         openPgpProviderState != OpenPgpProviderState.OK -> CryptoSpecialModeDisplayType.NONE
         isSignOnly && isPgpInlineModeEnabled -> CryptoSpecialModeDisplayType.SIGN_ONLY_PGP_INLINE
         isSignOnly -> CryptoSpecialModeDisplayType.SIGN_ONLY
         allRecipientsCanEncrypt() && isPgpInlineModeEnabled -> CryptoSpecialModeDisplayType.PGP_INLINE
         else -> CryptoSpecialModeDisplayType.NONE
     }
+
     val autocryptPendingIntent = recipientAutocryptStatus?.intent
 
     val sendErrorStateOrNull = when {

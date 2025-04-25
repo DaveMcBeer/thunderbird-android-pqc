@@ -873,7 +873,7 @@
     <string name="openpgp_sign_only_disable">Disable</string>
     <string name="openpgp_sign_only_keep_enabled">Keep Enabled</string>
     <string name="openpgp_dialog_sign_only_title">PGP Sign-Only Mode</string>
-    <string name="openpgp_dialog_sign_only_text">In this mode, your PGP key will be used to create a cryptographic signature of an unencrypted email.</string>
+    <string name="openpgp_dialog_sign_only_text">In this mode, your PGP key will be used to create a cryptographic signature of an unencrypted email. If PQC is enabled an additional quantum safe signature will be created.</string>
     <string name="openpgp_dialog_sign_only_plus_verified">This does not encrypt the email, but verifies that it was sent from your key.</string>
     <string name="openpgp_dialog_sign_only_minus_break">Signatures may break when sent to mailing lists.</string>
     <string name="openpgp_dialog_sign_only_minus_attach">Signatures may be displayed as \'signature.asc\' attachments in some clients.</string>
@@ -1131,18 +1131,11 @@ You can keep this message and use it as a backup for your secret key. If you wan
         <string name="account_settings_pq_algorithms_cross_rsdpg_256_small">cross-rsdpg-256-small</string>
         <string name="account_settings_pq_algorithms_none">None</string>
 
-        <string name="enable_pqcsign_only">Enable PQC Sign-Only</string>
-        <string name="disable_pqcsign_only">Disable PQC Sign-Only</string>
-        <string name="enable_pqc_encrypt">Enable PQC Encryption</string>
-        <string name="disable_pqc_encrypt">Disable PQC Encryption</string>
 
+    <string name="crypto_msg_title_mixed_signed">Signed plaintext with additional pqc signing</string>
+    <string name="crypto_msg_mixed_sign_verified">from verified signer</string>
 
-        <string name="pqc_dialog_sign_only_title">PQC Sign-Only Mode</string>
-        <string name="pqc_dialog_sign_only_text">In this mode, your post-quantum cryptographic (PQC) key will be used to create a digital signature for your unencrypted email.</string>
-        <string name="pqc_dialog_sign_only_plus_verified">This does not encrypt the email, but confirms that it was sent from you and has not been altered.</string>
-        <string name="pqc_dialog_sign_only_minus_break">Signatures might become invalid if the email is modified by mailing lists or forwarding services.</string>
-        <string name="pqc_dialog_sign_only_minus_attach">Some email clients might show the signature as an attachment named \'signature.asc\'.</string>
-        <string name="pqc_dialog_sign_only_neutral_encsigned">Encrypted emails will always include a signature as well.</string>
-
+    <string name="crypto_msg_title_mixed_signed_error">Failed to verifie message</string>
+    <string name="crypto_msg_mixed_sign_pqc_failed">message could not be verified</string>
     <!-- ENDE -->
 </resources>

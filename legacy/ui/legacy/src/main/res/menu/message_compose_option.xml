@@ -64,22 +64,4 @@
         android:title="@string/disable_inline_pgp"
         app:showAsAction="never"
         />
-    <item
-        android:id="@+id/pqc_sign_only"
-        android:title="@string/enable_pqcsign_only"
-        app:showAsAction="never"
-        />
-    <item
-        android:id="@+id/pqc_sign_only_disable"
-        android:title="@string/disable_pqcsign_only"
-        app:showAsAction="never"
-        />
-    <item
-        android:id="@+id/pqc_encrypt"
-        android:title="@string/enable_pqc_encrypt"
-        app:showAsAction="never" />
-    <item
-        android:id="@+id/pqc_encrypt_disable"
-        android:title="@string/disable_pqc_encrypt"
-        app:showAsAction="never" />
 </menu>

@@ -91,7 +91,7 @@ public class MessageViewInfoExtractor {
     }
 
     private MessageViewInfo extractSubject(MessageViewInfo messageViewInfo) {
-        if (messageViewInfo.cryptoResultAnnotation != null && messageViewInfo.cryptoResultAnnotation.isEncrypted() || messageViewInfo.cryptoResultAnnotation.isPqcEncrypted() ) { //--- PQC Erweiterung: pqc status mit abfragen----
+        if (messageViewInfo.cryptoResultAnnotation != null && messageViewInfo.cryptoResultAnnotation.isEncrypted()) {
             String protectedSubject = extractProtectedSubject(messageViewInfo);
             if (protectedSubject != null) {
                 return messageViewInfo.withSubject(protectedSubject, true);

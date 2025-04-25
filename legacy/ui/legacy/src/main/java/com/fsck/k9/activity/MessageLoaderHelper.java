@@ -249,13 +249,12 @@ public class MessageLoaderHelper {
         }
 
         boolean isPqcEnabled = account.isPqcEnabled();
-        if (isPqcEnabled) {
-            startOrResumePQCCryptoOperation();
+        String openPgpProvider = account.getOpenPgpProvider();
+
+        if (isPqcEnabled || openPgpProvider != null) {
+            startOrResumeCombinedCryptoOperation(openPgpProvider, isPqcEnabled);
             return;
         }
-
-
-        String openPgpProvider = account.getOpenPgpProvider();
         if (openPgpProvider != null) {
             startOrResumeCryptoOperation(openPgpProvider);
             return;
@@ -544,28 +543,37 @@ public class MessageLoaderHelper {
 
 
     //--- PQC Erweiterung ---
-    private void startOrResumePQCCryptoOperation() {
+    private void startOrResumeCombinedCryptoOperation(String openPgpProvider, boolean isPqcEnabled) {
         RetainFragment<MessageCryptoHelper> retainCryptoHelperFragment = getMessageCryptoHelperRetainFragment(true);
         if (retainCryptoHelperFragment.hasData()) {
             messageCryptoHelper = retainCryptoHelperFragment.getData();
         }
-        if (messageCryptoHelper == null) {
+
+        if (messageCryptoHelper == null ||
+            (openPgpProvider != null && !messageCryptoHelper.isConfiguredForOpenPgpProvider(openPgpProvider))) {
             messageCryptoHelper = new MessageCryptoHelper(
                 context,
                 new OpenPgpApiFactory(),
                 AutocryptOperations.getInstance(),
-                null, account // Kein OpenPGP Provider
+                openPgpProvider,
+                account
             );
             retainCryptoHelperFragment.setData(messageCryptoHelper);
         }
 
+        // übergibt PGP- und PQC-Dekryptionsdaten gleichzeitig
+        Parcelable preferredDecryptionResult = cachedDecryptionResult != null
+            ? cachedDecryptionResult
+            : cachedPqcDecryptionResult;
+
         messageCryptoHelper.asyncStartOrResumeProcessingMessage(
             localMessage,
             messageCryptoCallback,
-            cachedPqcDecryptionResult,
+            preferredDecryptionResult,
             !account.isOpenPgpHideSignOnly()
         );
     }
+
 
 
     //--- ENDE ---

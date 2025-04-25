@@ -518,7 +518,7 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
         isPqcEnabledPref?.setOnPreferenceChangeListener{preference,newValue ->
             val enabled = newValue as Boolean
 
-            /*if (enabled && account.openPgpProvider == null) {
+            if (enabled && (account.openPgpProvider == null)) {
                 // Kein OpenPGP Provider vorhanden → zurücksetzen + Hinweis
                 Toast.makeText(requireContext(), R.string.account_settings_openpgp_missing, Toast.LENGTH_LONG).show()
 
@@ -527,8 +527,9 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
                 keyManagementPref.isEnabled = false
                 return@setOnPreferenceChangeListener false
             }
-            else*/
-            keyManagementPref.isEnabled = enabled
+            else {
+                keyManagementPref.isEnabled = enabled
+            }
 
             true
         }
