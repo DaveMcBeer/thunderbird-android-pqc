@@ -8,7 +8,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Objects;
 
 import android.annotation.SuppressLint;
 import android.app.PendingIntent;
@@ -435,7 +434,7 @@ public class PgpMessageBuilder extends MessageBuilder {
 
 
         //--- PQC Erweiterung ---
-        if (account != null && account.isPqcEnabled()) {
+        if (account != null && account.isPqcSigningEnabled()) {
             try {
                 // PQC-Signatur berechnen
                 byte[] canonicalBytes = PqcMessageHelper.canonicalize(this.messageContentBodyPart);

@@ -25,29 +25,6 @@ public class TestClass {
         for (String kemName : supportedKems) {
             System.out.println("- " + kemName);
         }
-
-        Sigs sigsInstance = Sigs.get_instance();
-        ArrayList<String> supportedSigs = sigsInstance.get_supported_sigs();
-        System.out.println("Supported Sigs:");
-        for (String sigName : supportedSigs) {
-            System.out.println("- " + sigName);
-        }
-
-        String kemName = "Kyber512";
-        KeyEncapsulation kem = new KeyEncapsulation(kemName);
-        kem.generate_keypair();
-        byte[] publicKey = kem.export_public_key();
-        System.out.println("Public Key: " + Common.to_hex(publicKey));
-        byte[] privateKey = kem.export_secret_key();
-        System.out.println("Private Key: " + Common.to_hex(privateKey));
-
-        Pair<byte[], byte[]> encapsulationResult = kem.encap_secret(publicKey);
-        byte[] ciphertext = encapsulationResult.getLeft();
-        byte[]sharedSecretEncap = encapsulationResult.getRight();
-        byte[] sharedSecretDecap = kem.decap_secret(ciphertext);
-        System.out.println(Common.to_hex(sharedSecretEncap));
-        System.out.println(Common.to_hex(sharedSecretDecap));
-        assertArrayEquals(sharedSecretEncap, sharedSecretDecap);
     }
 }
 

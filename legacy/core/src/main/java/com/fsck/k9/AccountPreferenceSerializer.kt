@@ -201,7 +201,7 @@ class AccountPreferenceSerializer(
 
 
             //--- PQC Erweiterung ---
-            isPqcEnabled = storage.getBoolean("$accountUuid.pqcEnabled", false)
+            isPqcSigningEnabled = storage.getBoolean("$accountUuid.pqcEnabled", false)
             isPqcShowSignature = storage.getBoolean("$accountUuid.pqcHideSignOnly", false)
             pqcSigningAlgorithm = storage.getString("$accountUuid.pqcSigningAlgorithm", null)
             pqcPublicSigngingKey = storage.getString("$accountUuid.pqcPublicKey", null)
@@ -373,7 +373,7 @@ class AccountPreferenceSerializer(
             editor.putBoolean("$accountUuid.migrateToOAuth", shouldMigrateToOAuth)
 
             // --- PQC Erweiterung ---
-            editor.putBoolean("$accountUuid.pqcEnabled", isPqcEnabled)
+            editor.putBoolean("$accountUuid.pqcEnabled", isPqcSigningEnabled)
             editor.putBoolean("$accountUuid.pqcHideSignOnly", isPqcShowSignature)
             editor.putString("$accountUuid.pqcSigningAlgorithm", pqcSigningAlgorithm)
             editor.putString("$accountUuid.pqcPublicKey", pqcPublicSigngingKey)

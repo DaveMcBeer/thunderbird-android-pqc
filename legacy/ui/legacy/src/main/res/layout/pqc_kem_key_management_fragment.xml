@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <ScrollView
+        android:id="@+id/scrollView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="24dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal">
+            <TextView
+                android:id="@+id/algorithm_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Algorithmus: Unbekannt"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:layout_marginBottom="12dp"
+                android:textStyle="italic" />
+
+            <!-- DYNAMIC Button: Generieren ODER Löschen -->
+            <Button
+                android:id="@+id/dynamic_action_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🛠 Key-Paar generieren"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Horizontal: Export / Import -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="24dp"
+                android:gravity="center">
+
+                <Button
+                    android:id="@+id/export_keys_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📤 Exportieren"
+                    android:layout_marginEnd="12dp" />
+
+                <Button
+                    android:id="@+id/import_keys_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📥 Importieren" />
+            </LinearLayout>
+
+            <!-- Key Pair Status -->
+            <LinearLayout
+                android:id="@+id/key_status_container"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/key_status_icon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="❌"
+                    android:textSize="18sp"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/key_status_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Kein Key-Paar vorhanden"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Public Key -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Öffentlicher Schlüssel:"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/public_key_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Kein öffentlicher Schlüssel"
+                android:padding="12dp"
+                android:background="@android:color/darker_gray"
+                android:textIsSelectable="true"
+                android:textSize="12sp"
+                android:layout_marginBottom="24dp" />
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- LOADING OVERLAY -->
+    <FrameLayout
+        android:id="@+id/loadingOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#80000000"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true">
+
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:indeterminate="true" />
+    </FrameLayout>
+</FrameLayout>

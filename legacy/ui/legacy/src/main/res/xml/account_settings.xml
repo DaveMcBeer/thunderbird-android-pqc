@@ -475,6 +475,7 @@
             android:summaryOff="All PQC signatures will be displayed"
             android:summaryOn="Only PQC encrypted signatures will be displayed"
             android:title="Hide unencrypted PQC signatures"
+            app:isPreferenceVisible="false"
             />
 
         <ListPreference
@@ -490,6 +491,25 @@
         <Preference
             android:key="pqc_key_management"
             android:title="PQC Signing Key Management"
+            android:summary="Manage PQC signing keys"/>
+
+        <SwitchPreference
+            android:key="pqc_KEM_enabled"
+            android:title="Enable PQC KEM"
+            />
+
+        <ListPreference
+            android:dependency="pqc_KEM_enabled"
+            android:key="pqc_kem_algorithm"
+            android:title="PQC KEM Algorithm"
+            android:dialogTitle="Choose PQC KEM Algorithm"
+            android:entries="@array/pqc_kem_algorithm_entries"
+            android:entryValues="@array/pqc_kem_algorithm_values"
+            app:useSimpleSummaryProvider="true"
+            android:defaultValue="None"/>
+        <Preference
+            android:key="pqc_kem_key_management"
+            android:title="PQC KEM Key Management"
             android:summary="Manage PQC signing keys"/>
     </PreferenceScreen>
 

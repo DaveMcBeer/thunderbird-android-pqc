@@ -4,7 +4,9 @@ import com.fsck.k9.helper.NamedThreadFactory
 import com.fsck.k9.ui.settings.account.AccountSettingsDataStoreFactory
 import com.fsck.k9.ui.settings.account.AccountSettingsViewModel
 import com.fsck.k9.ui.settings.account.getSystemVibrator
-import com.fsck.k9.ui.settings.account.pqcExtension.PqcKeyManagementViewModel
+import com.fsck.k9.ui.settings.account.pqcExtension.PqcKemKeyManagementFragment
+import com.fsck.k9.ui.settings.account.pqcExtension.PqcKemKeyManagementViewModel
+import com.fsck.k9.ui.settings.account.pqcExtension.PqcSigningKeyManagementViewModel
 import com.fsck.k9.ui.settings.export.SettingsExportViewModel
 import com.fsck.k9.ui.settings.general.GeneralSettingsDataStore
 import com.fsck.k9.ui.settings.general.GeneralSettingsViewModel
@@ -51,7 +53,15 @@ val settingsUiModule = module {
 
     //---Needed for correct PqcViewmodel initalization ---
     viewModel { (accountUuid: String) ->
-        PqcKeyManagementViewModel(
+        PqcSigningKeyManagementViewModel(
+            accountManager = get(),
+            preferences = get(),
+            accountUuid = accountUuid
+        )
+    }
+
+    viewModel { (accountUuid: String) ->
+        PqcKemKeyManagementViewModel(
             accountManager = get(),
             preferences = get(),
             accountUuid = accountUuid

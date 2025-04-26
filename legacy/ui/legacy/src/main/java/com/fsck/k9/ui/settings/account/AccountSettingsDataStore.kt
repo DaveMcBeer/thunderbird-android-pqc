@@ -46,8 +46,9 @@ class AccountSettingsDataStore(
             "subscribed_folders_only" -> account.isSubscribedFoldersOnly
 
             //--- PQC Erweiterung ---
-            "pqc_enabled" -> account.isPqcEnabled
+            "pqc_enabled" -> account.isPqcSigningEnabled
             "pqc_hide_sign_only" -> account.isPqcShowSignature
+            "pqc_kem_enabled" -> account.isPqcKemEnabled
             //--- ENDE ---
             else -> defValue
         }
@@ -76,8 +77,9 @@ class AccountSettingsDataStore(
             "subscribed_folders_only" -> updateSubscribedFoldersOnly(value)
 
             //--- PQC Erweiterung ---
-            "pqc_enabled" -> account.isPqcEnabled = value
+            "pqc_enabled" -> account.isPqcSigningEnabled = value
             "pqc_hide_sign_only" -> account.isPqcShowSignature = value
+            "pqc_kem_enabled" -> account.isPqcKemEnabled = value
             //--- ENDE ---
             else -> return
         }
@@ -147,6 +149,7 @@ class AccountSettingsDataStore(
 
             //--- PQC Erweiterung ---
             "pqc_signing_algorithm" -> account.pqcSigningAlgorithm
+            "pqc_kem_algorithm" -> account.pqcKemAlgorithm
             //--- END ---
             else -> defValue
         }
@@ -186,6 +189,7 @@ class AccountSettingsDataStore(
 
             //--- PQC Erweiterung ---
             "pqc_signing_algorithm" -> account.pqcSigningAlgorithm = value
+            "pqc_kem_algorithm" -> account.pqcKemAlgorithm = value
             //--- ENDE ---
 
             else -> return

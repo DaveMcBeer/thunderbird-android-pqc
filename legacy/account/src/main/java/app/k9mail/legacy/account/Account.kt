@@ -308,7 +308,7 @@ class Account(
     //----David B. PQC settings -----
     @get:Synchronized
     @set:Synchronized
-    var isPqcEnabled = false
+    var isPqcSigningEnabled = false
 
     @get:Synchronized
     @set:Synchronized
@@ -337,6 +337,28 @@ class Account(
     @get:Synchronized
     @set:Synchronized
     var pqcKeysetExists: Boolean? = false
+
+    // --- PQC KEM Settings ---
+    @get:Synchronized
+    @set:Synchronized
+    var isPqcKemEnabled: Boolean = false
+
+    @get:Synchronized
+    @set:Synchronized
+    var pqcKemAlgorithm: String? = null
+
+    @get:Synchronized
+    @set:Synchronized
+    var pqcKemPublicKey: String? = null
+
+    @get:Synchronized
+    @set:Synchronized
+    var pqcKemSecretKey: String? = null
+
+    @get:Synchronized
+    @set:Synchronized
+    var pqcKemKeysetExists: Boolean? = false
+// --- Ende PQC KEM Settings ---
 
     // ----- End PQC Settings -----
 

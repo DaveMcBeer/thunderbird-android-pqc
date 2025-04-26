@@ -189,7 +189,7 @@
         <item>@string/account_settings_pq_algorithms_cross_rsdpg_256_balanced</item>
         <item>@string/account_settings_pq_algorithms_cross_rsdpg_256_fast</item>
         <item>@string/account_settings_pq_algorithms_cross_rsdpg_256_small</item>
-        <item>@string/account_settings_pq_algorithms_none</item>
+        <item>@string/account_settings_pq_signing_algorithms_none</item>
     </string-array>
 
     <string-array name="pqc_algorithm_values">
@@ -237,6 +237,73 @@
         <item>@string/account_settings_pq_algorithms_cross_rsdpg_256_balanced</item>
         <item>@string/account_settings_pq_algorithms_cross_rsdpg_256_fast</item>
         <item>@string/account_settings_pq_algorithms_cross_rsdpg_256_small</item>
-        <item>@string/account_settings_pq_algorithms_none</item>
+        <item>@string/account_settings_pq_signing_algorithms_none</item>
     </string-array>
+
+    <string-array name="pqc_kem_algorithm_entries">
+        <item>@string/account_settings_pq_kem_bike_l1</item>
+        <item>@string/account_settings_pq_kem_bike_l3</item>
+        <item>@string/account_settings_pq_kem_bike_l5</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_348864</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_348864f</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_460896</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_460896f</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_6688128</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_6688128f</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_6960119</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_6960119f</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_8192128</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_8192128f</item>
+        <item>@string/account_settings_pq_kem_hqc_128</item>
+        <item>@string/account_settings_pq_kem_hqc_192</item>
+        <item>@string/account_settings_pq_kem_hqc_256</item>
+        <item>@string/account_settings_pq_kem_kyber512</item>
+        <item>@string/account_settings_pq_kem_kyber768</item>
+        <item>@string/account_settings_pq_kem_kyber1024</item>
+        <item>@string/account_settings_pq_kem_ml_kem_512</item>
+        <item>@string/account_settings_pq_kem_ml_kem_768</item>
+        <item>@string/account_settings_pq_kem_ml_kem_1024</item>
+        <item>@string/account_settings_pq_kem_sntrup761</item>
+        <item>@string/account_settings_pq_kem_frodokem_640_aes</item>
+        <item>@string/account_settings_pq_kem_frodokem_640_shake</item>
+        <item>@string/account_settings_pq_kem_frodokem_976_aes</item>
+        <item>@string/account_settings_pq_kem_frodokem_976_shake</item>
+        <item>@string/account_settings_pq_kem_frodokem_1344_aes</item>
+        <item>@string/account_settings_pq_kem_frodokem_1344_shake</item>
+        <item>@string/account_settings_pq_kem_algorithms_none</item>
+    </string-array>
+
+    <string-array name="pqc_kem_algorithm_values">
+        <item>@string/account_settings_pq_kem_bike_l1</item>
+        <item>@string/account_settings_pq_kem_bike_l3</item>
+        <item>@string/account_settings_pq_kem_bike_l5</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_348864</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_348864f</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_460896</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_460896f</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_6688128</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_6688128f</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_6960119</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_6960119f</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_8192128</item>
+        <item>@string/account_settings_pq_kem_classic_mceliece_8192128f</item>
+        <item>@string/account_settings_pq_kem_hqc_128</item>
+        <item>@string/account_settings_pq_kem_hqc_192</item>
+        <item>@string/account_settings_pq_kem_hqc_256</item>
+        <item>@string/account_settings_pq_kem_kyber512</item>
+        <item>@string/account_settings_pq_kem_kyber768</item>
+        <item>@string/account_settings_pq_kem_kyber1024</item>
+        <item>@string/account_settings_pq_kem_ml_kem_512</item>
+        <item>@string/account_settings_pq_kem_ml_kem_768</item>
+        <item>@string/account_settings_pq_kem_ml_kem_1024</item>
+        <item>@string/account_settings_pq_kem_sntrup761</item>
+        <item>@string/account_settings_pq_kem_frodokem_640_aes</item>
+        <item>@string/account_settings_pq_kem_frodokem_640_shake</item>
+        <item>@string/account_settings_pq_kem_frodokem_976_aes</item>
+        <item>@string/account_settings_pq_kem_frodokem_976_shake</item>
+        <item>@string/account_settings_pq_kem_frodokem_1344_aes</item>
+        <item>@string/account_settings_pq_kem_frodokem_1344_shake</item>
+        <item>@string/account_settings_pq_kem_algorithms_none</item>
+    </string-array>
+
 </resources>

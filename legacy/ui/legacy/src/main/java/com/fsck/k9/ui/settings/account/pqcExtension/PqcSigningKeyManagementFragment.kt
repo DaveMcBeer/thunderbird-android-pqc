@@ -20,10 +20,10 @@ import com.google.android.material.snackbar.Snackbar
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import org.koin.core.parameter.parametersOf
 
-class PqcKeyManagementFragment :  Fragment(), ConfirmationDialogFragmentListener
+class PqcSigningKeyManagementFragment :  Fragment(), ConfirmationDialogFragmentListener
 {
 
-    private val viewModel: PqcKeyManagementViewModel by viewModel {
+    private val viewModel: PqcSigningKeyManagementViewModel by viewModel {
         parametersOf(requireArguments().getString(ARG_ACCOUNT_UUID))
     }
     private lateinit var publicKeyTextView: TextView
@@ -53,7 +53,7 @@ class PqcKeyManagementFragment :  Fragment(), ConfirmationDialogFragmentListener
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View?
     {
 
-        val view = inflater.inflate(R.layout.pqc_key_management_fragment, container, false)
+        val view = inflater.inflate(R.layout.pqc_signing_key_management_fragment, container, false)
         publicKeyTextView = view.findViewById(R.id.public_key_text)
         algorithmTextView = view.findViewById(R.id.algorithm_text)
         keyStatusTextView = view.findViewById(R.id.key_status_text)
@@ -226,8 +226,8 @@ class PqcKeyManagementFragment :  Fragment(), ConfirmationDialogFragmentListener
         /**
          * Factory-Methode zum Erstellen des Fragments mit gesetztem Account-UUID-Argument.
          */
-        fun create(accountUuid:String) : PqcKeyManagementFragment{
-            return PqcKeyManagementFragment().apply{
+        fun create(accountUuid:String) : PqcSigningKeyManagementFragment{
+            return PqcSigningKeyManagementFragment().apply{
                 arguments = Bundle().apply { putString(ARG_ACCOUNT_UUID,accountUuid)}
             }
         }

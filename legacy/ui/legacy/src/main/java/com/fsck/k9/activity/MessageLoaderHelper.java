@@ -156,7 +156,7 @@ public class MessageLoaderHelper {
         cancelAndClearDecodeLoader();
 
         String openPgpProvider = account.getOpenPgpProvider();
-        boolean isPqcSigningOrEncryption = account.isPqcEnabled();
+        boolean isPqcSigningOrEncryption = account.isPqcSigningEnabled();
         if (isPqcSigningOrEncryption ) {
             startOrResumeCryptoOperation(openPgpProvider);
         }
@@ -248,7 +248,7 @@ public class MessageLoaderHelper {
             return;
         }
 
-        boolean isPqcEnabled = account.isPqcEnabled();
+        boolean isPqcEnabled = account.isPqcSigningEnabled();
         String openPgpProvider = account.getOpenPgpProvider();
 
         if (isPqcEnabled || openPgpProvider != null) {
