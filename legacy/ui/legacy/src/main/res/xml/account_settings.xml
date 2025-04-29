@@ -463,6 +463,8 @@
         android:key="pqc"
         android:title="Post-Quantum-Cryptography"
         >
+        <PreferenceCategory
+            android:title="PQC Signing Settings" />
 
         <SwitchPreference
             android:key="pqc_enabled"
@@ -493,6 +495,9 @@
             android:title="PQC Signing Key Management"
             android:summary="Manage PQC signing keys"/>
 
+        <PreferenceCategory
+            android:title="PQC KEM Settings" />
+
         <SwitchPreference
             android:key="pqc_kem_enabled"
             android:title="Enable PQC KEM"
@@ -511,6 +516,13 @@
             android:key="pqc_kem_key_management"
             android:title="PQC KEM Key Management"
             android:summary="Manage PQC signing keys"/>
+        <PreferenceCategory
+            android:title="PQC Benchmark" />
+        <Preference
+            android:key="run_pqc_benchmark"
+            android:title="Run PQC Benchmark"
+            android:summary="Run a full benchmark for PQC algorithms and export results."
+            />
     </PreferenceScreen>
 
 </PreferenceScreen>

@@ -1,6 +1,7 @@
 package com.fsck.k9.ui.settings.account
 
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -34,6 +35,7 @@ import com.fsck.k9.ui.base.extensions.withArguments
 import com.fsck.k9.ui.endtoend.AutocryptKeyTransferActivity
 import com.fsck.k9.ui.settings.account.pqcExtension.PqcKemKeyManagementFragment
 import com.fsck.k9.ui.settings.account.pqcExtension.PqcSigningKeyManagementFragment
+import com.fsck.k9.ui.settings.account.pqcExtension.benchmark.PQCBenchmarkRunner
 import com.fsck.k9.ui.settings.onClick
 import com.fsck.k9.ui.settings.oneTimeClickListener
 import com.fsck.k9.ui.settings.remove
@@ -96,6 +98,7 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
         //--- PQC Addition ---
         initializePqcSigningKeyManagement()
         initializePqcKemKeyManagement()
+        initializePqcBenchmarkRunner()
         //--- END ---
     }
 
@@ -544,6 +547,7 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
                 account.pqcKeysetExists = false
                 account.pqcSigningAlgorithm = selected
                 dataStore.saveSettingsInBackground()
+                algorithmPref.value = selected
             }
             val enabled = isPqcEnabledPref?.isChecked == true
             val algoSelected = selected != "None"
@@ -595,24 +599,33 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
             }
         }
 
-        kemAlgorithmPref.setOnPreferenceChangeListener { _, newValue ->
+
+        kemAlgorithmPref.setOnPreferenceChangeListener { preference, newValue ->
             val selected = newValue as String
 
             if (!selected.equals(account.pqcKemAlgorithm, ignoreCase = true)) {
-                // Reset Keys
-                account.pqcKemPublicKey = null
-                account.pqcKemSecretKey = null
-                account.pqcKemKeysetExists = false
-                account.pqcKemAlgorithm = selected
-                dataStore.saveSettingsInBackground()
-            }
+                AlertDialog.Builder(requireContext())
+                    .setTitle("Warning: You are about to change the algorithm")
+                    .setMessage("You will have to generate a new public key and send the new one to each recipient you want to exchange keys with in future.\nProceed?")
+                    .setPositiveButton("Yes") { _, _ ->
+                        account.pqcKemPublicKey = null
+                        account.pqcKemSecretKey = null
+                        account.pqcKemKeysetExists = false
+                        account.pqcKemAlgorithm = selected
+                        dataStore.saveSettingsInBackground()
 
-            val enabled = isPqcKemEnabledPref?.isChecked == true
-            val algoSelected = selected != "None"
-            updateKemKeyManagementState(enabled,algoSelected)
+                        kemAlgorithmPref.value = selected
+                        updateKemKeyManagementState()
+                    }
+                    .setNegativeButton("No") { dialog, _ ->
+                        dialog.dismiss()
+                        kemAlgorithmPref.value = account.pqcKemAlgorithm ?: "None"
+                    }
+                    .show()
+                return@setOnPreferenceChangeListener false
+            }
             true
         }
-
         kemKeyManagementPref.onClick {
             requireActivity().supportFragmentManager.beginTransaction()
                 .replace(R.id.accountSettingsContainer, PqcKemKeyManagementFragment.create(accountUuid))
@@ -621,6 +634,16 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
         }
     }
 
+    private fun initializePqcBenchmarkRunner() {
+        findPreference<Preference>("run_pqc_benchmark")?.onClick {
+            Toast.makeText(requireContext(), "Running PQC Benchmark...", Toast.LENGTH_SHORT).show()
+
+            // Benchmark starten
+            val result = PQCBenchmarkRunner.runAllBenchmarks(requireContext())
+
+            Toast.makeText(requireContext(), result, Toast.LENGTH_LONG).show()
+        }
+    }
 
 
     //--- ENDE ---
