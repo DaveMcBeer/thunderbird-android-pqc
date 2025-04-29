@@ -1,0 +1,60 @@
+{
+  "buildFiles": [
+    "C:\\Users\\david\\Desktop\\Bachelorarbeit_Code\\DaveMcBeer-thunderbird-mail-pqc-2025\\library\\liboqs-module\\jni\\Android.mk"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "C:\\Users\\david\\AppData\\Local\\Android\\Sdk\\ndk\\28.0.13004108\\ndk-build.cmd",
+      "NDK_PROJECT_PATH\u003dnull",
+      "APP_BUILD_SCRIPT\u003dC:\\Users\\david\\Desktop\\Bachelorarbeit_Code\\DaveMcBeer-thunderbird-mail-pqc-2025\\library\\liboqs-module\\jni\\Android.mk",
+      "APP_ABI\u003dx86",
+      "NDK_ALL_ABIS\u003dx86",
+      "NDK_DEBUG\u003d0",
+      "APP_PLATFORM\u003dandroid-26",
+      "NDK_OUT\u003dC:\\Users\\david\\Desktop\\Bachelorarbeit_Code\\DaveMcBeer-thunderbird-mail-pqc-2025\\library\\liboqs-module\\build\\intermediates\\cxx\\Release\\1j1z4x5d/obj",
+      "NDK_LIBS_OUT\u003dC:\\Users\\david\\Desktop\\Bachelorarbeit_Code\\DaveMcBeer-thunderbird-mail-pqc-2025\\library\\liboqs-module\\build\\intermediates\\cxx\\Release\\1j1z4x5d/lib",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "C:\\Users\\david\\AppData\\Local\\Android\\Sdk\\ndk\\28.0.13004108\\ndk-build.cmd",
+    "NDK_PROJECT_PATH\u003dnull",
+    "APP_BUILD_SCRIPT\u003dC:\\Users\\david\\Desktop\\Bachelorarbeit_Code\\DaveMcBeer-thunderbird-mail-pqc-2025\\library\\liboqs-module\\jni\\Android.mk",
+    "APP_ABI\u003dx86",
+    "NDK_ALL_ABIS\u003dx86",
+    "NDK_DEBUG\u003d0",
+    "APP_PLATFORM\u003dandroid-26",
+    "NDK_OUT\u003dC:\\Users\\david\\Desktop\\Bachelorarbeit_Code\\DaveMcBeer-thunderbird-mail-pqc-2025\\library\\liboqs-module\\build\\intermediates\\cxx\\Release\\1j1z4x5d/obj",
+    "NDK_LIBS_OUT\u003dC:\\Users\\david\\Desktop\\Bachelorarbeit_Code\\DaveMcBeer-thunderbird-mail-pqc-2025\\library\\liboqs-module\\build\\intermediates\\cxx\\Release\\1j1z4x5d/lib",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "oqs-jni-release-x86": {
+      "buildCommandComponents": [
+        "C:\\Users\\david\\AppData\\Local\\Android\\Sdk\\ndk\\28.0.13004108\\ndk-build.cmd",
+        "NDK_PROJECT_PATH\u003dnull",
+        "APP_BUILD_SCRIPT\u003dC:\\Users\\david\\Desktop\\Bachelorarbeit_Code\\DaveMcBeer-thunderbird-mail-pqc-2025\\library\\liboqs-module\\jni\\Android.mk",
+        "APP_ABI\u003dx86",
+        "NDK_ALL_ABIS\u003dx86",
+        "NDK_DEBUG\u003d0",
+        "APP_PLATFORM\u003dandroid-26",
+        "NDK_OUT\u003dC:\\Users\\david\\Desktop\\Bachelorarbeit_Code\\DaveMcBeer-thunderbird-mail-pqc-2025\\library\\liboqs-module\\build\\intermediates\\cxx\\Release\\1j1z4x5d/obj",
+        "NDK_LIBS_OUT\u003dC:\\Users\\david\\Desktop\\Bachelorarbeit_Code\\DaveMcBeer-thunderbird-mail-pqc-2025\\library\\liboqs-module\\build\\intermediates\\cxx\\Release\\1j1z4x5d/lib",
+        "C:\\Users\\david\\Desktop\\Bachelorarbeit_Code\\DaveMcBeer-thunderbird-mail-pqc-2025\\library\\liboqs-module\\build\\intermediates\\cxx\\Release\\1j1z4x5d/obj/local/x86/liboqs-jni.so"
+      ],
+      "toolchain": "toolchain-x86",
+      "abi": "x86",
+      "artifactName": "oqs-jni",
+      "output": "C:\\Users\\david\\Desktop\\Bachelorarbeit_Code\\DaveMcBeer-thunderbird-mail-pqc-2025\\library\\liboqs-module\\build\\intermediates\\cxx\\Release\\1j1z4x5d\\obj\\local\\x86\\liboqs-jni.so"
+    }
+  },
+  "toolchains": {
+    "toolchain-x86": {
+      "cCompilerExecutable": "C:\\Users\\david\\AppData\\Local\\Android\\Sdk\\ndk\\28.0.13004108\\build\\..\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang.exe"
+    }
+  },
+  "cFileExtensions": [
+    "c"
+  ],
+  "cppFileExtensions": []
+}

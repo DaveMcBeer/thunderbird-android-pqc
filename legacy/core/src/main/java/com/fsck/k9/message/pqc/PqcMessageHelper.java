@@ -52,9 +52,10 @@ public class PqcMessageHelper {
         }
 
         String contentBlock = armoredText.substring(beginIndex + beginMarker.length(), endIndex);
-        String base64Data = contentBlock.replaceAll("\\s+", "");
+        String base64Data = contentBlock.replaceAll("\\s+", "") ;      // Zeilenumbrüche entfernen
         return Base64.getMimeDecoder().decode(base64Data);
     }
+
 
     /**
      * Decode MIME-safe Base64 (mit Umbrüchen erlaubt).

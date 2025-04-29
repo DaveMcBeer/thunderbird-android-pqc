@@ -567,7 +567,7 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
 
         if (kemKeyManagementPref == null || kemAlgorithmPref == null) return
 
-        val isPqcKemEnabledPref = findPreference<SwitchPreference>("pqc_KEM_enabled")
+        val isPqcKemEnabledPref = findPreference<SwitchPreference>("pqc_kem_enabled")
         isPqcKemEnabledPref?.isChecked = account.isPqcKemEnabled
         kemAlgorithmPref.value = account.pqcKemAlgorithm ?: "None"
 

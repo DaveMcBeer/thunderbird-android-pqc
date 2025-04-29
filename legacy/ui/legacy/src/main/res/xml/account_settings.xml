@@ -494,12 +494,12 @@
             android:summary="Manage PQC signing keys"/>
 
         <SwitchPreference
-            android:key="pqc_KEM_enabled"
+            android:key="pqc_kem_enabled"
             android:title="Enable PQC KEM"
             />
 
         <ListPreference
-            android:dependency="pqc_KEM_enabled"
+            android:dependency="pqc_kem_enabled"
             android:key="pqc_kem_algorithm"
             android:title="PQC KEM Algorithm"
             android:dialogTitle="Choose PQC KEM Algorithm"

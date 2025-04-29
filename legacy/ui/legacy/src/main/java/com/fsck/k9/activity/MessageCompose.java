@@ -2,6 +2,7 @@ package com.fsck.k9.activity;
 
 
 import java.io.File;
+import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
@@ -91,7 +92,12 @@ import com.fsck.k9.mail.Flag;
 import com.fsck.k9.mail.Message;
 import com.fsck.k9.mail.Message.RecipientType;
 import com.fsck.k9.mail.MessagingException;
+import com.fsck.k9.mail.internet.MimeBodyPart;
+import com.fsck.k9.mail.internet.MimeHeader;
 import com.fsck.k9.mail.internet.MimeMessage;
+import com.fsck.k9.mail.internet.MimeMessageHelper;
+import com.fsck.k9.mail.internet.MimeMultipart;
+import com.fsck.k9.mail.internet.TextBody;
 import com.fsck.k9.mailstore.LocalMessage;
 import com.fsck.k9.mailstore.MessageViewInfo;
 import com.fsck.k9.message.AutocryptStatusInteractor;
@@ -105,6 +111,7 @@ import com.fsck.k9.message.QuotedTextMode;
 import com.fsck.k9.message.SimpleMessageBuilder;
 import com.fsck.k9.message.SimpleMessageFormat;
 import app.k9mail.legacy.search.LocalSearch;
+import com.fsck.k9.message.pqc.PqcMessageHelper;
 import com.fsck.k9.ui.R;
 import com.fsck.k9.ui.base.K9Activity;
 import app.k9mail.legacy.ui.theme.ThemeManager;
@@ -648,7 +655,9 @@ public class MessageCompose extends K9Activity implements OnClickListener,
                 .setCursorPosition(messageContentView.getSelectionStart())
                 .setMessageReference(relatedMessageReference)
                 .setDraft(isDraft)
-                .setIsPgpInlineEnabled(cryptoStatus.isPgpInlineModeEnabled());
+                .setIsPgpInlineEnabled(cryptoStatus.isPgpInlineModeEnabled())
+                .setAccount(account)
+                .setSendPqcKemPublicKey(cryptoStatus.getSendPqcKemPublicKey());
 
         quotedMessagePresenter.builderSetProperties(builder);
 
@@ -959,6 +968,8 @@ public class MessageCompose extends K9Activity implements OnClickListener,
             attachmentPresenter.onClickAddAttachment(recipientPresenter);
         } else if (id == R.id.read_receipt) {
             onReadReceipt();
+        } else if(id == R.id.send_pqc_kem_public_key){
+            recipientPresenter.onClickSendPqcKemPublicKey();
         }
         else {
             return super.onOptionsItemSelected(item);
@@ -1886,4 +1897,31 @@ public class MessageCompose extends K9Activity implements OnClickListener,
             return titleResource;
         }
     }
+
+    //--- PQC Erweiterung ---
+    private void attachOwnPqcKemPublicKeyIfNeeded() {
+        ComposeCryptoStatus cryptoStatus = recipientPresenter.getCurrentCachedCryptoStatus();
+        if (cryptoStatus == null || !cryptoStatus.getSendPqcKemPublicKey()) {
+            return;
+        }
+
+        if (account == null || account.getPqcKemPublicKey() == null || account.getPqcKemAlgorithm() == null) {
+            return;
+        }
+
+        try {
+            byte[] kemPublicKey = Base64.getMimeDecoder().decode(account.getPqcKemPublicKey());
+            String armoredKey = com.fsck.k9.message.pqc.PqcMessageHelper.toAsciiArmor(kemPublicKey, "PQC KEM PUBLIC KEY");
+
+            MimeBodyPart kemPart = new MimeBodyPart(new TextBody(armoredKey));
+            kemPart.setHeader(MimeHeader.HEADER_CONTENT_TYPE, "application/pqc-kem-public-key");
+            kemPart.setHeader(MimeHeader.HEADER_CONTENT_DISPOSITION, "attachment; filename=\"pqc_kem_public_key.asc\"");
+            kemPart.setHeader("X-PQC-KEM-Algorithm", account.getPqcKemAlgorithm());
+
+        } catch (Exception e) {
+            Timber.e(e, "Failed to attach PQC KEM Public Key");
+        }
+    }
+
+    //--- ENDE ---
 }

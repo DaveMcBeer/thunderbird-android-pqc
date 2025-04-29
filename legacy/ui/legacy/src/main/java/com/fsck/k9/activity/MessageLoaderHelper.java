@@ -30,7 +30,7 @@ import com.fsck.k9.mailstore.LocalMessage;
 import com.fsck.k9.mailstore.MessageCryptoAnnotations;
 import com.fsck.k9.mailstore.MessageViewInfo;
 import com.fsck.k9.mailstore.MessageViewInfoExtractor;
-import com.fsck.k9.mailstore.pqc.PqcDecryptionResult;
+import com.fsck.k9.mailstore.pqc.PqcDecapsulationResult;
 import com.fsck.k9.ui.crypto.MessageCryptoCallback;
 import com.fsck.k9.ui.crypto.MessageCryptoHelper;
 import com.fsck.k9.ui.crypto.OpenPgpApiFactory;
@@ -99,7 +99,7 @@ public class MessageLoaderHelper {
 
     private MessageCryptoHelper messageCryptoHelper;
 
-    private PqcDecryptionResult cachedPqcDecryptionResult;
+    private PqcDecapsulationResult cachedPqcDecapsulationResult;
 
     public MessageLoaderHelper(Context context, LoaderManager loaderManager, FragmentManager fragmentManager,
             @NonNull MessageLoaderCallbacks callback, MessageViewInfoExtractor messageViewInfoExtractor) {
@@ -121,8 +121,8 @@ public class MessageLoaderHelper {
 
         if (cachedDecryptionResult instanceof OpenPgpDecryptionResult) {
             this.cachedDecryptionResult = (OpenPgpDecryptionResult) cachedDecryptionResult;
-        } else if (cachedDecryptionResult instanceof PqcDecryptionResult) {
-            this.cachedPqcDecryptionResult = (PqcDecryptionResult) cachedDecryptionResult;
+        } else if (cachedDecryptionResult instanceof PqcDecapsulationResult) {
+            this.cachedPqcDecapsulationResult = (PqcDecapsulationResult) cachedDecryptionResult;
         } else {
             Timber.e("Got decryption result of unknown type - ignoring");
         }
@@ -564,7 +564,7 @@ public class MessageLoaderHelper {
         // übergibt PGP- und PQC-Dekryptionsdaten gleichzeitig
         Parcelable preferredDecryptionResult = cachedDecryptionResult != null
             ? cachedDecryptionResult
-            : cachedPqcDecryptionResult;
+            : cachedPqcDecapsulationResult;
 
         messageCryptoHelper.asyncStartOrResumeProcessingMessage(
             localMessage,

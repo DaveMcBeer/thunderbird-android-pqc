@@ -91,6 +91,8 @@ class RecipientPresenter(
     private val allRecipients: List<Recipient>
         get() = with(recipientMvpView) { toRecipients + ccRecipients + bccRecipients }
 
+    private var isSendPqcKemPublicKeyEnabled: Boolean = false
+
     private val openPgpCallback = object : OpenPgpApiManagerCallback {
         override fun onOpenPgpProviderStatusChanged() {
             if (openPgpApiManager.openPgpProviderState == OpenPgpProviderState.UI_REQUIRED) {
@@ -325,6 +327,7 @@ class RecipientPresenter(
         }
 
         menu.findItem(R.id.add_from_contacts).isVisible = hasContactPermission() && hasContactPicker()
+        menu.findItem(R.id.send_pqc_kem_public_key)?.isChecked = isSendPqcKemPublicKeyEnabled
     }
 
     fun onSwitchAccount(account: Account) {
@@ -409,6 +412,7 @@ class RecipientPresenter(
             isEncryptAllDrafts = account.isOpenPgpEncryptAllDrafts,
             isEncryptSubject = account.isOpenPgpEncryptSubject,
             cryptoMode = currentCryptoMode,
+            sendPqcKemPublicKey = isSendPqcKemPublicKeyEnabled
         )
 
         if (openPgpProviderState != OpenPgpProviderState.OK) {
@@ -763,6 +767,11 @@ class RecipientPresenter(
         CONTACT_PICKER_CC -> RecipientType.CC
         CONTACT_PICKER_BCC -> RecipientType.BCC
         else -> throw AssertionError("Unhandled case: $this")
+    }
+
+    fun onClickSendPqcKemPublicKey() {
+        isSendPqcKemPublicKeyEnabled = !isSendPqcKemPublicKeyEnabled
+        asyncUpdateCryptoStatus()
     }
 
     enum class CryptoMode {

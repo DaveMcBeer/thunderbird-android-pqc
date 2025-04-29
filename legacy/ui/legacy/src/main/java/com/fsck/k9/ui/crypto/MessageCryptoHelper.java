@@ -5,28 +5,20 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build.VERSION_CODES;
 import android.os.Parcelable;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.annotation.WorkerThread;
 import androidx.core.content.IntentCompat;
 import app.k9mail.legacy.account.Account;
@@ -42,8 +34,9 @@ import com.fsck.k9.mail.Multipart;
 import com.fsck.k9.mail.Part;
 import com.fsck.k9.mail.internet.MessageExtractor;
 import com.fsck.k9.mail.internet.MimeBodyPart;
+import com.fsck.k9.mail.internet.MimeHeader;
+import com.fsck.k9.mail.internet.MimeMessage;
 import com.fsck.k9.mail.internet.MimeMultipart;
-import com.fsck.k9.mail.internet.MimeUtility;
 import com.fsck.k9.mail.internet.SizeAware;
 import com.fsck.k9.mail.internet.TextBody;
 import com.fsck.k9.mailstore.CryptoResultAnnotation;
@@ -51,12 +44,12 @@ import com.fsck.k9.mailstore.CryptoResultAnnotation.CryptoError;
 import com.fsck.k9.mailstore.MessageCryptoAnnotations;
 import com.fsck.k9.mailstore.MessageHelper;
 import com.fsck.k9.mailstore.MimePartStreamParser;
-import com.fsck.k9.mailstore.pqc.PqcDecryptionResult;
+import com.fsck.k9.mailstore.pqc.PqcDecapsulationResult;
 import com.fsck.k9.mailstore.pqc.PqcSignatureResult;
 import com.fsck.k9.mailstore.util.FileFactory;
+import com.fsck.k9.message.pqc.PqcContactStore;
 import com.fsck.k9.message.pqc.PqcMessageHelper;
 import com.fsck.k9.provider.DecryptedFileProvider;
-import kotlin.NotImplementedError;
 import org.apache.commons.io.IOUtils;
 import org.openintents.openpgp.IOpenPgpService2;
 import org.openintents.openpgp.OpenPgpDecryptionResult;
@@ -90,7 +83,7 @@ public class MessageCryptoHelper {
     private Message currentMessage;
     private OpenPgpDecryptionResult cachedDecryptionResult;
 
-    private PqcDecryptionResult cachedPqcDecryptionResult ;
+    private PqcDecapsulationResult cachedPqcDecapsulationResult;
     private MessageCryptoAnnotations queuedResult;
     private PendingIntent queuedPendingIntent;
 
@@ -131,8 +124,8 @@ public class MessageCryptoHelper {
         }
         if (cachedDecryptionResult instanceof OpenPgpDecryptionResult) {
             this.cachedDecryptionResult = (OpenPgpDecryptionResult) cachedDecryptionResult;
-        } else if (cachedDecryptionResult instanceof PqcDecryptionResult) {
-            this.cachedPqcDecryptionResult = (PqcDecryptionResult) cachedDecryptionResult;
+        } else if (cachedDecryptionResult instanceof PqcDecapsulationResult) {
+            this.cachedPqcDecapsulationResult = (PqcDecapsulationResult) cachedDecryptionResult;
         } else if (cachedDecryptionResult != null) {
             Timber.e("Unknown decryption result type: %s", cachedDecryptionResult.getClass().getName());
         }
@@ -320,7 +313,7 @@ public class MessageCryptoHelper {
         decryptIntent.putExtra(OpenPgpApi.EXTRA_DECRYPTION_RESULT, cachedDecryptionResult);
 
         return decryptIntent;
-    }
+        }
 
     private void decryptVerify(Intent apiIntent) {
         try {
@@ -342,10 +335,6 @@ public class MessageCryptoHelper {
                 case PQC_SIGNED: {
                     callPqcVerify(currentCryptoPart.part);
                     return;
-                }
-                case PQC_ENCRYPTED: {
-                    throw new NotImplementedError("noch zu tun");
-
                 }
                 // --- ENDE ---
                 case PLAIN_AUTOCRYPT:
@@ -524,6 +513,101 @@ public class MessageCryptoHelper {
             onCryptoOperationSuccess(annotation);
         }
     }
+
+    private void checkAndStorePqcKemPublicKey(MimeMessage message) {
+        try {
+            if (!(message.getBody() instanceof MimeMultipart)) {
+                return;
+            }
+
+            MimeMultipart multipart = (MimeMultipart) message.getBody();
+            for (int i = 0; i < multipart.getCount(); i++) {
+                BodyPart part = multipart.getBodyPart(i);
+                String[] contentTypeHeader = part.getHeader(MimeHeader.HEADER_CONTENT_TYPE);
+
+                if (contentTypeHeader != null && contentTypeHeader.length > 0 &&
+                    contentTypeHeader[0].toLowerCase().startsWith("application/pqc-kem-public-key")) {
+
+                    // Algorithm aus Content-Type extrahieren
+                    String contentType = contentTypeHeader[0];
+                    String algorithm = parseAlgorithmFromContentType(contentType);
+
+                    if (algorithm == null) {
+                        Timber.e("PQC KEM Public Key without algorithm information.");
+                        continue;
+                    }
+                    // Public Key dekodieren
+                    String armoredKey = PqcMessageHelper.extractAsciiContent(part);
+                    byte[] decodedKey = PqcMessageHelper.fromAsciiArmor(armoredKey, "PQC KEM PUBLIC KEY");
+
+                    // Speichern oder Aktualisieren
+                    String senderAddress = getSenderAddress(message);
+                    if (senderAddress != null) {
+                        PqcContactStore.INSTANCE.saveContact(senderAddress, algorithm, decodedKey);
+                        Timber.w("Saved/Updated PQC KEM public key for " + senderAddress);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Timber.e(e, "Error processing PQC KEM Public Key");
+        }
+    }
+
+    private String getSenderAddress(MimeMessage message) throws MessagingException {
+        Address[] fromAddresses = message.getFrom();
+        if (fromAddresses != null && fromAddresses.length > 0) {
+            return fromAddresses[0].getAddress();
+        }
+        return null;
+    }
+
+    private String parseAlgorithmFromContentType(String contentType) {
+        int index = contentType.indexOf("algorithm=");
+        if (index == -1) return null;
+        String algorithm = contentType.substring(index + "algorithm=".length()).trim();
+        // Falls Semikolon, Anführungszeichen etc. dran hängen:
+        int endIndex = algorithm.indexOf(';');
+        if (endIndex != -1) {
+            algorithm = algorithm.substring(0, endIndex).trim();
+        }
+        algorithm = algorithm.replace("\"", "");
+        return algorithm;
+    }
+
+    private void performPqcKemDecapsulation(MimeMessage message) {
+        try {
+            String ownEmail = getSenderAddress(message); // oder eigene Account-Adresse holen
+            if (ownEmail == null) {
+                Timber.w("No sender address found for PQC Decapsulation");
+                return;
+            }
+
+            byte[] pqcSecretKey = Base64.getMimeDecoder().decode(account.getPqcKemSecretKey());
+            String kemAlgorithm = account.getPqcKemAlgorithm();
+
+            if (pqcSecretKey == null || kemAlgorithm == null) {
+                Timber.w("No PQC KEM SecretKey or Algorithm configured for account");
+                return;
+            }
+
+            byte[] sessionKey = PqcKemReceiver.tryExtractAndDecapsulatePqcKem(
+                message,
+                pqcSecretKey,
+                kemAlgorithm
+            );
+
+            if (sessionKey != null) {
+                String sessionKeyString = Base64.getEncoder().encodeToString(sessionKey);
+                Timber.w("Successfully decapsulated PQC KEM session key for %s\nPQC KEM session Key: %s", ownEmail,sessionKeyString);
+                // TODO: Save or use sessionKey as needed (e.g., store temporarily for symmetric decryption)
+            } else {
+                Timber.w("No matching PQC KEM ciphertext found for %s", ownEmail);
+            }
+        } catch (Exception e) {
+            Timber.e(e, "Failed PQC KEM decapsulation");
+        }
+    }
+
     // -- END --
     private OpenPgpDataSource getDataSourceForSignedData(final Part signedPart) {
         return new OpenPgpDataSource() {
@@ -873,8 +957,15 @@ public class MessageCryptoHelper {
         synchronized (callbackLock) {
             cleanupAfterProcessingFinished();
 
+            if(currentMessage instanceof MimeMessage){
+                checkAndStorePqcKemPublicKey((MimeMessage) currentMessage);
+
+                performPqcKemDecapsulation((MimeMessage) currentMessage);
+            }
+
             queuedResult = messageAnnotations;
             messageAnnotations = null;
+
 
             deliverResult();
         }
@@ -926,8 +1017,7 @@ public class MessageCryptoHelper {
         PGP_ENCRYPTED,
         PGP_SIGNED,
         PLAIN_AUTOCRYPT,
-        PQC_SIGNED,
-        PQC_ENCRYPTED
+        PQC_SIGNED
     }
 
     @Nullable

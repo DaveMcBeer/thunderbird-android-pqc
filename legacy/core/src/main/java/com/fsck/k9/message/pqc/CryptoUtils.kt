@@ -1,12 +1,15 @@
-package com.fsck.k9.ui.settings.account.pqcExtension
-import android.util.Base64
+package com.fsck.k9.message.pqc
+import java.nio.charset.StandardCharsets
 import java.security.SecureRandom
 import java.security.spec.KeySpec
+import java.util.Arrays
 import javax.crypto.Cipher
+import javax.crypto.Mac
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
+import kotlin.math.ceil
 
 /**
  * Utility-Klasse für symmetrische AES-Verschlüsselung und -Entschlüsselung
@@ -75,5 +78,48 @@ object CryptoUtils {
         val spec: KeySpec = PBEKeySpec(password.toCharArray(), salt, ITERATION_COUNT, KEY_LENGTH)
         val tmp = factory.generateSecret(spec)
         return SecretKeySpec(tmp.encoded, "AES")
+    }
+
+    const val HMAC_ALGORITHM: String = "HmacSHA256"
+
+    @Throws(Exception::class)
+    fun hkdfSha256(ikm: ByteArray, info: String, length: Int): ByteArray {
+        // 1. Extract
+        val prk = hmacSha256(ByteArray(32), ikm) // Salt = 0 (32 Bytes Null)
+
+        // 2. Expand
+        val hashLen = 32
+        val n = ceil(length.toDouble() / hashLen).toInt()
+
+        var okm = ByteArray(0)
+        var previous = ByteArray(0)
+
+        for (i in 1..n) {
+            val mac = Mac.getInstance(HMAC_ALGORITHM)
+            mac.init(SecretKeySpec(prk, HMAC_ALGORITHM))
+
+            mac.update(previous)
+            mac.update(info.toByteArray(StandardCharsets.UTF_8))
+            mac.update(i.toByte())
+
+            previous = mac.doFinal()
+            okm = concat(okm, previous)
+        }
+
+        return Arrays.copyOfRange(okm, 0, length)
+    }
+
+    @Throws(Exception::class)
+    private fun hmacSha256(key: ByteArray, data: ByteArray): ByteArray {
+        val mac = Mac.getInstance(HMAC_ALGORITHM)
+        mac.init(SecretKeySpec(key, HMAC_ALGORITHM))
+        return mac.doFinal(data)
+    }
+
+    private fun concat(a: ByteArray, b: ByteArray): ByteArray {
+        val result = ByteArray(a.size + b.size)
+        System.arraycopy(a, 0, result, 0, a.size)
+        System.arraycopy(b, 0, result, a.size, b.size)
+        return result
     }
 }

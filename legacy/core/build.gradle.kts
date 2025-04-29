@@ -37,8 +37,8 @@ dependencies {
     implementation(libs.mime4j.core)
     implementation(libs.mime4j.dom)
     implementation(projects.feature.navigation.drawer)
+    implementation(libs.kotlinx.serialization.json)
     implementation(project(":library:liboqs-module"))
-
 
     testApi(projects.core.testing)
     testApi(projects.core.android.testing)

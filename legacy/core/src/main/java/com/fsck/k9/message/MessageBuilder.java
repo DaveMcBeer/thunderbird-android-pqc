@@ -1,6 +1,8 @@
 package com.fsck.k9.message;
 
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -10,9 +12,12 @@ import android.app.PendingIntent;
 import android.content.Intent;
 import android.os.AsyncTask;
 
+import app.k9mail.legacy.account.Account;
 import com.fsck.k9.CoreResourceProvider;
 import com.fsck.k9.mail.internet.AddressHeaderBuilder;
 import com.fsck.k9.mail.internet.Headers;
+import com.fsck.k9.mailstore.BinaryMemoryBody;
+import com.fsck.k9.message.pqc.PqcMessageHelper;
 import timber.log.Timber;
 
 import app.k9mail.legacy.account.Account.QuoteStyle;
@@ -72,7 +77,8 @@ public abstract class MessageBuilder {
     private MessageReference messageReference;
     private boolean isDraft;
     private boolean isPgpInlineEnabled;
-
+    private boolean sendPqcKemPublicKey;
+    private Account account;
     protected MessageBuilder(MessageIdGenerator messageIdGenerator,
             BoundaryGenerator boundaryGenerator, CoreResourceProvider resourceProvider) {
         this.messageIdGenerator = messageIdGenerator;
@@ -211,6 +217,8 @@ public abstract class MessageBuilder {
             // Add the identity to the message.
             message.addHeader(K9.IDENTITY_HEADER, buildIdentityHeader(body, bodyPlain));
         }
+
+        maybeAttachPqcKemPublicKey(message); //--- PQC Ereweiterung ---
     }
 
     private String buildIdentityHeader(TextBody body, TextBody bodyPlain) {
@@ -506,6 +514,67 @@ public abstract class MessageBuilder {
         return this;
     }
 
+    //--- PQC Erweiterung ----
+    public MessageBuilder setSendPqcKemPublicKey(boolean sendPqcKemPublicKey) {
+        this.sendPqcKemPublicKey = sendPqcKemPublicKey;
+        return this;
+    }
+
+    public boolean isSendPqcKemPublicKey() {
+        return sendPqcKemPublicKey;
+    }
+    private void maybeAttachPqcKemPublicKey(MimeMessage message) throws MessagingException {
+        if (!sendPqcKemPublicKey || account == null || !account.isPqcKemEnabled()) {
+            return;
+        }
+
+        try {
+            String kemAlgorithm = account.getPqcKemAlgorithm();
+            String base64PublicKey = account.getPqcKemPublicKey();
+
+            if (kemAlgorithm == null || kemAlgorithm.equals("None") || base64PublicKey == null || base64PublicKey.isEmpty()) {
+                return;
+            }
+
+            byte[] decodedPublicKey = Base64.getMimeDecoder().decode(base64PublicKey);
+            String armoredPublicKey = PqcMessageHelper.toAsciiArmor(decodedPublicKey, "PQC KEM PUBLIC KEY");
+
+            // FIX: Jetzt korrekt 7-Bit BinaryBody erstellen
+            MimeBodyPart kemPublicKeyPart = MimeBodyPart.create(
+                new BinaryMemoryBody(armoredPublicKey.getBytes(StandardCharsets.US_ASCII), MimeUtil.ENC_7BIT),
+                "application/pqc-kem-public-key; algorithm=" + kemAlgorithm
+            );
+            kemPublicKeyPart.setHeader(MimeHeader.HEADER_CONTENT_DISPOSITION, "attachment; filename=\"pqc_kem_public_key.asc\"");
+
+            Body messageBody = message.getBody();
+            if (messageBody instanceof MimeMultipart) {
+                ((MimeMultipart) messageBody).addBodyPart(kemPublicKeyPart);
+            } else {
+                MimeMultipart multipart = createMimeMultipart();
+                multipart.setSubType("mixed");
+
+                multipart.addBodyPart(MimeBodyPart.create(messageBody));
+                multipart.addBodyPart(kemPublicKeyPart);
+
+                MimeMessageHelper.setBody(message, multipart);
+            }
+
+        } catch (Exception e) {
+            Timber.e(e, "Error while attaching PQC KEM Public Key");
+        }
+    }
+
+
+    public MessageBuilder setAccount(Account account) {
+        this.account = account;
+        return this;
+    }
+
+    protected Account getAccount(){
+        return  account;
+    }
+
+    //--- ENDE ---
     public boolean isDraft() {
         return isDraft;
     }

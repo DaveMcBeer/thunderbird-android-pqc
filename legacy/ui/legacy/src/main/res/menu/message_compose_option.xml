@@ -64,4 +64,9 @@
         android:title="@string/disable_inline_pgp"
         app:showAsAction="never"
         />
+    <item
+        android:id="@+id/send_pqc_kem_public_key"
+        android:title="Send PQC KEM Public Key"
+        android:checkable="true"
+        app:showAsAction="never" />
 </menu>

@@ -5,7 +5,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.fsck.k9.mail.internet.MimeBodyPart;
-import com.fsck.k9.mailstore.pqc.PqcDecryptionResult;
+import com.fsck.k9.mailstore.pqc.PqcDecapsulationResult;
 import com.fsck.k9.mailstore.pqc.PqcSignatureResult;
 import org.openintents.openpgp.OpenPgpDecryptionResult;
 import org.openintents.openpgp.OpenPgpError;
@@ -24,7 +24,7 @@ public final class CryptoResultAnnotation {
 
     private final CryptoResultAnnotation encapsulatedResult;
 //--- PQC Erweiterung ---
-    private final PqcDecryptionResult pqcDecryptionResult;
+    private final PqcDecapsulationResult pqcDecapsulationResult;
     private final PqcSignatureResult pqcSignatureResult;
 //--- ENDE ---
 
@@ -37,7 +37,7 @@ public final class CryptoResultAnnotation {
         PendingIntent openPgpInsecureWarningPendingIntent,
         OpenPgpError openPgpError,
         boolean overrideCryptoWarning,
-        PqcDecryptionResult pqcDecryptionResult,    //--- PQC Erweiterung ---
+        PqcDecapsulationResult pqcDecapsulationResult,    //--- PQC Erweiterung ---
         PqcSignatureResult pqcSignatureResult   //--- PQC Erweiterung ---
     ) {
         this.errorType = errorType;
@@ -53,7 +53,7 @@ public final class CryptoResultAnnotation {
         this.encapsulatedResult = null;
 
         //--- PQC Erweiterung ---
-        this.pqcDecryptionResult = pqcDecryptionResult;
+        this.pqcDecapsulationResult = pqcDecapsulationResult;
         this.pqcSignatureResult = pqcSignatureResult;
         //--- ENDE ---
     }
@@ -76,7 +76,7 @@ public final class CryptoResultAnnotation {
         this.encapsulatedResult = encapsulatedResult;
 
         //--- PQC Erweiterung ---
-        this.pqcDecryptionResult = annotation.pqcDecryptionResult;
+        this.pqcDecapsulationResult = annotation.pqcDecapsulationResult;
         this.pqcSignatureResult = annotation.pqcSignatureResult;
         //--- ENDE ---
     }
@@ -199,16 +199,16 @@ public final class CryptoResultAnnotation {
 
     //--- PQC Erweiterung ---
     public boolean isPqcResult() {
-        return pqcDecryptionResult != null || pqcSignatureResult != null;
+        return pqcDecapsulationResult != null || pqcSignatureResult != null;
     }
 
     @Nullable
-    public PqcDecryptionResult getPqcDecryptionResult() {
-        return pqcDecryptionResult;
+    public PqcDecapsulationResult getPqcDecryptionResult() {
+        return pqcDecapsulationResult;
     }
 
     public static CryptoResultAnnotation createPqcSignatureSuccessAnnotation(
-        @Nullable PqcDecryptionResult decryptionResult,
+        @Nullable PqcDecapsulationResult decryptionResult,
         @NonNull PqcSignatureResult signatureResult,
         @Nullable MimeBodyPart replacementData
     ) {
@@ -226,7 +226,7 @@ public final class CryptoResultAnnotation {
         );
     }
     public static CryptoResultAnnotation createPqcSignatureErrorAnnotation(
-        @Nullable PqcDecryptionResult decryptionResult,
+        @Nullable PqcDecapsulationResult decryptionResult,
         @NonNull PqcSignatureResult signatureResult,
         @Nullable MimeBodyPart replacementData
     ) {
@@ -244,7 +244,7 @@ public final class CryptoResultAnnotation {
         );
     }
     public static CryptoResultAnnotation createPqcEncryptionSuccessAnnotation(
-        @NonNull PqcDecryptionResult decryptionResult,
+        @NonNull PqcDecapsulationResult decryptionResult,
         @Nullable MimeBodyPart replacementData
     ) {
         return new CryptoResultAnnotation(
@@ -262,7 +262,7 @@ public final class CryptoResultAnnotation {
     }
 
     public static CryptoResultAnnotation createPqcEncryptionErrorAnnotation(
-        @NonNull PqcDecryptionResult decryptionResult,
+        @NonNull PqcDecapsulationResult decryptionResult,
         @Nullable MimeBodyPart replacementData
     ) {
         return new CryptoResultAnnotation(
@@ -286,7 +286,7 @@ public final class CryptoResultAnnotation {
     }
 
     public boolean isPqcEncrypted() {
-        return pqcDecryptionResult != null && pqcDecryptionResult.result == PqcDecryptionResult.RESULT_ENCRYPTED; //--- PQC Erweiterung ---
+        return pqcDecapsulationResult != null && pqcDecapsulationResult.result == PqcDecapsulationResult.RESULT_ENCRYPTED; //--- PQC Erweiterung ---
     }
     //--- ENDE ---
 

@@ -9,6 +9,7 @@ import androidx.lifecycle.*
 import app.k9mail.legacy.account.Account
 import app.k9mail.legacy.account.AccountManager
 import com.fsck.k9.Preferences
+import com.fsck.k9.message.pqc.CryptoUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
