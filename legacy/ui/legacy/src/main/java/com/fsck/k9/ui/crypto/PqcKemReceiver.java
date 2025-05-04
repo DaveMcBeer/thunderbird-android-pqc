@@ -4,15 +4,9 @@ package com.fsck.k9.ui.crypto;
 import com.fsck.k9.mail.internet.MimeMessage;
 import com.fsck.k9.mail.internet.MimeMultipart;
 import com.fsck.k9.mail.BodyPart;
-import com.fsck.k9.mail.MessagingException;
 import com.fsck.k9.mail.internet.MimeHeader;
-import com.fsck.k9.message.pqc.CryptoUtils;
-import com.fsck.k9.message.pqc.PqcMessageHelper;
-import org.apache.commons.io.IOUtils;
 import org.openquantumsafe.KeyEncapsulation;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 
 public class PqcKemReceiver {
 
@@ -24,7 +18,7 @@ public class PqcKemReceiver {
      * @param kemAlgorithm Der Name des verwendeten KEM Algorithmus (z.B. Kyber512)
      * @return Der abgeleitete Session-Key oder null, falls kein PQC Part vorhanden oder Fehler
      */
-    public static byte[] tryExtractAndDecapsulatePqcKem(MimeMessage mimeMessage, byte[] secretKey, String kemAlgorithm) {
+    /*public static byte[] tryExtractAndDecapsulatePqcKem(MimeMessage mimeMessage, byte[] secretKey, String kemAlgorithm) {
         try {
             if (!(mimeMessage.getBody() instanceof MimeMultipart)) {
                 return null;
@@ -80,6 +74,6 @@ public class PqcKemReceiver {
             e.printStackTrace();
         }
         return null;
-    }
+    }*/
 
 }

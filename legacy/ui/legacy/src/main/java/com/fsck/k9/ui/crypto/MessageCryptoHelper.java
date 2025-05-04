@@ -48,7 +48,6 @@ import com.fsck.k9.mailstore.pqc.PqcDecapsulationResult;
 import com.fsck.k9.mailstore.pqc.PqcSignatureResult;
 import com.fsck.k9.mailstore.util.FileFactory;
 import com.fsck.k9.message.pqc.PqcContactStore;
-import com.fsck.k9.message.pqc.PqcMessageHelper;
 import com.fsck.k9.provider.DecryptedFileProvider;
 import org.apache.commons.io.IOUtils;
 import org.openintents.openpgp.IOpenPgpService2;
@@ -333,7 +332,7 @@ public class MessageCryptoHelper {
                 }
                 // --- PQC Erweiterung ---
                 case PQC_SIGNED: {
-                    callPqcVerify(currentCryptoPart.part);
+                    //callPqcVerify(currentCryptoPart.part);
                     return;
                 }
                 // --- ENDE ---
@@ -459,7 +458,7 @@ public class MessageCryptoHelper {
 
 
     // -- PQC Erweiterung --
-    private void callPqcVerify(Part part) {
+   /* private void callPqcVerify(Part part) {
         try {
             Multipart multipart = (Multipart) part.getBody();
 
@@ -607,7 +606,7 @@ public class MessageCryptoHelper {
             Timber.e(e, "Failed PQC KEM decapsulation");
         }
     }
-
+*/
     // -- END --
     private OpenPgpDataSource getDataSourceForSignedData(final Part signedPart) {
         return new OpenPgpDataSource() {
@@ -958,9 +957,9 @@ public class MessageCryptoHelper {
             cleanupAfterProcessingFinished();
 
             if(currentMessage instanceof MimeMessage){
-                checkAndStorePqcKemPublicKey((MimeMessage) currentMessage);
+                //checkAndStorePqcKemPublicKey((MimeMessage) currentMessage);
 
-                performPqcKemDecapsulation((MimeMessage) currentMessage);
+               // performPqcKemDecapsulation((MimeMessage) currentMessage);
             }
 
             queuedResult = messageAnnotations;

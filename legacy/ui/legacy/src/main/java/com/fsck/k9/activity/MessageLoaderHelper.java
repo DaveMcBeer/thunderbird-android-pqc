@@ -31,6 +31,7 @@ import com.fsck.k9.mailstore.MessageCryptoAnnotations;
 import com.fsck.k9.mailstore.MessageViewInfo;
 import com.fsck.k9.mailstore.MessageViewInfoExtractor;
 import com.fsck.k9.mailstore.pqc.PqcDecapsulationResult;
+import com.fsck.k9.pqcExtension.KeyDistribution.KeyReciever;
 import com.fsck.k9.ui.crypto.MessageCryptoCallback;
 import com.fsck.k9.ui.crypto.MessageCryptoHelper;
 import com.fsck.k9.ui.crypto.OpenPgpApiFactory;
@@ -233,6 +234,11 @@ public class MessageLoaderHelper {
         }
 
         callback.onMessageDataLoadFinished(localMessage);
+
+        String[] header = localMessage.getHeader("X-Key-Distribution");
+        if (header != null && header.length > 0 && "true".equalsIgnoreCase(header[0])) {
+            KeyReciever.importPublicKeysFromMessage(context, localMessage);
+        }
 
         boolean downloadedCompletely = localMessage.isSet(Flag.X_DOWNLOADED_FULL);
         boolean downloadedPartially = localMessage.isSet(Flag.X_DOWNLOADED_PARTIAL);

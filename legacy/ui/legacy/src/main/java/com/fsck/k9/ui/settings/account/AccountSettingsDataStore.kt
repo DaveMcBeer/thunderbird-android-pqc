@@ -47,7 +47,6 @@ class AccountSettingsDataStore(
 
             //--- PQC Erweiterung ---
             "pqc_enabled" -> account.isPqcSigningEnabled
-            "pqc_hide_sign_only" -> account.isPqcShowSignature
             "pqc_kem_enabled" -> account.isPqcKemEnabled
             //--- ENDE ---
             else -> defValue
@@ -78,7 +77,6 @@ class AccountSettingsDataStore(
 
             //--- PQC Erweiterung ---
             "pqc_enabled" -> account.isPqcSigningEnabled = value
-            "pqc_hide_sign_only" -> account.isPqcShowSignature = value
             "pqc_kem_enabled" -> account.isPqcKemEnabled = value
             //--- ENDE ---
             else -> return
@@ -146,7 +144,6 @@ class AccountSettingsDataStore(
             "account_remote_search_num_results" -> account.remoteSearchNumResults.toString()
             "account_ringtone" -> account.notificationSettings.ringtone
             "notification_light" -> account.notificationSettings.light.name
-
             //--- PQC Erweiterung ---
             "pqc_signing_algorithm" -> account.pqcSigningAlgorithm
             "pqc_kem_algorithm" -> account.pqcKemAlgorithm
@@ -186,12 +183,10 @@ class AccountSettingsDataStore(
             "account_remote_search_num_results" -> account.remoteSearchNumResults = value.toInt()
             "account_ringtone" -> setNotificationSound(value)
             "notification_light" -> setNotificationLight(value)
-
             //--- PQC Erweiterung ---
             "pqc_signing_algorithm" -> account.pqcSigningAlgorithm = value
             "pqc_kem_algorithm" -> account.pqcKemAlgorithm = value
             //--- ENDE ---
-
             else -> return
         }
 

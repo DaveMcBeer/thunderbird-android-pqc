@@ -202,16 +202,9 @@ class AccountPreferenceSerializer(
 
             //--- PQC Erweiterung ---
             isPqcSigningEnabled = storage.getBoolean("$accountUuid.pqcEnabled", false)
-            isPqcShowSignature = storage.getBoolean("$accountUuid.pqcHideSignOnly", false)
-            pqcSigningAlgorithm = storage.getString("$accountUuid.pqcSigningAlgorithm", null)
-            pqcPublicSigngingKey = storage.getString("$accountUuid.pqcPublicKey", null)
-            pqcSecretSigningKey = storage.getString("$accountUuid.pqcSecretKey", null)
-            pqcKeysetExists = storage.getBoolean("$accountUuid.pqcKeysetExists", false)
             isPqcKemEnabled = storage.getBoolean("$accountUuid.pqcKemEnabled",false)
             pqcKemAlgorithm=storage.getString("$accountUuid.pqcKemAlgorithm",null)
-            pqcKemPublicKey=storage.getString("$accountUuid.pqcKemPublicKey",null)
-            pqcKemSecretKey=storage.getString("$accountUuid.pqcKemSecretKey",null)
-            pqcKemKeysetExists = storage.getBoolean("$accountUuid.pqcKemKeysetExists",false)
+            pqcSigningAlgorithm = storage.getString("$accountUuid.pqcSigningAlgorithm", null)
             //--- ENDE ---
 
             val isFinishedSetup = storage.getBoolean("$accountUuid.isFinishedSetup", true)
@@ -379,18 +372,9 @@ class AccountPreferenceSerializer(
 
             // --- PQC Erweiterung ---
             editor.putBoolean("$accountUuid.pqcEnabled", isPqcSigningEnabled)
-            editor.putBoolean("$accountUuid.pqcHideSignOnly", isPqcShowSignature)
-            editor.putString("$accountUuid.pqcSigningAlgorithm", pqcSigningAlgorithm)
-            editor.putString("$accountUuid.pqcPublicKey", pqcPublicSigngingKey)
-            editor.putString("$accountUuid.pqcSecretKey", pqcSecretSigningKey)
-            editor.putBoolean("$accountUuid.pqcKeysetExists", pqcKeysetExists == true)
-
             editor.putBoolean("$accountUuid.pqcKemEnabled", isPqcKemEnabled)
+            editor.putString("$accountUuid.pqcSigningAlgorithm", pqcSigningAlgorithm)
             editor.putString("$accountUuid.pqcKemAlgorithm", pqcKemAlgorithm)
-            editor.putString("$accountUuid.pqcKemPublicKey", pqcKemPublicKey)
-            editor.putString("$accountUuid.pqcKemSecretKey", pqcKemSecretKey)
-            editor.putBoolean("$accountUuid.pqcKemKeysetExists", pqcKemKeysetExists == true)
-
             // --- ENDE ---
         }
 
@@ -513,17 +497,9 @@ class AccountPreferenceSerializer(
 
         //--- PQC Erweiterung ---
         editor.remove("$accountUuid.pqcEnabled")
-        editor.remove("$accountUuid.pqcHideSignOnly")
-        editor.remove("$accountUuid.pqcSigningAlgorithm")
-        editor.remove("$accountUuid.pqcPublicKey")
-        editor.remove("$accountUuid.pqcSecretKey")
-        editor.remove("$accountUuid.pqcKeysetExists")
-
         editor.remove("$accountUuid.pqcKemEnabled")
+        editor.remove("$accountUuid.pqcSigningAlgorithm")
         editor.remove("$accountUuid.pqcKemAlgorithm")
-        editor.remove("$accountUuid.pqcKemPublicKey")
-        editor.remove("$accountUuid.pqcKemSecretKey")
-        editor.remove("$accountUuid.pqcKemKeysetExists")
         //--- ENDE ---
 
         deleteIdentities(account, storage, editor)

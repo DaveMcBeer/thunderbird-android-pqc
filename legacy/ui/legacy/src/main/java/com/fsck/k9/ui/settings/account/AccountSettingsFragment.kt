@@ -1,6 +1,7 @@
 package com.fsck.k9.ui.settings.account
 
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -26,9 +27,12 @@ import com.fsck.k9.controller.MessagingController
 import com.fsck.k9.crypto.OpenPgpApiHelper
 import com.fsck.k9.fragment.ConfirmationDialogFragment
 import com.fsck.k9.fragment.ConfirmationDialogFragment.ConfirmationDialogFragmentListener
+import com.fsck.k9.mail.filter.Base64
 import com.fsck.k9.notification.NotificationChannelManager
 import com.fsck.k9.notification.NotificationChannelManager.ChannelType
 import com.fsck.k9.notification.NotificationSettingsUpdater
+import com.fsck.k9.pqcExtension.PqcExtensionCore
+import com.fsck.k9.pqcExtension.keyManagement.KeyRegistryFactory
 import com.fsck.k9.ui.R
 import com.fsck.k9.ui.base.extensions.withArguments
 import com.fsck.k9.ui.endtoend.AutocryptKeyTransferActivity
@@ -40,6 +44,20 @@ import com.fsck.k9.ui.settings.remove
 import com.fsck.k9.ui.settings.removeEntry
 import com.google.android.material.snackbar.Snackbar
 import com.takisoft.preferencex.PreferenceFragmentCompat
+import java.io.ByteArrayOutputStream
+import java.security.KeyPairGenerator
+import java.security.Security
+import java.util.Date
+import org.bouncycastle.bcpg.ArmoredOutputStream
+import org.bouncycastle.bcpg.HashAlgorithmTags
+import org.bouncycastle.openpgp.PGPEncryptedData
+import org.bouncycastle.openpgp.PGPKeyRingGenerator
+import org.bouncycastle.openpgp.PGPPublicKey
+import org.bouncycastle.openpgp.PGPSignature
+import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentSignerBuilder
+import org.bouncycastle.openpgp.operator.jcajce.JcaPGPDigestCalculatorProviderBuilder
+import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyPair
+import org.bouncycastle.openpgp.operator.jcajce.JcePBESecretKeyEncryptorBuilder
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.activityViewModel
 import org.koin.core.parameter.parametersOf
@@ -508,56 +526,72 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
 
         val isPqcEnabledPref = findPreference<SwitchPreference>("pqc_enabled")
         isPqcEnabledPref?.isChecked = account.isPqcSigningEnabled
-        algorithmPref.value = account.pqcSigningAlgorithm ?: "None"
+        algorithmPref.value = algorithmPref.value ?: "None"
 
-        fun updateKeyManagementState(enabled: Boolean = isPqcEnabledPref?.isChecked == true,algorithmSelected:Boolean = algorithmPref.value != "None") {
+        fun updateKeyManagementState(enabled: Boolean = isPqcEnabledPref?.isChecked == true, algorithmSelected: Boolean = algorithmPref.value != "None") {
             keyManagementPref.isEnabled = enabled && algorithmSelected
         }
 
         updateKeyManagementState()
 
-        isPqcEnabledPref?.setOnPreferenceChangeListener { preference, newValue ->
+        isPqcEnabledPref?.setOnPreferenceChangeListener { _, newValue ->
             val enabled = newValue as Boolean
-
-            if (enabled && account.openPgpProvider == null) {
-                Toast.makeText(requireContext(), R.string.account_settings_openpgp_missing, Toast.LENGTH_LONG).show()
-                (preference as SwitchPreference).isChecked = false
-                preference.setDefaultValue(false)
-                keyManagementPref.isEnabled = false
-                return@setOnPreferenceChangeListener false
-            } else {
-                updateKeyManagementState(enabled)
-                if (enabled) {
-                    Snackbar.make(requireView(), "PQC Signing aktiviert ✅", Snackbar.LENGTH_SHORT).show()
+            if (enabled) {
+                try {
+                    PqcExtensionCore.ensurePgpKeypairExists(requireContext(), account.email)
+                } catch (e: Exception) {
+                    Snackbar.make(requireView(), "Fehler bei PGP Key-Setup: ${e.message}", Snackbar.LENGTH_LONG).show()
                 }
-                return@setOnPreferenceChangeListener true
             }
+
+            updateKeyManagementState(enabled)
+            if (enabled) {
+                Snackbar.make(requireView(), "PQC Signing aktiviert ✅", Snackbar.LENGTH_SHORT).show()
+            }
+            true
         }
 
         algorithmPref.setOnPreferenceChangeListener { _, newValue ->
             val selected = newValue as String
-
-            if (!selected.equals(account.pqcSigningAlgorithm, ignoreCase = true)) {
-                // Reset Keys
-                account.pqcPublicSigngingKey = null
-                account.pqcSecretSigningKey = null
-                account.pqcKeysetExists = false
-                account.pqcSigningAlgorithm = selected
-                dataStore.saveSettingsInBackground()
-            }
+            val oldAlgo = account.pqcSigningAlgorithm
             val enabled = isPqcEnabledPref?.isChecked == true
             val algoSelected = selected != "None"
-            updateKeyManagementState(enabled,algoSelected)
+            val hasKeys = KeyRegistryFactory
+                .getRegistry(KeyRegistryFactory.KeyType.PQC_SIG)
+                .hasKeyPair(requireContext(), account.uuid)
+
+            if (hasKeys && selected != oldAlgo) {
+                AlertDialog.Builder(requireContext())
+                    .setTitle("Algorithmus wechseln?")
+                    .setMessage("Du bist dabei, den Algorithmus zu wechseln. Das aktuelle Schlüsselpaar wird gelöscht. Fortfahren?")
+                    .setPositiveButton("Ja") { _, _ ->
+                        KeyRegistryFactory
+                            .getRegistry(KeyRegistryFactory.KeyType.PQC_SIG)
+                            .clearKeyPair(requireContext(), account.uuid)
+                        account.pqcSigningAlgorithm = selected
+                        dataStore.saveSettingsInBackground()
+                    }
+                    .setNegativeButton("Abbrechen", null)
+                    .show()
+                return@setOnPreferenceChangeListener false
+            }
+
+            account.pqcSigningAlgorithm = selected
+            dataStore.saveSettingsInBackground()
+            updateKeyManagementState(enabled, algoSelected)
             true
         }
 
+
         keyManagementPref.onClick {
+           val selectedAlgorithm = account.pqcSigningAlgorithm
             requireActivity().supportFragmentManager.beginTransaction()
-                .replace(R.id.accountSettingsContainer, PqcSigningKeyManagementFragment.create(accountUuid))
+                .replace(R.id.accountSettingsContainer, PqcSigningKeyManagementFragment.create(accountUuid, selectedAlgorithm ?: "None"))
                 .addToBackStack(null)
                 .commit()
         }
     }
+
 
 
     private fun initializePqcKemKeyManagement() {
@@ -569,7 +603,7 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
 
         val isPqcKemEnabledPref = findPreference<SwitchPreference>("pqc_kem_enabled")
         isPqcKemEnabledPref?.isChecked = account.isPqcKemEnabled
-        kemAlgorithmPref.value = account.pqcKemAlgorithm ?: "None"
+        kemAlgorithmPref.value = kemAlgorithmPref.value ?: "None"
 
         fun updateKemKeyManagementState(enabled: Boolean = isPqcKemEnabledPref?.isChecked == true, algorithmSelected: Boolean = kemAlgorithmPref.value != "None") {
             kemKeyManagementPref.isEnabled = enabled && algorithmSelected
@@ -577,51 +611,61 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
 
         updateKemKeyManagementState()
 
-        isPqcKemEnabledPref?.setOnPreferenceChangeListener { preference, newValue ->
+        isPqcKemEnabledPref?.setOnPreferenceChangeListener { _, newValue ->
             val enabled = newValue as Boolean
-
-            if (enabled && account.openPgpProvider == null) {
-                Toast.makeText(requireContext(), R.string.account_settings_openpgp_missing, Toast.LENGTH_LONG).show()
-                (preference as SwitchPreference).isChecked = false
-                preference.setDefaultValue(false)
-                kemKeyManagementPref.isEnabled = false
-                return@setOnPreferenceChangeListener false
-            } else {
-                updateKemKeyManagementState(enabled)
-                if (enabled) {
-                    Snackbar.make(requireView(), "PQC KEM aktiviert ✅", Snackbar.LENGTH_SHORT).show()
+            if (enabled) {
+                try {
+                    PqcExtensionCore.ensurePgpKeypairExists(requireContext(), account.email)
+                } catch (e: Exception) {
+                    Snackbar.make(requireView(), "Fehler bei PGP Key-Setup: ${e.message}", Snackbar.LENGTH_LONG).show()
                 }
-                return@setOnPreferenceChangeListener true
             }
+
+            updateKemKeyManagementState(enabled)
+            if (enabled) {
+                Snackbar.make(requireView(), "PQC KEM aktiviert ✅", Snackbar.LENGTH_SHORT).show()
+            }
+            true
         }
 
         kemAlgorithmPref.setOnPreferenceChangeListener { _, newValue ->
             val selected = newValue as String
-
-            if (!selected.equals(account.pqcKemAlgorithm, ignoreCase = true)) {
-                // Reset Keys
-                account.pqcKemPublicKey = null
-                account.pqcKemSecretKey = null
-                account.pqcKemKeysetExists = false
-                account.pqcKemAlgorithm = selected
-                dataStore.saveSettingsInBackground()
-            }
-
+            val oldAlgo = account.pqcKemAlgorithm
             val enabled = isPqcKemEnabledPref?.isChecked == true
             val algoSelected = selected != "None"
-            updateKemKeyManagementState(enabled,algoSelected)
+            val hasKeys = KeyRegistryFactory
+                .getRegistry(KeyRegistryFactory.KeyType.PQC_KEM)
+                .hasKeyPair(requireContext(), account.uuid)
+
+            if (hasKeys && selected != oldAlgo) {
+                AlertDialog.Builder(requireContext())
+                    .setTitle("Algorithmus wechseln?")
+                    .setMessage("Du bist dabei, den Algorithmus zu wechseln. Das aktuelle Schlüsselpaar wird gelöscht. Fortfahren?")
+                    .setPositiveButton("Ja") { _, _ ->
+                        KeyRegistryFactory
+                            .getRegistry(KeyRegistryFactory.KeyType.PQC_KEM)
+                            .clearKeyPair(requireContext(), account.uuid)
+                        account.pqcKemAlgorithm = selected
+                        dataStore.saveSettingsInBackground()
+                    }
+                    .setNegativeButton("Abbrechen", null)
+                    .show()
+                return@setOnPreferenceChangeListener false
+            }
+
+            account.pqcKemAlgorithm = selected
+            dataStore.saveSettingsInBackground()
+            updateKemKeyManagementState(enabled, algoSelected)
             true
         }
 
         kemKeyManagementPref.onClick {
+            val selectedAlgorithm = account.pqcKemAlgorithm
             requireActivity().supportFragmentManager.beginTransaction()
-                .replace(R.id.accountSettingsContainer, PqcKemKeyManagementFragment.create(accountUuid))
+                .replace(R.id.accountSettingsContainer, PqcKemKeyManagementFragment.create(accountUuid, selectedAlgorithm ?: "None"))
                 .addToBackStack(null)
                 .commit()
         }
     }
-
-
-
     //--- ENDE ---
 }

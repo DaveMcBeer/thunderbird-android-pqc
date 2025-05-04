@@ -8,18 +8,22 @@ import androidx.annotation.RequiresApi
 import androidx.lifecycle.*
 import app.k9mail.legacy.account.Account
 import app.k9mail.legacy.account.AccountManager
+import app.k9mail.legacy.di.DI
 import com.fsck.k9.Preferences
+import com.fsck.k9.controller.MessagingController
+import com.fsck.k9.helper.Contacts
+import com.fsck.k9.mail.Address
 import com.fsck.k9.message.pqc.CryptoUtils
+import com.fsck.k9.pqcExtension.KeyDistribution.KeyDistributor
+import com.fsck.k9.pqcExtension.PqcExtensionCore
+import com.fsck.k9.pqcExtension.keyManagement.KeyRegistryFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import org.openquantumsafe.KEMs
-import org.openquantumsafe.KeyEncapsulation
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
-import java.util.Base64
 
 class PqcKemKeyManagementViewModel(
     private val accountManager: AccountManager,
@@ -39,82 +43,40 @@ class PqcKemKeyManagementViewModel(
     val accounts = accountManager.getAccountsFlow().asLiveData()
 
     private val account: Account? = try {
-        loadAccount(accountUuid).also {
-            if (it == null) {
-                _errorMessage.postValue(Event("Account nicht gefunden: $accountUuid"))
-            }
-        }
+        accountManager.getAccount(accountUuid)
     } catch (e: Exception) {
         _errorMessage.postValue(Event("Fehler beim Laden des Accounts: ${e.message}"))
         null
     }
 
-    private fun loadAccount(accountUuid: String): Account? {
-        return accountManager.getAccount(accountUuid)
-    }
-
     @RequiresApi(Build.VERSION_CODES.O)
-    fun generatePqcKemKeyPair() {
+    fun generatePqcKemKeyPair(context: Context, accountId: String, algorithm: String) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                if (account == null) {
-                    _errorMessage.postValue(Event("Account konnte nicht geladen werden."))
-                    return@launch
-                }
-
                 withContext(Dispatchers.IO) {
-                    val algorithm = account.pqcKemAlgorithm
-
-                    if (algorithm.isNullOrBlank() || !KEMs.is_KEM_enabled(algorithm)) {
-                        throw RuntimeException("PQC KEM algorithm '$algorithm' not enabled.")
-                    }
-
-                    val kem = KeyEncapsulation(algorithm)
-                    try {
-                        kem.generate_keypair()
-
-                        val publicKey = Base64.getMimeEncoder().encodeToString(kem.export_public_key())
-                        val secretKey = Base64.getMimeEncoder().encodeToString(kem.export_secret_key())
-
-                        account.pqcKemPublicKey = publicKey
-                        account.pqcKemSecretKey = secretKey
-                        account.pqcKemKeysetExists = true
-
-                        preferences.saveAccount(account)
-                    } finally {
-                        kem.dispose_KEM()                    }
+                    PqcExtensionCore.generatePqcKemKeypair(context, accountId, algorithm)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                _errorMessage.value = Event("Fehler beim Generieren: ${e.message}")
+                _errorMessage.postValue(Event("Fehler beim Generieren: ${e.message}"))
             } finally {
-                updateKeyStatus()
+                updateKeyStatus(context)
                 _isLoading.value = false
             }
         }
     }
 
-    fun resetKeyPair() {
+    fun resetKeyPair(context: Context) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                if (account == null) {
-                    _errorMessage.postValue(Event("Account konnte nicht geladen werden."))
-                    return@launch
-                }
-
-                withContext(Dispatchers.IO) {
-                    account.pqcKemPublicKey = null
-                    account.pqcKemSecretKey = null
-                    account.pqcKemKeysetExists = false
-                    preferences.saveAccount(account)
-                }
+                val id = account?.uuid ?: return@launch
+                KeyRegistryFactory.getRegistry(KeyRegistryFactory.KeyType.PQC).clearKeyPair(context, id)
             } catch (e: Exception) {
-                e.printStackTrace()
-                _errorMessage.value = Event("Fehler beim Zurücksetzen des Schlüsselpaars: ${e.message}")
+                _errorMessage.postValue(Event("Fehler beim Zurücksetzen: ${e.message}"))
             } finally {
-                updateKeyStatus()
+                updateKeyStatus(context)
                 _isLoading.value = false
             }
         }
@@ -123,34 +85,16 @@ class PqcKemKeyManagementViewModel(
     fun exportKeyFile(context: Context, password: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                if (account == null) {
-                    _errorMessage.postValue(Event("Account konnte nicht geladen werden."))
-                    return@launch
-                }
+                val id = account?.uuid ?: return@launch
+                val registry = KeyRegistryFactory.getRegistry(KeyRegistryFactory.KeyType.PQC_KEM)
+                registry.loadOwnKeyPair(context, id)
+                val jsonString = registry.exportPublicKey(context, id)
+                val encrypted = CryptoUtils.encrypt(jsonString, password)
 
-                val algorithm = account.pqcKemAlgorithm ?: "Unbekannt"
-                val publicKey = account.pqcKemPublicKey
-                val privateKey = account.pqcKemSecretKey
-
-                if (publicKey.isNullOrBlank() || privateKey.isNullOrBlank()) {
-                    _errorMessage.postValue(Event("Schlüsselpaar konnte nicht geladen werden."))
-                    return@launch
-                }
-
-                val json = JSONObject().apply {
-                    put("algorithm", algorithm)
-                    put("publicKey", publicKey)
-                    put("privateKey", privateKey)
-                }
-
-                val encrypted = CryptoUtils.encrypt(json.toString(), password)
                 val exportDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
-                val file = File(exportDir, "pqkemkeys_${account.name}.pqk")
-
+                val file = File(exportDir, "pqkemkeys_${account?.name}.pqk")
                 FileOutputStream(file).use { it.write(encrypted) }
-
             } catch (e: Exception) {
-                e.printStackTrace()
                 _errorMessage.postValue(Event("Fehler beim Exportieren: ${e.message}"))
             }
         }
@@ -159,55 +103,131 @@ class PqcKemKeyManagementViewModel(
     fun importKeyFile(context: Context, uri: Uri, password: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
-
-                if (inputStream == null) {
-                    _errorMessage.postValue(Event("Datei konnte nicht geöffnet werden."))
-                    return@launch
-                }
-
-                if (account == null) {
-                    _errorMessage.postValue(Event("Account konnte nicht geladen werden."))
-                    return@launch
-                }
-
-                val encryptedBytes = inputStream.readBytes()
-                val decrypted = CryptoUtils.decrypt(encryptedBytes, password)
+                val inputStream: InputStream = context.contentResolver.openInputStream(uri)
+                    ?: throw Exception("Datei konnte nicht geöffnet werden.")
+                val decrypted = CryptoUtils.decrypt(inputStream.readBytes(), password)
                 val json = JSONObject(decrypted)
 
-                account.pqcKemAlgorithm = json.getString("algorithm")
-                account.pqcKemPublicKey = json.getString("publicKey")
-                account.pqcKemSecretKey = json.getString("privateKey")
-                account.pqcKemKeysetExists = true
-
-                preferences.saveAccount(account)
-
+                val id = account?.uuid ?: return@launch
+                val registry = KeyRegistryFactory.getRegistry(KeyRegistryFactory.KeyType.PQC_KEM)
+                registry.setKeyPair(
+                    context,
+                    id,
+                    json.getString("algorithm"),
+                    json.getString("publicKey"),
+                    json.getString("privateKey")
+                )
             } catch (e: Exception) {
-                e.printStackTrace()
                 _errorMessage.postValue(Event("Fehler beim Importieren: ${e.message}"))
             } finally {
-                updateKeyStatus()
+                updateKeyStatus(context)
             }
         }
     }
 
-    fun getPublicKey(): String? = account?.pqcKemPublicKey
-    fun getSecretKey(): String? = account?.pqcKemSecretKey
-    fun getCurrentAlgorithm(): String? = account?.pqcKemAlgorithm
-
-    private fun updateKeyStatus() {
-        _keyStatus.postValue(
-            KeyStatus(
-                publicKey = account?.pqcKemPublicKey,
-                privateKey = account?.pqcKemSecretKey,
-                algorithm = account?.pqcKemAlgorithm
-            )
-        )
+    fun getPublicKey(context: Context): String? {
+        return try {
+            val id = account?.uuid ?: return null
+            val registry = KeyRegistryFactory.getRegistry(KeyRegistryFactory.KeyType.PQC_KEM)
+            registry.loadOwnKeyPair(context, id)
+            JSONObject(registry.exportPublicKey(context, id)).optString("publicKey")
+        } catch (e: Exception) {
+            null
+        }
     }
 
+
+    fun getCurrentAlgorithm(): String? = account?.pqcKemAlgorithm
+
+    private fun updateKeyStatus(context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val id = account?.uuid ?: return@launch
+                val registry = KeyRegistryFactory.getRegistry(KeyRegistryFactory.KeyType.PQC_KEM)
+                registry.loadOwnKeyPair(context, id)
+                val json = JSONObject(registry.exportPublicKey(context, id))
+                _keyStatus.postValue(
+                    KeyStatus(
+                        publicKey = json.optString("publicKey"),
+                        algorithm = json.optString("algorithm")
+                    )
+                )
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    fun hasKeyPair(context: Context): Boolean {
+        val id = account?.uuid ?: return false
+        val registry = KeyRegistryFactory.getRegistry(KeyRegistryFactory.KeyType.PQC_KEM)
+        return registry.hasKeyPair(context, id)
+    }
+
+    fun sendKeysByEmail(context: Context, recipients: List<String>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val id = account?.uuid ?: return@launch
+                val accountObj = account ?: return@launch
+
+                val kemRegistry = KeyRegistryFactory.getRegistry(KeyRegistryFactory.KeyType.PQC_KEM)
+                val sigRegistry = KeyRegistryFactory.getRegistry(KeyRegistryFactory.KeyType.PQC_SIG)
+                val pgpRegistry = KeyRegistryFactory.getRegistry(KeyRegistryFactory.KeyType.PGP)
+
+                if(!kemRegistry.hasKeyPair(context,id)){
+                    _errorMessage.postValue(Event("Es ist kein KEM-Schlüssel vorhanden."))
+                    return@launch
+                }
+                if (!pgpRegistry.hasKeyPair(context, id)) {
+                    _errorMessage.postValue(Event("Es ist kein PGP-Schlüssel vorhanden."))
+                    return@launch
+                }
+                val pgpKey = try {
+                    pgpRegistry.exportPublicKey(context, id)
+                } catch (_: Exception) { null }?.let { JSONObject(it).optString("publicKey") }
+
+
+                if (pgpKey.isNullOrEmpty()) {
+                    _errorMessage.postValue(Event("Es konnte kein PGP-Schlüssel geladen werden."))
+                    return@launch
+                }
+
+                val sigKey = if (sigRegistry.hasKeyPair(context, id)) {
+                    JSONObject(sigRegistry.exportPublicKey(context, id))
+                } else null
+
+                val kemKey = if (kemRegistry.hasKeyPair(context, id)) {
+                    JSONObject(kemRegistry.exportPublicKey(context, id))
+                } else null
+
+                KeyDistributor.createAndSendKeyDistributionMessage(
+                    context,
+                    DI.get(MessagingController::class.java),
+                    DI.get(Preferences::class.java),
+                    DI.get(Contacts::class.java),
+                    accountObj,
+                    Address(accountObj.email, accountObj.name),
+                    kemKey?.optString("publicKey"),
+                    sigKey?.optString("publicKey"),
+                    kemKey?.optString("algorithm"),
+                    sigKey?.optString("algorithm"),
+                    pgpKey,
+                    null,
+                    "Meine öffentlichen Schlüssel",
+                    null,
+                    null
+                )
+
+            } catch (e: Exception) {
+                _errorMessage.postValue(Event("Fehler beim Versenden: ${e.message}"))
+            }
+            finally {
+                updateKeyStatus(context)
+            }
+        }
+    }
     data class KeyStatus(
         val publicKey: String?,
-        val privateKey: String?,
         val algorithm: String?
     )
 }
+

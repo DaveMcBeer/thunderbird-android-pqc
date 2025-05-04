@@ -104,6 +104,10 @@ monitor = "1.7.2"
 junitJupiter = "5.8.1"
 androidxJunit = "1.1.5"
 junitJunit = "4.12"
+bouncycastle = "1.77"
+securityCryptoKtx = "1.0.0"
+securityCrypto = "1.1.0-alpha06"
+core = "1.5.0"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
@@ -255,6 +259,10 @@ androidx-monitor = { group = "androidx.test", name = "monitor", version.ref = "m
 junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junitJupiter" }
 ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxJunit" }
 junit-junit = { group = "junit", name = "junit", version.ref = "junitJunit" }
+bouncycastle-core = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+bouncycastle-pgp = { module = "org.bouncycastle:bcpg-jdk18on", version.ref = "bouncycastle" }
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
+core = { group = "androidx.test", name = "core", version.ref = "core" }
 
 [bundles]
 shared-jvm-main = [

@@ -38,7 +38,7 @@ dependencies {
     implementation(libs.mime4j.dom)
     implementation(projects.feature.navigation.drawer)
     implementation(libs.kotlinx.serialization.json)
-    implementation(project(":library:liboqs-module"))
+
 
     testApi(projects.core.testing)
     testApi(projects.core.android.testing)
@@ -48,6 +48,11 @@ dependencies {
     testImplementation(projects.mail.protocols.smtp)
     testImplementation(projects.legacy.storage)
     testImplementation(projects.legacy.testing)
+
+    implementation(libs.bouncycastle.core)
+    implementation(libs.bouncycastle.pgp)
+    implementation(libs.androidx.security.crypto)
+    implementation(projects.library.liboqsModule)
 
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlin.reflect)

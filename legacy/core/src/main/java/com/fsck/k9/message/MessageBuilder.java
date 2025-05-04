@@ -17,7 +17,6 @@ import com.fsck.k9.CoreResourceProvider;
 import com.fsck.k9.mail.internet.AddressHeaderBuilder;
 import com.fsck.k9.mail.internet.Headers;
 import com.fsck.k9.mailstore.BinaryMemoryBody;
-import com.fsck.k9.message.pqc.PqcMessageHelper;
 import timber.log.Timber;
 
 import app.k9mail.legacy.account.Account.QuoteStyle;
@@ -218,7 +217,7 @@ public abstract class MessageBuilder {
             message.addHeader(K9.IDENTITY_HEADER, buildIdentityHeader(body, bodyPlain));
         }
 
-        maybeAttachPqcKemPublicKey(message); //--- PQC Ereweiterung ---
+        //maybeAttachPqcKemPublicKey(message); //--- PQC Ereweiterung ---
     }
 
     private String buildIdentityHeader(TextBody body, TextBody bodyPlain) {
@@ -523,7 +522,7 @@ public abstract class MessageBuilder {
     public boolean isSendPqcKemPublicKey() {
         return sendPqcKemPublicKey;
     }
-    private void maybeAttachPqcKemPublicKey(MimeMessage message) throws MessagingException {
+   /* private void maybeAttachPqcKemPublicKey(MimeMessage message) throws MessagingException {
         if (!sendPqcKemPublicKey || account == null || !account.isPqcKemEnabled()) {
             return;
         }
@@ -562,7 +561,7 @@ public abstract class MessageBuilder {
         } catch (Exception e) {
             Timber.e(e, "Error while attaching PQC KEM Public Key");
         }
-    }
+    }*/
 
 
     public MessageBuilder setAccount(Account account) {

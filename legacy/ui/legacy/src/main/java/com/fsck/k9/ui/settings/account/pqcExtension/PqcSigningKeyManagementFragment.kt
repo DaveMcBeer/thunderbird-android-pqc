@@ -1,4 +1,5 @@
 package com.fsck.k9.ui.settings.account.pqcExtension
+
 import android.app.AlertDialog
 import android.content.Context
 import android.database.Cursor
@@ -20,18 +21,19 @@ import com.google.android.material.snackbar.Snackbar
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import org.koin.core.parameter.parametersOf
 
-class PqcSigningKeyManagementFragment :  Fragment(), ConfirmationDialogFragmentListener
-{
+class PqcSigningKeyManagementFragment : Fragment(), ConfirmationDialogFragmentListener {
 
     private val viewModel: PqcSigningKeyManagementViewModel by viewModel {
         parametersOf(requireArguments().getString(ARG_ACCOUNT_UUID))
     }
+
     private lateinit var publicKeyTextView: TextView
     private lateinit var keyStatusTextView: TextView
     private lateinit var keyStatusIconView: TextView
     private lateinit var dynamicActionButton: Button
     private lateinit var algorithmTextView: TextView
-    val filePickerLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+    private lateinit var sendKeysButton: Button
+    private val filePickerLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let {
             val fileName = getFileNameFromUri(requireContext(), it)
             if (!fileName.endsWith(".pqk")) {
@@ -46,40 +48,35 @@ class PqcSigningKeyManagementFragment :  Fragment(), ConfirmationDialogFragmentL
         }
     }
 
-    /**
-     * Initialisiert das UI für die PQC-Key-Verwaltung.
-     * Setzt Click-Listener, bindet ViewModel-Daten, beobachtet Lade-/Fehlerzustände.
-     */
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View?
-    {
-
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val view = inflater.inflate(R.layout.pqc_signing_key_management_fragment, container, false)
+
         publicKeyTextView = view.findViewById(R.id.public_key_text)
         algorithmTextView = view.findViewById(R.id.algorithm_text)
         keyStatusTextView = view.findViewById(R.id.key_status_text)
         keyStatusIconView = view.findViewById(R.id.key_status_icon)
-
-
         dynamicActionButton = view.findViewById(R.id.dynamic_action_button)
+        sendKeysButton = view.findViewById(R.id.send_keys_button)
+
         dynamicActionButton.setOnClickListener {
-            if (viewModel.getPublicKey().isNullOrBlank()) {
-                viewModel.generatePqcKeyPair()
+            val context = requireContext()
+            if (viewModel.getPublicKey(context).isNullOrBlank()) {
+                val accountId = requireArguments().getString(ARG_ACCOUNT_UUID) ?: return@setOnClickListener
+                val algorithm = viewModel.getCurrentAlgorithm() ?: "None"
+                viewModel.generateSigningKey(context, accountId, algorithm)
             } else {
                 showConfirmResetDialog()
             }
             updateKeyTexts()
         }
 
-
-        val exportButton = view.findViewById<Button>(R.id.export_keys_button)
-        exportButton.setOnClickListener {
+        view.findViewById<Button>(R.id.export_keys_button).setOnClickListener {
             promptPassword { password ->
                 viewModel.exportKeyFile(requireContext(), password)
             }
         }
 
-        val importButton = view.findViewById<Button>(R.id.import_keys_button)
-        importButton.setOnClickListener {
+        view.findViewById<Button>(R.id.import_keys_button).setOnClickListener {
             filePickerLauncher.launch(arrayOf("application/octet-stream", "*/*"))
         }
 
@@ -88,36 +85,63 @@ class PqcSigningKeyManagementFragment :  Fragment(), ConfirmationDialogFragmentL
             overlay.animate()
                 .alpha(if (isLoading) 1f else 0f)
                 .setDuration(200)
-                .withStartAction {
-                    if (isLoading) overlay.visibility = View.VISIBLE
-                }
-                .withEndAction {
-                    if (!isLoading) overlay.visibility = View.GONE
-                }
+                .withStartAction { if (isLoading) overlay.visibility = View.VISIBLE }
+                .withEndAction { if (!isLoading) overlay.visibility = View.GONE }
         }
 
-
         viewModel.errorMessage.observe(viewLifecycleOwner) { event ->
-            event.getContentIfNotHandled()?.let { message ->
-                showErrorDialog(message)
-            }
+            event.getContentIfNotHandled()?.let { showErrorDialog(it) }
         }
 
         viewModel.keyStatus.observe(viewLifecycleOwner) { keyStatus ->
             algorithmTextView.text = "Algorithmus: ${keyStatus.algorithm ?: "Unbekannt"}"
             publicKeyTextView.text = keyStatus.publicKey ?: "Kein öffentlicher Schlüssel"
 
-            val hasKeys = !keyStatus.publicKey.isNullOrBlank() && !keyStatus.privateKey.isNullOrBlank()
-
+            val hasKeys = viewModel.hasKeyPair(requireContext())
             keyStatusIconView.text = if (hasKeys) "✅" else "❌"
             keyStatusTextView.text = if (hasKeys) "Key-Paar vorhanden" else "Kein Key-Paar vorhanden"
             dynamicActionButton.text = if (hasKeys) "🧹 Schlüssel löschen" else "🛠 Key-Paar generieren"
+            sendKeysButton.visibility = if (hasKeys) View.VISIBLE else View.GONE
+        }
+
+        sendKeysButton.setOnClickListener {
+            promptEmailRecipients { validEmails ->
+                viewModel.sendKeysByEmail(requireContext(), validEmails)
+                Snackbar.make(requireView(), "E-Mail-Versand gestartet 📧", Snackbar.LENGTH_SHORT).show()
+            }
         }
 
         updateKeyTexts()
         return view
     }
 
+    private fun updateKeyTexts() {
+        val context = requireContext()
+        val publicKey = viewModel.getPublicKey(context)
+        val algorithm = viewModel.getCurrentAlgorithm()
+
+        publicKeyTextView.text = publicKey ?: "Kein öffentlicher Schlüssel"
+        algorithmTextView.text = "Algorithmus: ${algorithm ?: "Unbekannt"}"
+
+        val hasKeys = viewModel.hasKeyPair(context)
+        keyStatusIconView.text = if (hasKeys) "✅" else "❌"
+        keyStatusTextView.text = if (hasKeys) "Key-Paar vorhanden" else "Kein Key-Paar vorhanden"
+        dynamicActionButton.text = if (hasKeys) "🧹 Schlüssel löschen" else "🛠 Key-Paar generieren"
+        sendKeysButton.visibility = if (viewModel.hasKeyPair(requireContext())) View.VISIBLE else View.GONE
+
+    }
+
+    private fun showConfirmResetDialog() {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Schlüssel löschen?")
+            .setMessage("Bist du sicher, dass du das Schlüssel-Paar löschen möchtest?")
+            .setPositiveButton("Löschen") { _, _ ->
+                viewModel.resetKeyPair(requireContext())
+                updateKeyTexts()
+            }
+            .setNegativeButton("Abbrechen", null)
+            .show()
+    }
 
     private fun promptPassword(onPasswordEntered: (String) -> Unit) {
         val input = EditText(requireContext()).apply {
@@ -138,61 +162,6 @@ class PqcSigningKeyManagementFragment :  Fragment(), ConfirmationDialogFragmentL
             .show()
     }
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
-        requireActivity().title = "PQC Key Management"
-    }
-
-    override fun doPositiveClick(dialogId: Int) {
-        // Handle positive click from ConfirmationDialogFragment
-    }
-
-    override fun doNegativeClick(dialogId: Int) {
-        // Handle negative click from ConfirmationDialogFragment
-    }
-
-    override fun dialogCancelled(dialogId: Int) {
-        // Handle cancellation from ConfirmationDialogFragment
-    }
-    /**
-     * Aktualisiert die UI-Elemente basierend auf dem aktuellen Key-Status aus dem ViewModel.
-     */
-    private fun updateKeyTexts() {
-        val publicKey = viewModel.getPublicKey()
-        val secretKey = viewModel.getSecretKey()
-        algorithmTextView.text = "Algorithmus: ${viewModel.getCurrentAlgorithm() ?: "Unbekannt"}"
-
-        publicKeyTextView.text = publicKey ?: "Kein öffentlicher Schlüssel"
-
-        if (!publicKey.isNullOrBlank() && !secretKey.isNullOrBlank()) {
-            keyStatusIconView.text = "✅"
-            keyStatusTextView.text = "Key-Paar vorhanden"
-            dynamicActionButton.text = "🧹 Schlüssel löschen"
-        } else {
-            keyStatusIconView.text = "❌"
-            keyStatusTextView.text = "Kein Key-Paar vorhanden"
-            dynamicActionButton.text = "🛠 Key-Paar generieren"
-        }
-    }
-
-    /**
-     * Zeigt einen Bestätigungsdialog zum Löschen des aktuellen Schlüsselpaares.
-     */
-    private fun showConfirmResetDialog() {
-        AlertDialog.Builder(requireContext())
-            .setTitle("Schlüssel löschen?")
-            .setMessage("Bist du sicher, dass du das Schlüssel-Paar löschen möchtest?")
-            .setPositiveButton("Löschen") { _, _ ->
-                viewModel.resetKeyPair()
-                updateKeyTexts()
-            }
-            .setNegativeButton("Abbrechen", null)
-            .show()
-    }
-
-    /**
-     * Zeigt einen Fehlerdialog mit übergebener Nachricht.
-     */
     private fun showErrorDialog(message: String) {
         AlertDialog.Builder(requireContext())
             .setTitle("Fehler")
@@ -201,9 +170,6 @@ class PqcSigningKeyManagementFragment :  Fragment(), ConfirmationDialogFragmentL
             .show()
     }
 
-    /**
-     * Extrahiert den Dateinamen aus einem URI mithilfe des ContentResolvers.
-     */
     private fun getFileNameFromUri(context: Context, uri: Uri): String {
         val cursor = context.contentResolver.query(uri, null, null, null, null)
         cursor?.use {
@@ -221,16 +187,52 @@ class PqcSigningKeyManagementFragment :  Fragment(), ConfirmationDialogFragmentL
 
     companion object {
         private const val ARG_ACCOUNT_UUID = "accountUuid"
-
-
-        /**
-         * Factory-Methode zum Erstellen des Fragments mit gesetztem Account-UUID-Argument.
-         */
-        fun create(accountUuid:String) : PqcSigningKeyManagementFragment{
-            return PqcSigningKeyManagementFragment().apply{
-                arguments = Bundle().apply { putString(ARG_ACCOUNT_UUID,accountUuid)}
+        private const val ARG_ALGORITHM_NAME = "algorithm"
+        fun create(accountUuid: String,algorithm: String): PqcSigningKeyManagementFragment {
+            return PqcSigningKeyManagementFragment().apply {
+                arguments = Bundle().apply {
+                    putString(ARG_ACCOUNT_UUID, accountUuid)
+                    putString(ARG_ALGORITHM_NAME, algorithm)
+                }
             }
         }
     }
 
+    private fun promptEmailRecipients(onValidEmails: (List<String>) -> Unit) {
+        val input = EditText(requireContext()).apply {
+            hint = "E-Mail-Adressen, durch Kommas getrennt"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Öffentliche Schlüssel versenden")
+            .setMessage("Bitte gib eine oder mehrere E-Mail-Adressen ein.")
+            .setView(input)
+            .setPositiveButton("Senden") { _, _ ->
+                val raw = input.text.toString()
+                val emails = raw.split(",")
+                    .map { it.trim() }
+                    .filter { android.util.Patterns.EMAIL_ADDRESS.matcher(it).matches() }
+
+                if (emails.isNotEmpty()) {
+                    onValidEmails(emails)
+                } else {
+                    showErrorDialog("Keine gültigen E-Mail-Adressen erkannt.")
+                }
+            }
+            .setNegativeButton("Abbrechen", null)
+            .show()
+    }
+
+    override fun doPositiveClick(dialogId: Int) {
+        TODO("Not yet implemented")
+    }
+
+    override fun doNegativeClick(dialogId: Int) {
+        TODO("Not yet implemented")
+    }
+
+    override fun dialogCancelled(dialogId: Int) {
+        TODO("Not yet implemented")
+    }
 }

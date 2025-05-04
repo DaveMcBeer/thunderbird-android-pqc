@@ -43,8 +43,6 @@ import com.fsck.k9.mail.internet.TextBody;
 import com.fsck.k9.mailstore.BinaryMemoryBody;
 import com.fsck.k9.message.pqc.CryptoUtils;
 import com.fsck.k9.message.pqc.PqcContactStore;
-import com.fsck.k9.message.pqc.PqcKemHelper;
-import com.fsck.k9.message.pqc.PqcMessageHelper;
 import org.apache.commons.io.IOUtils;
 import org.apache.james.mime4j.util.MimeUtil;
 import org.openintents.openpgp.OpenPgpError;
@@ -432,7 +430,7 @@ public class PgpMessageBuilder extends MessageBuilder {
 
 
         //--- PQC Erweiterung ---
-        Account account = getAccount();
+       /* Account account = getAccount();
         if (account != null && account.isPqcSigningEnabled()) {
             try {
                 // PQC-Signatur berechnen
@@ -469,7 +467,7 @@ public class PgpMessageBuilder extends MessageBuilder {
             }
         }
 
-        // === Fallback nur PGP ===
+        // === Fallback nur PGP ===*/
         MimeMessageHelper.setBody(currentProcessedMimeMessage, multipartSigned);
         currentProcessedMimeMessage.setHeader(MimeHeader.HEADER_CONTENT_TYPE, signedContentType);
     }
@@ -490,7 +488,7 @@ public class PgpMessageBuilder extends MessageBuilder {
 
 
         //--- PQC Erweiterung---
-        attachPqcKemCiphertextsForAllRecipients(currentProcessedMimeMessage);
+        //attachPqcKemCiphertextsForAllRecipients(currentProcessedMimeMessage);
         //--- ENDE ---
     }
 
@@ -516,7 +514,7 @@ public class PgpMessageBuilder extends MessageBuilder {
     /**
      * Signiert den normalisierten Nachrichtentext mit dem PQC-Algorithmus.
      */
-    @SuppressLint("BinaryOperationInTimber")
+  /*  @SuppressLint("BinaryOperationInTimber")
     private byte[] generateSignature(byte[] dataToSign) throws MessagingException {
         ensureAccountConfigured();
         Account account = getAccount();
@@ -526,31 +524,31 @@ public class PgpMessageBuilder extends MessageBuilder {
         byte[] signatureArray = signature.sign(dataToSign);
         signature.dispose_sig();
         return signatureArray;
-    }
+    }*/
     /**
      * Bereitet den öffentlichen Schlüssel als ASCII-armored Text auf.
      */
-    private byte[] generatePublicKey() throws MessagingException {
+    /*private byte[] generatePublicKey() throws MessagingException {
         ensureAccountConfigured();
         Account account = getAccount();
         return Base64.getMimeDecoder().decode(account.getPqcPublicSigngingKey());
     }
-
+*/
 
     /**
      * Prüft, ob der Account korrekt für PQC konfiguriert ist.
      */
     private void ensureAccountConfigured() throws MessagingException {
-        Account account = getAccount();
+        /*Account account = getAccount();
         if (account == null || account.getPqcSigningAlgorithm() == null || account.getPqcSigningAlgorithm().equals("None")) {
             throw new MessagingException("PQC Account or algorithm not properly configured");
         }
         if (account.getPqcKeysetExists() == null || !account.getPqcKeysetExists()) {
             throw new MessagingException("No PQC Keyset exists, please generate or import in account settings");
-        }
+        }*/
     }
 
-    private void attachPqcKemCiphertextsForAllRecipients(MimeMessage message) {
+  /*  private void attachPqcKemCiphertextsForAllRecipients(MimeMessage message) {
         try {
             Address[] recipients = message.getRecipients(RecipientType.TO);
             if (recipients == null || recipients.length == 0) {
@@ -609,7 +607,7 @@ public class PgpMessageBuilder extends MessageBuilder {
         }
     }
 
-
+*/
 
     //--- ENDE ---
 }
