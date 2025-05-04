@@ -43,14 +43,12 @@ class PqcKeyRegistry implements IKeyRegistry {
     @Override
     public void saveRemotePublicKey(Context context, String remoteEmail, String publicKeyJson) throws Exception {
         JSONObject json = new JSONObject(publicKeyJson);
-        PqcKeyManager.saveRemotePublicKey(
-            context,
-            remoteEmail,
-            json.getString("sigAlgorithm"),
-            json.getString("publicSigKey"),
-            json.getString("kemAlgorithm"),
-            json.getString("publicKemKey")
-        );
+        String sigAlg = json.optString("sigAlgorithm", null);
+        String sigKey = json.optString("publicSigKey", null);
+        String kemAlg = json.optString("kemAlgorithm", null);
+        String kemKey = json.optString("publicKemKey", null);
+
+        PqcKeyManager.saveRemotePublicKey(context, remoteEmail, sigAlg, sigKey, kemAlg, kemKey);
     }
 
     @Override
