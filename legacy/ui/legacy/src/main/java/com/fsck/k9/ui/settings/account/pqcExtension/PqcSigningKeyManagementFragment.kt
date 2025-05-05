@@ -40,11 +40,7 @@ class PqcSigningKeyManagementFragment : Fragment(), ConfirmationDialogFragmentLi
                 showErrorDialog("Bitte eine gültige .pqk-Datei auswählen.")
                 return@let
             }
-
-            promptPassword { password ->
-                viewModel.importKeyFile(requireContext(), it, password)
-                Snackbar.make(requireView(), "Key-Datei erfolgreich importiert ✅", Snackbar.LENGTH_LONG).show()
-            }
+            viewModel.importKeyFile(requireContext(), it)
         }
     }
 
@@ -71,9 +67,7 @@ class PqcSigningKeyManagementFragment : Fragment(), ConfirmationDialogFragmentLi
         }
 
         view.findViewById<Button>(R.id.export_keys_button).setOnClickListener {
-            promptPassword { password ->
-                viewModel.exportKeyFile(requireContext(), password)
-            }
+            viewModel.exportKeyFile(requireContext())
         }
 
         view.findViewById<Button>(R.id.import_keys_button).setOnClickListener {
@@ -138,25 +132,6 @@ class PqcSigningKeyManagementFragment : Fragment(), ConfirmationDialogFragmentLi
             .setPositiveButton("Löschen") { _, _ ->
                 viewModel.resetKeyPair(requireContext())
                 updateKeyTexts()
-            }
-            .setNegativeButton("Abbrechen", null)
-            .show()
-    }
-
-    private fun promptPassword(onPasswordEntered: (String) -> Unit) {
-        val input = EditText(requireContext()).apply {
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
-
-        AlertDialog.Builder(requireContext())
-            .setTitle("Passwort eingeben")
-            .setMessage("Bitte gib ein Passwort für Verschlüsselung ein.")
-            .setView(input)
-            .setPositiveButton("OK") { _, _ ->
-                val password = input.text.toString()
-                if (password.isNotBlank()) {
-                    onPasswordEntered(password)
-                }
             }
             .setNegativeButton("Abbrechen", null)
             .show()

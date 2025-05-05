@@ -76,6 +76,31 @@
                 app:srcCompat="@drawable/ic_check_circle"
                 app:tint="?attr/openpgp_blue"
                 />
+            <ImageView
+                android:id="@+id/crypto_special_pqc_sign_only"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_margin="8dp"
+                app:srcCompat="@drawable/ic_check_circle"
+                app:tint="?attr/openpgp_blue" />
+
+            <ImageView
+                android:id="@+id/crypto_special_pqc_encrypt"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_margin="8dp"
+                app:srcCompat="@drawable/ic_lock"
+                app:tint="?attr/openpgp_green" />
+            <ImageView
+                android:id="@+id/crypto_special_pqc_hybrid"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_margin="8dp"
+                app:srcCompat="@drawable/ic_security"
+                app:tint="?attr/openpgp_blue" />
 
             <FrameLayout
                 android:layout_width="wrap_content"

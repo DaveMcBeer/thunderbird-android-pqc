@@ -5,8 +5,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.fsck.k9.mail.internet.MimeBodyPart;
-import com.fsck.k9.mailstore.pqc.PqcDecapsulationResult;
-import com.fsck.k9.mailstore.pqc.PqcSignatureResult;
+import com.fsck.k9.pqcExtension.message.results.PqcDecapsulationResult;
+import com.fsck.k9.pqcExtension.message.results.PqcSignatureResult;
 import org.openintents.openpgp.OpenPgpDecryptionResult;
 import org.openintents.openpgp.OpenPgpError;
 import org.openintents.openpgp.OpenPgpSignatureResult;

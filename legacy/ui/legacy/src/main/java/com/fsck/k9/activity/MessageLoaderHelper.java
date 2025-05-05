@@ -30,7 +30,7 @@ import com.fsck.k9.mailstore.LocalMessage;
 import com.fsck.k9.mailstore.MessageCryptoAnnotations;
 import com.fsck.k9.mailstore.MessageViewInfo;
 import com.fsck.k9.mailstore.MessageViewInfoExtractor;
-import com.fsck.k9.mailstore.pqc.PqcDecapsulationResult;
+import com.fsck.k9.pqcExtension.message.results.PqcDecapsulationResult;
 import com.fsck.k9.pqcExtension.KeyDistribution.KeyReciever;
 import com.fsck.k9.ui.crypto.MessageCryptoCallback;
 import com.fsck.k9.ui.crypto.MessageCryptoHelper;
@@ -237,7 +237,7 @@ public class MessageLoaderHelper {
 
         String[] header = localMessage.getHeader("X-Key-Distribution");
         if (header != null && header.length > 0 && "true".equalsIgnoreCase(header[0])) {
-            KeyReciever.importPublicKeysFromMessage(context, localMessage);
+            KeyReciever.importPublicKeysFromMessage(context, localMessage, account.getUuid());
         }
 
         boolean downloadedCompletely = localMessage.isSet(Flag.X_DOWNLOADED_FULL);

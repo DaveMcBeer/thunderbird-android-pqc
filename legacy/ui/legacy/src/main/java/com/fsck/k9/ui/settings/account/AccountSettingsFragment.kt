@@ -27,12 +27,11 @@ import com.fsck.k9.controller.MessagingController
 import com.fsck.k9.crypto.OpenPgpApiHelper
 import com.fsck.k9.fragment.ConfirmationDialogFragment
 import com.fsck.k9.fragment.ConfirmationDialogFragment.ConfirmationDialogFragmentListener
-import com.fsck.k9.mail.filter.Base64
 import com.fsck.k9.notification.NotificationChannelManager
 import com.fsck.k9.notification.NotificationChannelManager.ChannelType
 import com.fsck.k9.notification.NotificationSettingsUpdater
-import com.fsck.k9.pqcExtension.PqcExtensionCore
-import com.fsck.k9.pqcExtension.keyManagement.KeyRegistryFactory
+import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory
+import com.fsck.k9.pqcExtension.keyManagement.service.SimpleKeyService
 import com.fsck.k9.ui.R
 import com.fsck.k9.ui.base.extensions.withArguments
 import com.fsck.k9.ui.endtoend.AutocryptKeyTransferActivity
@@ -44,20 +43,6 @@ import com.fsck.k9.ui.settings.remove
 import com.fsck.k9.ui.settings.removeEntry
 import com.google.android.material.snackbar.Snackbar
 import com.takisoft.preferencex.PreferenceFragmentCompat
-import java.io.ByteArrayOutputStream
-import java.security.KeyPairGenerator
-import java.security.Security
-import java.util.Date
-import org.bouncycastle.bcpg.ArmoredOutputStream
-import org.bouncycastle.bcpg.HashAlgorithmTags
-import org.bouncycastle.openpgp.PGPEncryptedData
-import org.bouncycastle.openpgp.PGPKeyRingGenerator
-import org.bouncycastle.openpgp.PGPPublicKey
-import org.bouncycastle.openpgp.PGPSignature
-import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentSignerBuilder
-import org.bouncycastle.openpgp.operator.jcajce.JcaPGPDigestCalculatorProviderBuilder
-import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyPair
-import org.bouncycastle.openpgp.operator.jcajce.JcePBESecretKeyEncryptorBuilder
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.activityViewModel
 import org.koin.core.parameter.parametersOf
@@ -114,6 +99,7 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
         //--- PQC Addition ---
         initializePqcSigningKeyManagement()
         initializePqcKemKeyManagement()
+        initializeInternalKeyDeletion()
         //--- END ---
     }
 
@@ -538,7 +524,7 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
             val enabled = newValue as Boolean
             if (enabled) {
                 try {
-                    PqcExtensionCore.ensurePgpKeypairExists(requireContext(), account.email)
+                    SimpleKeyService.ensurePgpKeypairExists(requireContext(), account.uuid, "Ed25519")
                 } catch (e: Exception) {
                     Snackbar.make(requireView(), "Fehler bei PGP Key-Setup: ${e.message}", Snackbar.LENGTH_LONG).show()
                 }
@@ -556,18 +542,18 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
             val oldAlgo = account.pqcSigningAlgorithm
             val enabled = isPqcEnabledPref?.isChecked == true
             val algoSelected = selected != "None"
-            val hasKeys = KeyRegistryFactory
-                .getRegistry(KeyRegistryFactory.KeyType.PQC_SIG)
-                .hasKeyPair(requireContext(), account.uuid)
+            val hasKeys = SimpleKeyStoreFactory
+                .getKeyStore(SimpleKeyStoreFactory.KeyType.PQC_SIG)
+                .hasOwnKeyPair(requireContext(), account.uuid)
 
             if (hasKeys && selected != oldAlgo) {
                 AlertDialog.Builder(requireContext())
                     .setTitle("Algorithmus wechseln?")
                     .setMessage("Du bist dabei, den Algorithmus zu wechseln. Das aktuelle Schlüsselpaar wird gelöscht. Fortfahren?")
                     .setPositiveButton("Ja") { _, _ ->
-                        KeyRegistryFactory
-                            .getRegistry(KeyRegistryFactory.KeyType.PQC_SIG)
-                            .clearKeyPair(requireContext(), account.uuid)
+                        SimpleKeyStoreFactory
+                            .getKeyStore(SimpleKeyStoreFactory.KeyType.PQC_SIG)
+                            .clearAllKeys(requireContext(), account.uuid)
                         account.pqcSigningAlgorithm = selected
                         dataStore.saveSettingsInBackground()
                     }
@@ -615,7 +601,7 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
             val enabled = newValue as Boolean
             if (enabled) {
                 try {
-                    PqcExtensionCore.ensurePgpKeypairExists(requireContext(), account.email)
+                    SimpleKeyService.ensurePgpKeypairExists(context,account.uuid,"Ed25519")
                 } catch (e: Exception) {
                     Snackbar.make(requireView(), "Fehler bei PGP Key-Setup: ${e.message}", Snackbar.LENGTH_LONG).show()
                 }
@@ -633,18 +619,17 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
             val oldAlgo = account.pqcKemAlgorithm
             val enabled = isPqcKemEnabledPref?.isChecked == true
             val algoSelected = selected != "None"
-            val hasKeys = KeyRegistryFactory
-                .getRegistry(KeyRegistryFactory.KeyType.PQC_KEM)
-                .hasKeyPair(requireContext(), account.uuid)
-
+            val hasKeys = SimpleKeyStoreFactory
+                .getKeyStore(SimpleKeyStoreFactory.KeyType.PQC_KEM)
+                .hasOwnKeyPair(requireContext(), account.uuid)
             if (hasKeys && selected != oldAlgo) {
                 AlertDialog.Builder(requireContext())
                     .setTitle("Algorithmus wechseln?")
                     .setMessage("Du bist dabei, den Algorithmus zu wechseln. Das aktuelle Schlüsselpaar wird gelöscht. Fortfahren?")
                     .setPositiveButton("Ja") { _, _ ->
-                        KeyRegistryFactory
-                            .getRegistry(KeyRegistryFactory.KeyType.PQC_KEM)
-                            .clearKeyPair(requireContext(), account.uuid)
+                        SimpleKeyStoreFactory
+                            .getKeyStore(SimpleKeyStoreFactory.KeyType.PQC_KEM)
+                            .clearAllKeys(requireContext(), account.uuid)
                         account.pqcKemAlgorithm = selected
                         dataStore.saveSettingsInBackground()
                     }
@@ -665,6 +650,27 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
                 .replace(R.id.accountSettingsContainer, PqcKemKeyManagementFragment.create(accountUuid, selectedAlgorithm ?: "None"))
                 .addToBackStack(null)
                 .commit()
+        }
+    }
+
+    private fun initializeInternalKeyDeletion(){
+        findPreference<Preference>("pqc_delete_all_keys")?.onClick {
+            AlertDialog.Builder(requireContext())
+                .setTitle("Alle Schlüssel löschen?")
+                .setMessage("Dies wird alle gespeicherten PGP- und PQC-Schlüssel für dieses Konto unwiderruflich entfernen. Fortfahren?")
+                .setPositiveButton("Löschen") { _, _ ->
+                    val account = getAccount()
+                    try {
+                        // Lösche PGP
+                        SimpleKeyService.ClearAllUsersKeys(requireContext(), account.uuid)
+                        // Lösche PQC Signatur- und KEM-Schlüssel
+                        Snackbar.make(requireView(), "Alle Schlüssel erfolgreich gelöscht", Snackbar.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Snackbar.make(requireView(), "Fehler beim Löschen der Schlüssel: ${e.message}", Snackbar.LENGTH_LONG).show()
+                    }
+                }
+                .setNegativeButton("Abbrechen", null)
+                .show()
         }
     }
     //--- ENDE ---

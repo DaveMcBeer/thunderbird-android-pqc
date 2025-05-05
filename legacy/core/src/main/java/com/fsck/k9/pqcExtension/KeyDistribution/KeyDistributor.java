@@ -15,27 +15,25 @@ import com.fsck.k9.controller.MessagingController;
 import com.fsck.k9.helper.Contacts;
 import com.fsck.k9.logging.Timber;
 import com.fsck.k9.mail.Address;
-import com.fsck.k9.mail.BoundaryGenerator;
+
 import com.fsck.k9.mail.Flag;
 import com.fsck.k9.mail.Message;
 import com.fsck.k9.mail.Message.RecipientType;
 import com.fsck.k9.mail.MessagingException;
 import com.fsck.k9.mail.internet.MimeMessage;
-import com.fsck.k9.mail.internet.TextBody;
+
 import com.fsck.k9.message.Attachment;
 import com.fsck.k9.message.MessageBuilder;
 import com.fsck.k9.message.SimpleMessageBuilder;
 import com.fsck.k9.message.SimpleMessageFormat;
-import com.fsck.k9.mail.internet.MimeBodyPart;
-import com.fsck.k9.mail.internet.MimeMessageHelper;
-import com.fsck.k9.mail.internet.MimeMultipart;
+import com.fsck.k9.pqcExtension.helper.PqcMessageHelper;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Base64;
+
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -64,7 +62,7 @@ public class KeyDistributor {
         Preferences preferences,
         Contacts contacts,
         Account account,
-        Address from,
+        List<String> to,
         @Nullable String kemKey,
         @Nullable String sigKey,
         @Nullable String kemAlg,
@@ -80,24 +78,33 @@ public class KeyDistributor {
         List<Attachment> attachments = new ArrayList<>();
 
         if (sigKey != null && sigAlg != null) {
-            String armored = toAsciiArmor(sigKey.getBytes(StandardCharsets.UTF_8), "PQC SIG", sigAlg);
+            String armored = PqcMessageHelper.armor(sigKey, "PQC SIGNATURE PUBLIC KEY", sigAlg);
             attachments.add(createTempAttachment(context, armored, KeyAttachment.PQC_SIG.filename, KeyAttachment.PQC_SIG.mimeType));
         }
 
         if (kemKey != null && kemAlg != null) {
-            String armored =toAsciiArmor(sigKey.getBytes(StandardCharsets.UTF_8), "PQC KEM", kemAlg);
+            String armored = PqcMessageHelper.armor(kemKey, "PQC KEM PUBLIC KEY", kemAlg);
             attachments.add(createTempAttachment(context, armored, KeyAttachment.PQC_KEM.filename, KeyAttachment.PQC_KEM.mimeType));
         }
 
-        if (!pgpKey.isEmpty()) {
-            String armored = toAsciiArmor(pgpKey.getBytes(StandardCharsets.UTF_8), "PGP",null);
-            attachments.add(createTempAttachment(context, armored, KeyAttachment.PGP.filename, KeyAttachment.PGP.mimeType));
+        if (pgpKey != null && !pgpKey.trim().isEmpty()) {
+            // Der Key muss bereits korrekt armoured sein (z.B. via exportArmoredPublicKey)
+            attachments.add(createTempAttachment(
+                context,
+                pgpKey,
+                KeyAttachment.PGP.filename,
+                KeyAttachment.PGP.mimeType
+            ));
+        }
+        List<Address> addressList = new ArrayList<>();
+        for (String email : to) {
+            addressList.add(new Address(email));
         }
 
         SimpleMessageBuilder builder = (SimpleMessageBuilder) SimpleMessageBuilder.newInstance()
             .setAccount(account)
             .setIdentity(identity)
-            .setTo(Collections.singletonList(from))
+            .setTo(addressList)
             .setSubject(plaintextSubject != null ? plaintextSubject : "Key Distribution")
             .setText("Attached are the public keys.")
             .setMessageFormat(SimpleMessageFormat.TEXT)
@@ -184,18 +191,6 @@ public class KeyDistributor {
                 return false;
             }
         };
-    }
-
-    private static String toAsciiArmor(byte[] data, String label, @Nullable String algorithm) {
-        String base64 = Base64.getMimeEncoder(64, "\r\n".getBytes()).encodeToString(data);
-        StringBuilder builder = new StringBuilder();
-        builder.append("-----BEGIN ").append(label).append("-----\r\n");
-        if (algorithm != null) {
-            builder.append("Algorithm: ").append(algorithm).append("\r\n");
-        }
-        builder.append(base64).append("\r\n");
-        builder.append("-----END ").append(label).append("-----");
-        return builder.toString();
     }
 
     static class KeySendTask extends AsyncTask<Void, Void, Void> {

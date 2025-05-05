@@ -407,6 +407,17 @@ class RecipientMvpView(private val activity: MessageCompose) : View.OnFocusChang
         dialog.show(activity.supportFragmentManager, "openpgp_description")
     }
 
+    fun showPqcSignOnlyDialog(firstTime: Boolean) {
+        val dialog = PqcSignOnlyDialog.newInstance(firstTime, R.id.crypto_special_pqc_sign_only)
+        dialog.show(activity.supportFragmentManager, "pqc_signonly")
+    }
+
+    fun showPqcEncryptExplanationDialog() {
+        val dialog = PqcEncryptionDescriptionDialog.newInstance(R.id.crypto_special_pqc_encrypt)
+        dialog.show(activity.supportFragmentManager, "pqc_encrypt_description")
+    }
+
+
     fun launchUserInteractionPendingIntent(pendingIntent: PendingIntent?, requestCode: Int) {
         activity.launchUserInteractionPendingIntent(pendingIntent, requestCode)
     }
@@ -434,7 +445,12 @@ class RecipientMvpView(private val activity: MessageCompose) : View.OnFocusChang
         PGP_INLINE(R.id.crypto_special_inline),
         SIGN_ONLY(R.id.crypto_special_sign_only),
         SIGN_ONLY_PGP_INLINE(R.id.crypto_special_sign_only_inline),
+
+        PQC_SIGN_ONLY(R.id.crypto_special_pqc_sign_only),
+        PQC_ENCRYPT_ONLY(R.id.crypto_special_pqc_encrypt),
+        PQC_HYBRID(R.id.crypto_special_pqc_hybrid)
     }
+
 
     companion object {
         private const val VIEW_INDEX_HIDDEN = -1

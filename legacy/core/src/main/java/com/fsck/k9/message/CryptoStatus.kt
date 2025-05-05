@@ -14,4 +14,6 @@ interface CryptoStatus {
     val isEncryptAllDrafts: Boolean
     val isEncryptSubject: Boolean
     fun getRecipientAddresses(): Array<String>
+    fun isEncryptPqcHybridEnabled(): Boolean
+    fun isSignPqcHybridEnabled(): Boolean
 }

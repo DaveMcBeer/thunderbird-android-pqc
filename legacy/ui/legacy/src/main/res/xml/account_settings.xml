@@ -511,7 +511,11 @@
             android:key="pqc_kem_key_management"
             android:title="PQC KEM Key Management"
             android:summary="Manage PQC signing keys"/>
-
+        <PreferenceCategory android:singleLineTitle="true" android:title="Sonstiges"/>
+        <Preference
+            android:key="pqc_delete_all_keys"
+            android:title="Alle Schlüssel löschen"
+            android:summary="Löscht PGP- und PQC-Schlüssel dauerhaft für dieses Konto"/>
     </PreferenceScreen>
 
 </PreferenceScreen>

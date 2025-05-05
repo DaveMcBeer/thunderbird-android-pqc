@@ -1,11 +1,4 @@
-package com.fsck.k9.ui.crypto;
-
-
-import com.fsck.k9.mail.internet.MimeMessage;
-import com.fsck.k9.mail.internet.MimeMultipart;
-import com.fsck.k9.mail.BodyPart;
-import com.fsck.k9.mail.internet.MimeHeader;
-import org.openquantumsafe.KeyEncapsulation;
+package com.fsck.k9.pqcExtension.helper.encryption;
 
 
 public class PqcKemReceiver {

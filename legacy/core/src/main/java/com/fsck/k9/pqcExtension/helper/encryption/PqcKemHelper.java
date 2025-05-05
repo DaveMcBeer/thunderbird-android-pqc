@@ -1,4 +1,4 @@
-package com.fsck.k9.message.pqc;
+package com.fsck.k9.pqcExtension.helper.encryption;
 
 import java.nio.charset.StandardCharsets;
 
@@ -7,6 +7,8 @@ import com.fsck.k9.mail.BodyPart;
 import com.fsck.k9.mail.Message;
 import com.fsck.k9.mail.internet.MimeHeader;
 import com.fsck.k9.mail.internet.MimeMultipart;
+import com.fsck.k9.message.pqc.PqcContactStore;
+import com.fsck.k9.pqcExtension.helper.PqcMessageHelper;
 import org.apache.commons.io.IOUtils;
 import org.openquantumsafe.KeyEncapsulation;
 import org.openquantumsafe.Pair;
@@ -14,7 +16,7 @@ import org.openquantumsafe.Pair;
 
 public class PqcKemHelper {
 
-    public static class EncapsulationResult {
+  /*  public static class EncapsulationResult {
         private final byte[] ciphertext;
         private final byte[] sharedSecret;
 
@@ -72,7 +74,7 @@ public class PqcKemHelper {
                     String publicKeyArmored = IOUtils.toString(part.getBody().getInputStream(), StandardCharsets.US_ASCII);
 
                     // Entarme den Key
-                    byte[] publicKey = PqcMessageHelper.fromAsciiArmor(publicKeyArmored, "PQC KEM PUBLIC KEY");
+                    byte[] publicKey = PqcMessageHelper.fromAsciiArmor(publicKeyArmored);
 
                     // Hole die Absenderadresse
                     String fromAddress = message.getFrom()[0].getAddress();
@@ -92,5 +94,5 @@ public class PqcKemHelper {
         } catch (Exception e) {
             Timber.e(e, "Fehler beim Importieren des PQC Public Key");
         }
-    }
+    }*/
 }

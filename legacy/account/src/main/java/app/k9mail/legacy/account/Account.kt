@@ -325,6 +325,10 @@ class Account(
     var pqcSupportedKEMAlgorithms: ArrayList<String> = KEMs.get_supported_KEMs();
 
 
+    @get:Synchronized
+    @set:Synchronized
+    var isPqcHideSignOnly = false
+
 
     // Used to save the chosen algorithm
     @get:Synchronized

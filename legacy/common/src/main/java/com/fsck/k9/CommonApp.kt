@@ -12,6 +12,7 @@ import com.fsck.k9.job.WorkManagerConfigurationProvider
 import com.fsck.k9.notification.NotificationChannelManager
 import com.fsck.k9.ui.base.AppLanguageManager
 import com.fsck.k9.ui.base.extensions.currentLocale
+import java.security.Security
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.koin.android.ext.android.inject
 import org.koin.core.module.Module
 import timber.log.Timber
@@ -46,6 +48,14 @@ abstract class CommonApp : Application(), WorkManagerConfiguration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+
+        if (Security.getProvider("BC") == null) {
+            try {
+                Security.addProvider(BouncyCastleProvider())
+            } catch (e: Exception) {
+                Timber.e(e, "Konnte Bouncy Castle Provider nicht registrieren")
+            }
+        }
 
         K9.init(this)
         Core.init(this)

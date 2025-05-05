@@ -30,6 +30,7 @@ import com.fsck.k9.message.ComposePgpEnableByDefaultDecider
 import com.fsck.k9.message.ComposePgpInlineDecider
 import com.fsck.k9.message.MessageBuilder
 import com.fsck.k9.message.PgpMessageBuilder
+import com.fsck.k9.pqcExtension.message.PqcMessagebuilder
 import com.fsck.k9.ui.R
 import com.fsck.k9.view.RecipientSelectView.Recipient
 import org.openintents.openpgp.OpenPgpApiManager
@@ -91,7 +92,9 @@ class RecipientPresenter(
     private val allRecipients: List<Recipient>
         get() = with(recipientMvpView) { toRecipients + ccRecipients + bccRecipients }
 
-    private var isSendPqcKemPublicKeyEnabled: Boolean = false
+    private var isEncryptPqcHybridEnabled: Boolean = false
+
+    private var isSignPqcHybridEnabled: Boolean = false
 
     private val openPgpCallback = object : OpenPgpApiManagerCallback {
         override fun onOpenPgpProviderStatusChanged() {
@@ -303,7 +306,18 @@ class RecipientPresenter(
     fun onPrepareOptionsMenu(menu: Menu) {
         val currentCryptoStatus = currentCachedCryptoStatus
 
-        if (currentCryptoStatus != null && currentCryptoStatus.isProviderStateOk()) {
+        val isPqcMode = currentCryptoMode in listOf(
+            CryptoMode.PQC_SIGN_ONLY,
+            CryptoMode.PQC_SIGN_AND_ENCRYPT,
+            CryptoMode.PQC_ENCRYPT_ONLY
+        )
+
+        val pqcHideSignOnly = currentCryptoMode == CryptoMode.PQC_SIGN_AND_ENCRYPT && account.isPqcHideSignOnly
+
+        if (currentCryptoStatus != null &&
+            currentCryptoStatus.isProviderStateOk() &&
+            !isPqcMode
+        ) {
             val isEncrypting = currentCryptoStatus.isEncryptionEnabled
             menu.findItem(R.id.openpgp_encrypt_enable).isVisible = !isEncrypting
             menu.findItem(R.id.openpgp_encrypt_disable).isVisible = isEncrypting
@@ -317,18 +331,28 @@ class RecipientPresenter(
             val showPgpInlineEnable = (isEncrypting || isSignOnly) && !pgpInlineModeEnabled
             menu.findItem(R.id.openpgp_inline_enable).isVisible = showPgpInlineEnable
             menu.findItem(R.id.openpgp_inline_disable).isVisible = pgpInlineModeEnabled
-        } else {
+        }
+        else {
             menu.findItem(R.id.openpgp_inline_enable).isVisible = false
             menu.findItem(R.id.openpgp_inline_disable).isVisible = false
             menu.findItem(R.id.openpgp_encrypt_enable).isVisible = false
             menu.findItem(R.id.openpgp_encrypt_disable).isVisible = false
             menu.findItem(R.id.openpgp_sign_only).isVisible = false
             menu.findItem(R.id.openpgp_sign_only_disable).isVisible = false
+
+        }
+
+        if(isPqcMode){
+
+            // Hide hybrid sign checkbox if configured to do so
+            menu.findItem(R.id.openpgp_sign_pqc_hybrid)?.isVisible = !pqcHideSignOnly
+            menu.findItem(R.id.openpgp_sign_pqc_hybrid)?.isChecked = isSignPqcHybridEnabled
+            menu.findItem(R.id.openpgp_encrypt_pqc_hybrid)?.isChecked = isEncryptPqcHybridEnabled
         }
 
         menu.findItem(R.id.add_from_contacts).isVisible = hasContactPermission() && hasContactPicker()
-        menu.findItem(R.id.send_pqc_kem_public_key)?.isChecked = isSendPqcKemPublicKeyEnabled
     }
+
 
     fun onSwitchAccount(account: Account) {
         this.account = account
@@ -412,7 +436,8 @@ class RecipientPresenter(
             isEncryptAllDrafts = account.isOpenPgpEncryptAllDrafts,
             isEncryptSubject = account.isOpenPgpEncryptSubject,
             cryptoMode = currentCryptoMode,
-            sendPqcKemPublicKey = isSendPqcKemPublicKeyEnabled
+            isEncryptPqcHybrid = isEncryptPqcHybridEnabled,
+            isSignPqcHybrid = isSignPqcHybridEnabled
         )
 
         if (openPgpProviderState != OpenPgpProviderState.OK) {
@@ -565,6 +590,10 @@ class RecipientPresenter(
     }
 
     fun onClickCryptoStatus() {
+        if (currentCryptoMode !in listOf(CryptoMode.PQC_SIGN_ONLY, CryptoMode.PQC_SIGN_AND_ENCRYPT, CryptoMode.PQC_ENCRYPT_ONLY)) {
+            Timber.i("OpenPGP interactions disabled in PQC_SIGN_ONLY mode")
+            return
+        }
         when (openPgpApiManager.openPgpProviderState) {
             OpenPgpProviderState.UNCONFIGURED -> {
                 Timber.e("click on crypto status while unconfigured - this should not really happen?!")
@@ -584,6 +613,10 @@ class RecipientPresenter(
     }
 
     private fun toggleEncryptionState(showGotIt: Boolean) {
+        if (currentCryptoMode !in listOf(CryptoMode.PQC_SIGN_ONLY, CryptoMode.PQC_SIGN_AND_ENCRYPT, CryptoMode.PQC_ENCRYPT_ONLY)) {
+            Timber.i("PGP encryption toggling blocked due to PQC_SIGN_ONLY mode")
+            return
+        }
         val currentCryptoStatus = currentCachedCryptoStatus
         if (currentCryptoStatus == null) {
             Timber.e("click on crypto status while crypto status not available - should not really happen?!")
@@ -675,6 +708,13 @@ class RecipientPresenter(
         pgpMessageBuilder.setOpenPgpApi(openPgpApiManager.openPgpApi)
         pgpMessageBuilder.setCryptoStatus(cryptoStatus)
     }
+    fun builderSetProperties(pqcMessagebuilder: PqcMessagebuilder, cryptoStatus: ComposeCryptoStatus, account: Account) {
+        pqcMessagebuilder.setTo(toAddresses)
+        pqcMessagebuilder.setCc(ccAddresses)
+        pqcMessagebuilder.setBcc(bccAddresses)
+        pqcMessagebuilder.setCryptoStatus(cryptoStatus)
+        pqcMessagebuilder.setAccount(account)
+    }
 
     fun onMenuSetPgpInline(enablePgpInline: Boolean) {
         onCryptoPgpInlineChanged(enablePgpInline)
@@ -713,6 +753,11 @@ class RecipientPresenter(
         onCryptoModeChanged(CryptoMode.NO_CHOICE)
     }
 
+
+    fun onCryptoPqcSignOnlyDisabled() {
+        onCryptoModeChanged(CryptoMode.NO_CHOICE)
+    }
+
     private fun checkAndIncrementPgpInlineDialogCounter(): Boolean {
         val pgpInlineDialogCounter = K9.pgpInlineDialogCounter
         if (pgpInlineDialogCounter < PGP_DIALOG_DISPLAY_THRESHOLD) {
@@ -736,18 +781,29 @@ class RecipientPresenter(
     }
 
     fun onClickCryptoSpecialModeIndicator() {
-        when {
-            currentCryptoMode == CryptoMode.SIGN_ONLY -> {
+        when (currentCryptoMode) {
+            CryptoMode.SIGN_ONLY -> {
                 recipientMvpView.showOpenPgpSignOnlyDialog(false)
             }
-            isForceTextMessageFormat -> {
-                recipientMvpView.showOpenPgpInlineDialog(false)
+            CryptoMode.PQC_SIGN_ONLY -> {
+                recipientMvpView.showPqcSignOnlyDialog(false)
             }
-            else -> {
-                error("This icon should not be clickable while no special mode is active!")
+            CryptoMode.PQC_ENCRYPT_ONLY,
+            CryptoMode.PQC_SIGN_AND_ENCRYPT -> {
+                recipientMvpView.showPqcEncryptExplanationDialog()
+            }
+            CryptoMode.CHOICE_ENABLED,
+            CryptoMode.CHOICE_DISABLED,
+            CryptoMode.NO_CHOICE -> {
+                if (isForceTextMessageFormat) {
+                    recipientMvpView.showOpenPgpInlineDialog(false)
+                } else {
+                    Timber.w("CryptoSpecialMode icon clicked while no special mode active")
+                }
             }
         }
     }
+
 
     private fun Array<String>.toAddressArray(): Array<Address> {
         return flatMap { addressString ->
@@ -769,15 +825,33 @@ class RecipientPresenter(
         else -> throw AssertionError("Unhandled case: $this")
     }
 
-    fun onClickSendPqcKemPublicKey() {
-        isSendPqcKemPublicKeyEnabled = !isSendPqcKemPublicKeyEnabled
-        asyncUpdateCryptoStatus()
+    fun onClickEncryptPqcHybrid() {
+        isEncryptPqcHybridEnabled = !isEncryptPqcHybridEnabled
+        updateCryptoModeFromHybridSettings()
     }
 
+    fun onClickSignPqcHybrid() {
+        isSignPqcHybridEnabled = !isSignPqcHybridEnabled
+        updateCryptoModeFromHybridSettings()
+    }
+    private fun updateCryptoModeFromHybridSettings() {
+        currentCryptoMode = when {
+            isEncryptPqcHybridEnabled && isSignPqcHybridEnabled -> CryptoMode.PQC_SIGN_AND_ENCRYPT
+            isEncryptPqcHybridEnabled -> CryptoMode.PQC_ENCRYPT_ONLY
+            isSignPqcHybridEnabled -> CryptoMode.PQC_SIGN_ONLY
+            else -> CryptoMode.NO_CHOICE
+        }
+
+        asyncUpdateCryptoStatus()
+    }
     enum class CryptoMode {
         SIGN_ONLY,
-        NO_CHOICE,
-        CHOICE_DISABLED,
         CHOICE_ENABLED,
+        CHOICE_DISABLED,
+        NO_CHOICE,
+        PQC_SIGN_ONLY,
+        PQC_ENCRYPT_ONLY,
+        PQC_SIGN_AND_ENCRYPT
     }
+
 }

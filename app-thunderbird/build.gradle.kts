@@ -224,7 +224,6 @@ dependencies {
     releaseImplementation(projects.feature.telemetry.noop)
 
     implementation(libs.androidx.work.runtime)
-
     implementation(projects.feature.autodiscovery.api)
     debugImplementation(projects.backend.demo)
     debugImplementation(projects.feature.autodiscovery.demo)

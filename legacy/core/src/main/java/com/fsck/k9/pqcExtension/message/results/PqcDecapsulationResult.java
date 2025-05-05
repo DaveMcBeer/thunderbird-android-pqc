@@ -1,4 +1,4 @@
-package com.fsck.k9.mailstore.pqc;
+package com.fsck.k9.pqcExtension.message.results;
 
 /*
  * Klasse zur Repräsentation des Ergebnisses einer PQC-Entschlüsselung.

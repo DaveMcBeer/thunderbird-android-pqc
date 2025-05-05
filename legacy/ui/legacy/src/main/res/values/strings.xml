@@ -1172,6 +1172,34 @@ You can keep this message and use it as a backup for your secret key. If you wan
     <string name="account_settings_pqc_kem_enabled">Enable PQC KEMs</string>
     <string name="account_settings_pqc_kem_algorithm">PQC KEM Algorithm</string>
     <string name="account_settings_pqc_kem_management">Manage PQC KEM Keys</string>
+    <!-- PQC Sign-Only Dialog Strings -->
+    <string name="pqc_dialog_sign_only_ok">Got it!</string>
+    <string name="pqc_dialog_sign_only_disable">Disable</string>
+    <string name="pqc_dialog_sign_only_keep_enabled">Keep Enabled</string>
+    <string name="pqc_dialog_sign_only_title">Hybrid PQC Sign-Only Mode</string>
+    <string name="pqc_dialog_sign_only_text">In this mode, your email will be signed using both traditional PGP and a post-quantum secure signature algorithm.</string>
+    <string name="pqc_dialog_sign_only_plus_verified">This verifies that the message was sent by you and adds quantum-safe authenticity.</string>
+    <string name="pqc_dialog_sign_only_minus_break">Signatures may not survive mailing list modifications.</string>
+    <string name="pqc_dialog_sign_only_minus_attach">Some clients may display the signature as a separate attachment (e.g. \'signature.asc\').</string>
+    <string name="pqc_dialog_sign_only_neutral_encsigned">Encrypted messages automatically include both signature types.</string>
+
+    <!-- PQC Hybrid Encryption Explanation -->
+    <string name="pqc_hybrid_description">Hybrid post-quantum mode: Combines PGP with quantum-safe signing and encryption.</string>
+
+    <!-- PQC Encryption UI Labels and Errors -->
+    <string name="pqc_encryption">PQC Encryption</string>
+    <string name="pqc_encryption_enabled_error_title">Hybrid Encryption Not Possible</string>
+    <string name="pqc_encryption_enabled_error_msg">Some selected recipients are not compatible with hybrid post-quantum encryption.</string>
+    <string name="pqc_encryption_enable">Enable Hybrid Encryption</string>
+    <string name="pqc_encryption_disable">Disable Hybrid Encryption</string>
+    <string name="pqc_encryption_description_text1">Encrypting messages with hybrid algorithms ensures forward secrecy against future quantum adversaries.</string>
+    <string name="pqc_encryption_description_text2">Tap the lock icon to toggle hybrid encryption on or off.</string>
+    <string name="pqc_encryption_description_text3">Hybrid encryption is only possible if all recipients support both PGP and PQC.</string>
+    <string name="pqc_encryption_enabled_error_gotit">Got it</string>
+    <string name="pqc_encryption_enabled_error_back">Back</string>
+    <string name="pqc_encryption_enabled_error_disable">Disable Hybrid Encryption</string>
+    <string name="pqc_encryption_label">PQC/PGP Hybrid Encryption</string>
+
 
     <!-- ENDE -->
 </resources>

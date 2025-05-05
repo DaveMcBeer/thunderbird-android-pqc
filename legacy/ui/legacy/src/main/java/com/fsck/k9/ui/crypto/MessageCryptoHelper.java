@@ -6,8 +6,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Deque;
 import java.util.List;
 
@@ -15,10 +13,14 @@ import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
+import android.os.Build.VERSION;
+import android.os.Build.VERSION_CODES;
 import android.os.Parcelable;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.annotation.WorkerThread;
 import androidx.core.content.IntentCompat;
 import app.k9mail.legacy.account.Account;
@@ -34,7 +36,6 @@ import com.fsck.k9.mail.Multipart;
 import com.fsck.k9.mail.Part;
 import com.fsck.k9.mail.internet.MessageExtractor;
 import com.fsck.k9.mail.internet.MimeBodyPart;
-import com.fsck.k9.mail.internet.MimeHeader;
 import com.fsck.k9.mail.internet.MimeMessage;
 import com.fsck.k9.mail.internet.MimeMultipart;
 import com.fsck.k9.mail.internet.SizeAware;
@@ -44,10 +45,9 @@ import com.fsck.k9.mailstore.CryptoResultAnnotation.CryptoError;
 import com.fsck.k9.mailstore.MessageCryptoAnnotations;
 import com.fsck.k9.mailstore.MessageHelper;
 import com.fsck.k9.mailstore.MimePartStreamParser;
-import com.fsck.k9.mailstore.pqc.PqcDecapsulationResult;
-import com.fsck.k9.mailstore.pqc.PqcSignatureResult;
+import com.fsck.k9.pqcExtension.helper.PqcSignatureVerifierHelper;
+import com.fsck.k9.pqcExtension.message.results.PqcDecapsulationResult;
 import com.fsck.k9.mailstore.util.FileFactory;
-import com.fsck.k9.message.pqc.PqcContactStore;
 import com.fsck.k9.provider.DecryptedFileProvider;
 import org.apache.commons.io.IOUtils;
 import org.openintents.openpgp.IOpenPgpService2;
@@ -62,7 +62,6 @@ import org.openintents.openpgp.util.OpenPgpApi.OpenPgpDataSink;
 import org.openintents.openpgp.util.OpenPgpApi.OpenPgpDataSource;
 import org.openintents.openpgp.util.OpenPgpServiceConnection;
 import org.openintents.openpgp.util.OpenPgpServiceConnection.OnBound;
-import org.openquantumsafe.Signature;
 import timber.log.Timber;
 
 
@@ -168,9 +167,10 @@ public class MessageCryptoHelper {
         for (Part part : signedParts) {
 
             // -- PQC Addition --
-            if (MessageCryptoStructureDetector.isPartMixedWithPqcSignature(part)) {
+            if (MessageCryptoStructureDetector.isMultipartSignedWithMultipleSignatures(part)) {
                 CryptoPart cryptoPart = new CryptoPart(CryptoPartType.PQC_SIGNED, part);
                 partsToProcess.add(cryptoPart);
+                continue;
             }
             // -- END --
 
@@ -251,6 +251,16 @@ public class MessageCryptoHelper {
         }
 
         if (!isBoundToCryptoProviderService()) {
+            // Sonderfall: Wenn nur PQC verarbeitet werden muss, mach weiter
+            boolean hasOnlyPqcParts = !partsToProcess.isEmpty() &&
+                partsToProcess.stream().allMatch(part -> part.type == CryptoPartType.PQC_SIGNED);
+
+            if (hasOnlyPqcParts) {
+                currentCryptoPart = partsToProcess.peekFirst();
+                decryptOrVerifyCurrentPart();
+                return;
+            }
+
             connectToCryptoProviderService();
             return;
         }
@@ -332,7 +342,7 @@ public class MessageCryptoHelper {
                 }
                 // --- PQC Erweiterung ---
                 case PQC_SIGNED: {
-                    //callPqcVerify(currentCryptoPart.part);
+                    callPqcVerify(currentCryptoPart.part);
                     return;
                 }
                 // --- ENDE ---
@@ -458,53 +468,11 @@ public class MessageCryptoHelper {
 
 
     // -- PQC Erweiterung --
-   /* private void callPqcVerify(Part part) {
+    private void callPqcVerify(Part part) {
         try {
-            Multipart multipart = (Multipart) part.getBody();
-
-            if (multipart.getCount() < 3) {
-                throw new IllegalStateException("Expected 3-part multipart/mixed for PQC message");
-            }
-
-            BodyPart signedContentPart = multipart.getBodyPart(0); // multipart/signed
-            BodyPart pqcSignaturePart = multipart.getBodyPart(1); // application/pqc-signature
-            BodyPart pqcPublicKeyPart = multipart.getBodyPart(2); // application/pqc-signature (key)
-
-            String sigArmor = PqcMessageHelper.extractAsciiContent(pqcSignaturePart);
-            String keyArmor = PqcMessageHelper.extractAsciiContent(pqcPublicKeyPart);
-
-            byte[] pqcSignatureBytes = PqcMessageHelper.fromAsciiArmor(sigArmor, "PQC SIGNATURE");
-            byte[] pqcPublicKeyBytes = PqcMessageHelper.fromAsciiArmor(keyArmor, "PQC PUBLIC KEY");
-
-            // Jetzt noch: Signed Content extrahieren
-            Multipart signedMultipart = (Multipart) signedContentPart.getBody();
-            BodyPart actualSignedBodyPart = signedMultipart.getBodyPart(0); // Das echte, zu signierende Part
-
-            byte[] signedData = PqcMessageHelper.canonicalize(actualSignedBodyPart);
-
-            // Algorithmus holen
-            String[] algorithmHeaders = part.getHeader("X-PQC-Signature-Algorithm");
-            if (algorithmHeaders == null || algorithmHeaders.length == 0) {
-                throw new MessagingException("Missing PQC algorithm header!");
-            }
-            String algorithm = algorithmHeaders[0];
-
-            // Signature prüfen
-            Signature pqcVerifier = new Signature(algorithm);
-            boolean valid = pqcVerifier.verify(signedData, pqcSignatureBytes, pqcPublicKeyBytes);
-            pqcVerifier.dispose_sig();
-
-            PqcSignatureResult result = new PqcSignatureResult(
-                valid ? PqcSignatureResult.RESULT_VALID_KEY_CONFIRMED : PqcSignatureResult.RESULT_INVALID_SIGNATURE,
-                null, 0L, new ArrayList<>(), new ArrayList<>(), PqcSignatureResult.SenderStatusResult.UNKNOWN
-            );
-
-            CryptoResultAnnotation annotation = valid
-                ? CryptoResultAnnotation.createPqcSignatureSuccessAnnotation(null, result, (MimeBodyPart) actualSignedBodyPart)
-                : CryptoResultAnnotation.createPqcSignatureErrorAnnotation(null, result, (MimeBodyPart) actualSignedBodyPart);
-
+            String senderEmail = currentMessage.getFrom()[0].getAddress();
+            CryptoResultAnnotation annotation = PqcSignatureVerifierHelper.verifyAll(context, part, senderEmail, account.getUuid());
             onCryptoOperationSuccess(annotation);
-
         } catch (Exception e) {
             Timber.e(e, "Failed to verify PQC signature");
             MimeBodyPart replacement = getMultipartSignedContentPartIfAvailable(part);
@@ -513,7 +481,9 @@ public class MessageCryptoHelper {
         }
     }
 
-    private void checkAndStorePqcKemPublicKey(MimeMessage message) {
+
+
+    /* private void checkAndStorePqcKemPublicKey(MimeMessage message) {
         try {
             if (!(message.getBody() instanceof MimeMultipart)) {
                 return;

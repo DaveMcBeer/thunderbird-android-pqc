@@ -203,6 +203,7 @@ class AccountPreferenceSerializer(
             //--- PQC Erweiterung ---
             isPqcSigningEnabled = storage.getBoolean("$accountUuid.pqcEnabled", false)
             isPqcKemEnabled = storage.getBoolean("$accountUuid.pqcKemEnabled",false)
+            isPqcHideSignOnly = storage.getBoolean("$accountUuid.pqcHideSignOnly",false)
             pqcKemAlgorithm=storage.getString("$accountUuid.pqcKemAlgorithm",null)
             pqcSigningAlgorithm = storage.getString("$accountUuid.pqcSigningAlgorithm", null)
             //--- ENDE ---
@@ -373,6 +374,7 @@ class AccountPreferenceSerializer(
             // --- PQC Erweiterung ---
             editor.putBoolean("$accountUuid.pqcEnabled", isPqcSigningEnabled)
             editor.putBoolean("$accountUuid.pqcKemEnabled", isPqcKemEnabled)
+            editor.putBoolean("$accountUuid.pqcHideSignOnly", isPqcHideSignOnly)
             editor.putString("$accountUuid.pqcSigningAlgorithm", pqcSigningAlgorithm)
             editor.putString("$accountUuid.pqcKemAlgorithm", pqcKemAlgorithm)
             // --- ENDE ---
@@ -498,6 +500,7 @@ class AccountPreferenceSerializer(
         //--- PQC Erweiterung ---
         editor.remove("$accountUuid.pqcEnabled")
         editor.remove("$accountUuid.pqcKemEnabled")
+        editor.remove("$accountUuid.pqcHideSignOnly")
         editor.remove("$accountUuid.pqcSigningAlgorithm")
         editor.remove("$accountUuid.pqcKemAlgorithm")
         //--- ENDE ---

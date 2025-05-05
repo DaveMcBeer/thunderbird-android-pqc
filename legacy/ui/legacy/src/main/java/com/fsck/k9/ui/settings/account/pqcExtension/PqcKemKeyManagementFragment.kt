@@ -30,6 +30,7 @@ class PqcKemKeyManagementFragment : Fragment(), ConfirmationDialogFragmentListen
     private lateinit var dynamicActionButton: Button
     private lateinit var algorithmTextView: TextView
     private lateinit var sendKeysButton: Button
+
     private val filePickerLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let {
             val fileName = getFileNameFromUri(requireContext(), it)
@@ -37,10 +38,7 @@ class PqcKemKeyManagementFragment : Fragment(), ConfirmationDialogFragmentListen
                 showErrorDialog("Bitte eine gültige .pqk-Datei auswählen.")
                 return@let
             }
-            promptPassword { password ->
-                viewModel.importKeyFile(requireContext(), it, password)
-                Snackbar.make(requireView(), "Key-Datei erfolgreich importiert ✅", Snackbar.LENGTH_LONG).show()
-            }
+            viewModel.importKeyFile(requireContext(), it)
         }
     }
 
@@ -63,20 +61,19 @@ class PqcKemKeyManagementFragment : Fragment(), ConfirmationDialogFragmentListen
             } else {
                 showConfirmResetDialog()
             }
+            updateKeyTexts()
         }
 
         view.findViewById<Button>(R.id.export_keys_button).setOnClickListener {
-            promptPassword { password ->
-                viewModel.exportKeyFile(requireContext(), password)
-            }
+            viewModel.exportKeyFile(requireContext())
         }
 
         view.findViewById<Button>(R.id.import_keys_button).setOnClickListener {
             filePickerLauncher.launch(arrayOf("application/octet-stream", "*/*"))
         }
 
+        val overlay = view.findViewById<FrameLayout>(R.id.loadingOverlay)
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            val overlay = view.findViewById<FrameLayout>(R.id.loadingOverlay)
             overlay.animate()
                 .alpha(if (isLoading) 1f else 0f)
                 .setDuration(200)
@@ -85,9 +82,7 @@ class PqcKemKeyManagementFragment : Fragment(), ConfirmationDialogFragmentListen
         }
 
         viewModel.errorMessage.observe(viewLifecycleOwner) { event ->
-            event.getContentIfNotHandled()?.let { message ->
-                showErrorDialog(message)
-            }
+            event.getContentIfNotHandled()?.let { showErrorDialog(it) }
         }
 
         viewModel.keyStatus.observe(viewLifecycleOwner) { keyStatus ->
@@ -107,9 +102,38 @@ class PqcKemKeyManagementFragment : Fragment(), ConfirmationDialogFragmentListen
                 Snackbar.make(requireView(), "E-Mail-Versand gestartet 📧", Snackbar.LENGTH_SHORT).show()
             }
         }
+
         updateKeyTexts()
         return view
     }
+
+    private fun updateKeyTexts() {
+        val context = requireContext()
+        val publicKey = viewModel.getPublicKey(context)
+        val algorithm = viewModel.getCurrentAlgorithm()
+
+        publicKeyTextView.text = publicKey ?: "Kein öffentlicher Schlüssel"
+        algorithmTextView.text = "Algorithmus: ${algorithm ?: "Unbekannt"}"
+
+        val hasKeys = viewModel.hasKeyPair(context)
+        keyStatusIconView.text = if (hasKeys) "✅" else "❌"
+        keyStatusTextView.text = if (hasKeys) "Key-Paar vorhanden" else "Kein Key-Paar vorhanden"
+        dynamicActionButton.text = if (hasKeys) "🧹 Schlüssel löschen" else "🛠 Key-Paar generieren"
+        sendKeysButton.visibility = if (viewModel.hasKeyPair(requireContext())) View.VISIBLE else View.GONE
+    }
+
+    private fun showConfirmResetDialog() {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Schlüssel löschen?")
+            .setMessage("Bist du sicher, dass du das Schlüssel-Paar löschen möchtest?")
+            .setPositiveButton("Löschen") { _, _ ->
+                viewModel.resetKeyPair(requireContext())
+                updateKeyTexts()
+            }
+            .setNegativeButton("Abbrechen", null)
+            .show()
+    }
+
     private fun promptEmailRecipients(onValidEmails: (List<String>) -> Unit) {
         val input = EditText(requireContext()).apply {
             hint = "E-Mail-Adressen, durch Kommas getrennt"
@@ -135,50 +159,12 @@ class PqcKemKeyManagementFragment : Fragment(), ConfirmationDialogFragmentListen
             .setNegativeButton("Abbrechen", null)
             .show()
     }
-    private fun updateKeyTexts() {
-        val context = requireContext()
-        val publicKey = viewModel.getPublicKey(context)
-        val algorithm = viewModel.getCurrentAlgorithm()
 
-        publicKeyTextView.text = publicKey ?: "Kein öffentlicher Schlüssel"
-        algorithmTextView.text = "Algorithmus: ${algorithm ?: "Unbekannt"}"
-
-        val hasKeys = viewModel.hasKeyPair(context)
-        keyStatusIconView.text = if (hasKeys) "✅" else "❌"
-        keyStatusTextView.text = if (hasKeys) "Key-Paar vorhanden" else "Kein Key-Paar vorhanden"
-        dynamicActionButton.text = if (hasKeys) "🧹 Schlüssel löschen" else "🛠 Key-Paar generieren"
-        sendKeysButton.visibility = if (viewModel.hasKeyPair(requireContext())) View.VISIBLE else View.GONE
-
-    }
-
-    private fun showConfirmResetDialog() {
+    private fun showErrorDialog(message: String) {
         AlertDialog.Builder(requireContext())
-            .setTitle("Schlüssel löschen?")
-            .setMessage("Bist du sicher, dass du das Schlüssel-Paar löschen möchtest?")
-            .setPositiveButton("Löschen") { _, _ ->
-                viewModel.resetKeyPair(requireContext())
-                updateKeyTexts()
-            }
-            .setNegativeButton("Abbrechen", null)
-            .show()
-    }
-
-    private fun promptPassword(onPasswordEntered: (String) -> Unit) {
-        val input = EditText(requireContext()).apply {
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
-
-        AlertDialog.Builder(requireContext())
-            .setTitle("Passwort eingeben")
-            .setMessage("Bitte gib ein Passwort für Verschlüsselung ein.")
-            .setView(input)
-            .setPositiveButton("OK") { _, _ ->
-                val password = input.text.toString()
-                if (password.isNotBlank()) {
-                    onPasswordEntered(password)
-                }
-            }
-            .setNegativeButton("Abbrechen", null)
+            .setTitle("Fehler")
+            .setMessage(message)
+            .setPositiveButton("OK", null)
             .show()
     }
 
@@ -193,18 +179,10 @@ class PqcKemKeyManagementFragment : Fragment(), ConfirmationDialogFragmentListen
         return ""
     }
 
-    private fun showErrorDialog(message: String) {
-        AlertDialog.Builder(requireContext())
-            .setTitle("Fehler")
-            .setMessage(message)
-            .setPositiveButton("OK", null)
-            .show()
-    }
-
     companion object {
         private const val ARG_ACCOUNT_UUID = "accountUuid"
         private const val ARG_ALGORITHM_NAME = "algorithm"
-        fun create(accountUuid: String,algorithm:String): PqcKemKeyManagementFragment {
+        fun create(accountUuid: String, algorithm: String): PqcKemKeyManagementFragment {
             return PqcKemKeyManagementFragment().apply {
                 arguments = Bundle().apply {
                     putString(ARG_ACCOUNT_UUID, accountUuid)

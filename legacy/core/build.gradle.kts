@@ -38,6 +38,7 @@ dependencies {
     implementation(libs.mime4j.dom)
     implementation(projects.feature.navigation.drawer)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.junit.junit)
 
 
     testApi(projects.core.testing)
@@ -59,6 +60,7 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.jdom2)
+    testImplementation(libs.ext.junit)
 }
 
 android {

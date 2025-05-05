@@ -65,8 +65,14 @@
         app:showAsAction="never"
         />
     <item
-        android:id="@+id/send_pqc_kem_public_key"
-        android:title="Send PQC KEM Public Key"
+        android:id="@+id/openpgp_sign_pqc_hybrid"
+        android:title="Sign PGP/PQC hybrid"
+        android:checkable="true"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/openpgp_encrypt_pqc_hybrid"
+        android:title="Encrypt PGP/PQC hybrid"
         android:checkable="true"
         app:showAsAction="never" />
 </menu>

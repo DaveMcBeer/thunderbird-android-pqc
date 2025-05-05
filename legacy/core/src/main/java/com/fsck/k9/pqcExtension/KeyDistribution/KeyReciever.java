@@ -8,10 +8,10 @@ import com.fsck.k9.mail.Message;
 import com.fsck.k9.mail.Multipart;
 import com.fsck.k9.mail.Part;
 import com.fsck.k9.mail.internet.MimeUtility;
-import com.fsck.k9.pqcExtension.keyManagement.IKeyRegistry;
-import com.fsck.k9.pqcExtension.keyManagement.KeyRegistryFactory;
-import com.fsck.k9.pqcExtension.keyManagement.KeyRegistryFactory.KeyType;
-
+import com.fsck.k9.pqcExtension.helper.PqcMessageHelper;
+import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStore;
+import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory;
+import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory.KeyType;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -23,7 +23,7 @@ public class KeyReciever {
 
     private static final String TAG = "KeyReciever";
 
-    public static void importPublicKeysFromMessage(Context context, Message message) {
+    public static void importPublicKeysFromMessage(Context context, Message message, String accountId) {
         String senderEmail = message.getFrom()[0].getAddress();
 
         String pqcSigKey = null;
@@ -54,49 +54,38 @@ public class KeyReciever {
                 if (armoredText == null || !armoredText.contains("-----BEGIN")) continue;
 
                 if (filename.equalsIgnoreCase(KeyDistributor.KeyAttachment.PQC_SIG.filename)) {
-                    pqcSigAlgorithm = extractAlgorithmFromArmored(armoredText);
-                    if (pqcSigAlgorithm == null) {
-                        Log.w(TAG, "Signaturalgorithmus fehlt im Header");
-                        continue;
-                    }
-                    pqcSigKey = decodeBase64FromArmored(armoredText);
+                    pqcSigAlgorithm = PqcMessageHelper.extractAlgorithm(armoredText);
+                    pqcSigKey = armoredText;
 
                 } else if (filename.equalsIgnoreCase(KeyDistributor.KeyAttachment.PQC_KEM.filename)) {
-                    pqcKemAlgorithm = extractAlgorithmFromArmored(armoredText);
-                    if (pqcKemAlgorithm == null) {
-                        Log.w(TAG, "KEM Algorithmus fehlt im Header");
-                        continue;
-                    }
-                    pqcKemKey = decodeBase64FromArmored(armoredText);
+                    pqcKemAlgorithm = PqcMessageHelper.extractAlgorithm(armoredText);
+                    pqcKemKey = armoredText;
+
                 } else if (filename.equalsIgnoreCase(KeyDistributor.KeyAttachment.PGP.filename)) {
-                    IKeyRegistry pgpRegistry = KeyRegistryFactory.getRegistry(KeyType.PGP);
-                    pgpRegistry.saveRemotePublicKey(context, senderEmail, armoredText);
+                    // PGP ist direkt armierter ASCII Block – einfach speichern
+                    SimpleKeyStore pgpStore = SimpleKeyStoreFactory.getKeyStore(KeyType.PGP);
+                    pgpStore.importRemotePublicKey(context, accountId, senderEmail, "PGP", armoredText);
                     Log.i(TAG, "PGP-Key gespeichert für: " + senderEmail);
                 }
             }
 
-            if ((pqcKemKey != null && pqcKemAlgorithm != null) || (pqcSigKey != null && pqcSigAlgorithm != null)) {
-                IKeyRegistry pqcRegistry = KeyRegistryFactory.getRegistry(KeyType.PQC);
-                pqcRegistry.saveRemotePublicKey(
-                    context,
-                    senderEmail,
-                    pqcSigAlgorithm,
-                    pqcSigKey,
-                    pqcKemAlgorithm,
-                    pqcKemKey
-                );
-                Log.i(TAG, "PQC-Key gespeichert für: " + senderEmail);
+            if (pqcSigKey != null && pqcSigAlgorithm != null) {
+                SimpleKeyStore sigStore = SimpleKeyStoreFactory.getKeyStore(KeyType.PQC_SIG);
+                sigStore.importRemotePublicKey(context, accountId, senderEmail, pqcSigAlgorithm,
+                    PqcMessageHelper.extractContent(pqcSigKey, "PQC SIGNATURE PUBLIC KEY"));
+                Log.i(TAG, "PQC-SIG-Key gespeichert für: " + senderEmail);
             }
 
+            if (pqcKemKey != null && pqcKemAlgorithm != null) {
+                SimpleKeyStore kemStore = SimpleKeyStoreFactory.getKeyStore(KeyType.PQC_KEM);
+                kemStore.importRemotePublicKey(context, accountId, senderEmail, pqcKemAlgorithm,
+                    PqcMessageHelper.extractContent(pqcKemKey, "PQC KEM PUBLIC KEY"));
+                Log.i(TAG, "PQC-KEM-Key gespeichert für: " + senderEmail);
+            }
 
         } catch (Exception e) {
             Log.e(TAG, "Fehler beim Importieren der Schlüssel: ", e);
         }
-    }
-
-    private static String getHeaderOrNull(BodyPart part, String name) {
-        String[] values = part.getHeader(name);
-        return (values != null && values.length > 0) ? values[0] : null;
     }
 
     private static String extractAsciiContent(BodyPart part) {
@@ -109,12 +98,11 @@ public class KeyReciever {
                 outputStream.write(buffer, 0, n);
             }
 
-            // Versuche zuerst, den Inhalt als ASCII zu interpretieren
             String result = outputStream.toString(StandardCharsets.US_ASCII.name());
 
             // Falls kein BEGIN-Block sichtbar ist, versuche zu dekodieren
             if (!result.contains("-----BEGIN")) {
-                byte[] decoded = Base64.getDecoder().decode(result.replaceAll("\\s+", ""));
+                byte[] decoded = Base64.getMimeDecoder().decode(result.replaceAll("\\s+", ""));
                 result = new String(decoded, StandardCharsets.US_ASCII);
             }
 
@@ -124,30 +112,4 @@ public class KeyReciever {
             return null;
         }
     }
-
-    private static String decodeBase64FromArmored(String armoredText) {
-        try {
-            String[] lines = armoredText.split("\r?\n");
-            StringBuilder base64Builder = new StringBuilder();
-            for (String line : lines) {
-                if (line.startsWith("-----") || line.startsWith("Algorithm:") || line.trim().isEmpty()) {
-                    continue;
-                }
-                base64Builder.append(line.trim());
-            }
-            return base64Builder.toString();
-        } catch (Exception e) {
-            Log.e(TAG, "Fehler beim Extrahieren aus ASCII-Armoring", e);
-            return null;
-        }
-    }
-    private static String extractAlgorithmFromArmored(String armoredText) {
-        for (String line : armoredText.split("\r?\n")) {
-            if (line.startsWith("Algorithm:")) {
-                return line.substring("Algorithm:".length()).trim();
-            }
-        }
-        return null;
-    }
-
 }

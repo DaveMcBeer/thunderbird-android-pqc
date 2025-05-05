@@ -48,6 +48,7 @@ class AccountSettingsDataStore(
             //--- PQC Erweiterung ---
             "pqc_enabled" -> account.isPqcSigningEnabled
             "pqc_kem_enabled" -> account.isPqcKemEnabled
+            "pqc_hide_sign_only" -> account.isPqcHideSignOnly
             //--- ENDE ---
             else -> defValue
         }
@@ -78,6 +79,7 @@ class AccountSettingsDataStore(
             //--- PQC Erweiterung ---
             "pqc_enabled" -> account.isPqcSigningEnabled = value
             "pqc_kem_enabled" -> account.isPqcKemEnabled = value
+            "pqc_hide_sign_only" -> account.isPqcHideSignOnly = value
             //--- ENDE ---
             else -> return
         }

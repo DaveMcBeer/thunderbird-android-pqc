@@ -1,4 +1,4 @@
-package com.fsck.k9.mailstore.pqc;
+package com.fsck.k9.pqcExtension.message.results;
 
 import android.os.Parcel;
 import android.os.Parcelable;
