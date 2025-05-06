@@ -1,5 +1,6 @@
 package com.fsck.k9.ui.settings.account
 
+import android.content.Context
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -8,13 +9,19 @@ import androidx.lifecycle.viewModelScope
 import app.k9mail.core.mail.folder.api.FolderType
 import app.k9mail.legacy.account.Account
 import app.k9mail.legacy.account.AccountManager
+import app.k9mail.legacy.di.DI
 import app.k9mail.legacy.folder.RemoteFolder
 import app.k9mail.legacy.mailstore.FolderRepository
+import com.fsck.k9.controller.MessagingController
+import com.fsck.k9.helper.Contacts
 import com.fsck.k9.mailstore.SpecialFolderSelectionStrategy
+import com.fsck.k9.pqcExtension.KeyDistribution.KeyDistributor
+import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.fsck.k9.Preferences
 
 class AccountSettingsViewModel(
     private val accountManager: AccountManager,
@@ -91,6 +98,48 @@ class AccountSettingsViewModel(
             FolderType.TRASH to specialFolderSelectionStrategy.selectSpecialFolder(folders, FolderType.TRASH),
         )
     }
+
+    //--- PQC Extension ---
+    fun sendPqcKeysByEmail(context: Context, account: Account, recipients: List<String>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val sigStore = SimpleKeyStoreFactory.getKeyStore(SimpleKeyStoreFactory.KeyType.PQC_SIG)
+                val kemStore = SimpleKeyStoreFactory.getKeyStore(SimpleKeyStoreFactory.KeyType.PQC_KEM)
+                val pgpStore = SimpleKeyStoreFactory.getKeyStore(SimpleKeyStoreFactory.KeyType.PGP)
+
+                val id = account.uuid
+
+                if (!sigStore.hasOwnKeyPair(context, id)) return@launch
+                if (!pgpStore.hasOwnKeyPair(context, id)) return@launch
+
+                val pgpKey = pgpStore.exportPublicKey(context, id) ?: return@launch
+                val sigKey = sigStore.exportPublicKey(context, id)
+                val kemKey = if (kemStore.hasOwnKeyPair(context, id)) kemStore.exportPublicKey(context, id) else null
+
+                KeyDistributor.createAndSendKeyDistributionMessage(
+                    context,
+                    DI.get(MessagingController::class.java),
+                    DI.get(Preferences::class.java),
+                    DI.get(Contacts::class.java),
+                    account,
+                    recipients,
+                    kemKey,
+                    sigKey,
+                    account.pqcKemAlgorithm,
+                    account.pqcSigningAlgorithm,
+                    pgpKey,
+                    null,
+                    "My public keys",
+                    null,
+                    null
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    //--- END ---
 }
 
 data class RemoteFolderInfo(

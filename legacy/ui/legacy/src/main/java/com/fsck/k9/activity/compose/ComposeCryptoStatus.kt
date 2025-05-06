@@ -119,10 +119,10 @@ data class ComposeCryptoStatus(
             ?: CryptoStatusDisplayType.UNAVAILABLE
 
     val specialModeDisplayType = when {
-        openPgpProviderState != OpenPgpProviderState.OK -> CryptoSpecialModeDisplayType.NONE
         cryptoMode == CryptoMode.PQC_SIGN_ONLY -> CryptoSpecialModeDisplayType.PQC_SIGN_ONLY
         cryptoMode == CryptoMode.PQC_ENCRYPT_ONLY -> CryptoSpecialModeDisplayType.PQC_ENCRYPT_ONLY
         cryptoMode == CryptoMode.PQC_SIGN_AND_ENCRYPT -> CryptoSpecialModeDisplayType.PQC_HYBRID
+        openPgpProviderState != OpenPgpProviderState.OK -> CryptoSpecialModeDisplayType.NONE
         isSignOnly && isPgpInlineModeEnabled -> CryptoSpecialModeDisplayType.SIGN_ONLY_PGP_INLINE
         isSignOnly -> CryptoSpecialModeDisplayType.SIGN_ONLY
         allRecipientsCanEncrypt() && isPgpInlineModeEnabled -> CryptoSpecialModeDisplayType.PGP_INLINE

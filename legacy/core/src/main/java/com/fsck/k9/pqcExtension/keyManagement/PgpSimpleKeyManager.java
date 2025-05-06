@@ -27,7 +27,9 @@ public class PgpSimpleKeyManager {
     private static final String REMOTE_PREFS = "pgp_remote_keys";
 
     static {
-        Security.addProvider(new BouncyCastleProvider());
+        if (Security.getProvider("BC") == null) {
+            Security.addProvider(new BouncyCastleProvider());
+        }
     }
 
     public static void generateAndStoreKeyPair(Context context, String userId) throws Exception {

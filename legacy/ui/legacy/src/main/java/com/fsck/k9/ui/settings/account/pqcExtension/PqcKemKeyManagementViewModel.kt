@@ -65,7 +65,7 @@ class PqcKemKeyManagementViewModel(
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                _errorMessage.postValue(Event("Fehler beim Generieren: \${e.message}"))
+                _errorMessage.postValue(Event("Error while generating: ${e.message}"))
             } finally {
                 updateKeyStatus(context)
                 _isLoading.value = false
@@ -81,7 +81,7 @@ class PqcKemKeyManagementViewModel(
                 val keyStore = SimpleKeyStoreFactory.getKeyStore(SimpleKeyStoreFactory.KeyType.PQC_KEM)
                 keyStore.clearAllKeys(context, id)
             } catch (e: Exception) {
-                _errorMessage.postValue(Event("Fehler beim Zurücksetzen: \${e.message}"))
+                _errorMessage.postValue(Event("Error while resetting: ${e.message}"))
             } finally {
                 updateKeyStatus(context)
                 _isLoading.value = false
@@ -118,7 +118,7 @@ class PqcKemKeyManagementViewModel(
 
             } catch (e: Exception) {
                 e.printStackTrace()
-                _errorMessage.postValue(Event("Fehler beim Exportieren: \${e.message}"))
+                _errorMessage.postValue(Event("Error while exporting: ${e.message}"))
             } finally {
                 updateKeyStatus(context)
             }
@@ -132,7 +132,7 @@ class PqcKemKeyManagementViewModel(
 
                 val json = withContext(Dispatchers.IO) {
                     val inputStream: InputStream = context.contentResolver.openInputStream(uri)
-                        ?: throw Exception("Datei konnte nicht geöffnet werden.")
+                        ?: throw Exception("Could not open file.")
                     val content = inputStream.bufferedReader().use { it.readText() }
                     JSONObject(content)
                 }
@@ -146,7 +146,7 @@ class PqcKemKeyManagementViewModel(
 
             } catch (e: Exception) {
                 e.printStackTrace()
-                _errorMessage.postValue(Event("Fehler beim Importieren: \${e.message}"))
+                _errorMessage.postValue(Event("Error while importing: ${e.message}"))
             } finally {
                 updateKeyStatus(context)
             }
@@ -191,63 +191,6 @@ class PqcKemKeyManagementViewModel(
         val id = account?.uuid ?: return false
         val keyStore = SimpleKeyStoreFactory.getKeyStore(SimpleKeyStoreFactory.KeyType.PQC_KEM)
         return keyStore.hasOwnKeyPair(context, id)
-    }
-
-    fun sendKeysByEmail(context: Context, recipients: List<String>) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val id = account?.uuid ?: return@launch
-                val accountObj = account ?: return@launch
-
-                val sigStore = SimpleKeyStoreFactory.getKeyStore(SimpleKeyStoreFactory.KeyType.PQC_SIG)
-                val kemStore = SimpleKeyStoreFactory.getKeyStore(SimpleKeyStoreFactory.KeyType.PQC_KEM)
-                val pgpStore = SimpleKeyStoreFactory.getKeyStore(SimpleKeyStoreFactory.KeyType.PGP)
-
-                if (!sigStore.hasOwnKeyPair(context, id)) {
-                    _errorMessage.postValue(Event("Es ist kein Signaturschlüssel vorhanden."))
-                    return@launch
-                }
-                if (!pgpStore.hasOwnKeyPair(context, id)) {
-                    _errorMessage.postValue(Event("Es ist kein PGP-Schlüssel vorhanden."))
-                    return@launch
-                }
-
-                val pgpKey = pgpStore.exportPublicKey(context, id)
-                if (pgpKey.isNullOrEmpty()) {
-                    _errorMessage.postValue(Event("Es konnte kein PGP-Schlüssel geladen werden."))
-                    return@launch
-                }
-
-                val sigKey = sigStore.exportPublicKey(context, id)
-                val sigAlgo = accountObj.pqcSigningAlgorithm
-
-                val kemKey = kemStore.exportPublicKey(context, id)
-                val kemAlgo = accountObj.pqcKemAlgorithm
-
-                KeyDistributor.createAndSendKeyDistributionMessage(
-                    context,
-                    DI.get(MessagingController::class.java),
-                    DI.get(Preferences::class.java),
-                    DI.get(Contacts::class.java),
-                    accountObj,
-                    recipients,
-                    kemKey,
-                    sigKey,
-                    kemAlgo,
-                    sigAlgo,
-                    pgpKey,
-                    null,
-                    "Meine öffentlichen Schlüssel",
-                    null,
-                    null
-                )
-
-            } catch (e: Exception) {
-                _errorMessage.postValue(Event("Fehler beim Versenden: \${e.message}"))
-            } finally {
-                updateKeyStatus(context)
-            }
-        }
     }
 
     class Event<out T>(private val content: T) {

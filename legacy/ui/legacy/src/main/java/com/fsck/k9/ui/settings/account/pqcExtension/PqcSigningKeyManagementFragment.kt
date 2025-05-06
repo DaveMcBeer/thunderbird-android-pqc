@@ -32,12 +32,11 @@ class PqcSigningKeyManagementFragment : Fragment(), ConfirmationDialogFragmentLi
     private lateinit var keyStatusIconView: TextView
     private lateinit var dynamicActionButton: Button
     private lateinit var algorithmTextView: TextView
-    private lateinit var sendKeysButton: Button
     private val filePickerLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let {
             val fileName = getFileNameFromUri(requireContext(), it)
             if (!fileName.endsWith(".pqk")) {
-                showErrorDialog("Bitte eine gültige .pqk-Datei auswählen.")
+                showErrorDialog("Please select a valid .pqk file.")
                 return@let
             }
             viewModel.importKeyFile(requireContext(), it)
@@ -52,7 +51,6 @@ class PqcSigningKeyManagementFragment : Fragment(), ConfirmationDialogFragmentLi
         keyStatusTextView = view.findViewById(R.id.key_status_text)
         keyStatusIconView = view.findViewById(R.id.key_status_icon)
         dynamicActionButton = view.findViewById(R.id.dynamic_action_button)
-        sendKeysButton = view.findViewById(R.id.send_keys_button)
 
         dynamicActionButton.setOnClickListener {
             val context = requireContext()
@@ -88,23 +86,14 @@ class PqcSigningKeyManagementFragment : Fragment(), ConfirmationDialogFragmentLi
         }
 
         viewModel.keyStatus.observe(viewLifecycleOwner) { keyStatus ->
-            algorithmTextView.text = "Algorithmus: ${keyStatus.algorithm ?: "Unbekannt"}"
-            publicKeyTextView.text = keyStatus.publicKey ?: "Kein öffentlicher Schlüssel"
+            algorithmTextView.text = "Algorithm: ${keyStatus.algorithm ?: "Unknown"}"
+            publicKeyTextView.text = keyStatus.publicKey ?: "No public key"
 
             val hasKeys = viewModel.hasKeyPair(requireContext())
             keyStatusIconView.text = if (hasKeys) "✅" else "❌"
-            keyStatusTextView.text = if (hasKeys) "Key-Paar vorhanden" else "Kein Key-Paar vorhanden"
-            dynamicActionButton.text = if (hasKeys) "🧹 Schlüssel löschen" else "🛠 Key-Paar generieren"
-            sendKeysButton.visibility = if (hasKeys) View.VISIBLE else View.GONE
+            keyStatusTextView.text = if (hasKeys) "Key pair available" else "No key pair available"
+            dynamicActionButton.text = if (hasKeys) "🧹 Delete key pair" else "🛠 Generate key pair"
         }
-
-        sendKeysButton.setOnClickListener {
-            promptEmailRecipients { validEmails ->
-                viewModel.sendKeysByEmail(requireContext(), validEmails)
-                Snackbar.make(requireView(), "E-Mail-Versand gestartet 📧", Snackbar.LENGTH_SHORT).show()
-            }
-        }
-
         updateKeyTexts()
         return view
     }
@@ -114,32 +103,30 @@ class PqcSigningKeyManagementFragment : Fragment(), ConfirmationDialogFragmentLi
         val publicKey = viewModel.getPublicKey(context)
         val algorithm = viewModel.getCurrentAlgorithm()
 
-        publicKeyTextView.text = publicKey ?: "Kein öffentlicher Schlüssel"
-        algorithmTextView.text = "Algorithmus: ${algorithm ?: "Unbekannt"}"
+        publicKeyTextView.text = publicKey ?: "No public key"
+        algorithmTextView.text = "Algorithm: ${algorithm ?: "Unknown"}"
 
         val hasKeys = viewModel.hasKeyPair(context)
         keyStatusIconView.text = if (hasKeys) "✅" else "❌"
-        keyStatusTextView.text = if (hasKeys) "Key-Paar vorhanden" else "Kein Key-Paar vorhanden"
-        dynamicActionButton.text = if (hasKeys) "🧹 Schlüssel löschen" else "🛠 Key-Paar generieren"
-        sendKeysButton.visibility = if (viewModel.hasKeyPair(requireContext())) View.VISIBLE else View.GONE
-
+        keyStatusTextView.text = if (hasKeys) "Key pair available" else "No key pair available"
+        dynamicActionButton.text = if (hasKeys) "🧹 Delete key pair" else "🛠 Generate key pair"
     }
 
     private fun showConfirmResetDialog() {
         AlertDialog.Builder(requireContext())
-            .setTitle("Schlüssel löschen?")
-            .setMessage("Bist du sicher, dass du das Schlüssel-Paar löschen möchtest?")
-            .setPositiveButton("Löschen") { _, _ ->
+            .setTitle("Delete key pair?")
+            .setMessage("Are you sure you want to delete the key pair?")
+            .setPositiveButton("Delete") { _, _ ->
                 viewModel.resetKeyPair(requireContext())
                 updateKeyTexts()
             }
-            .setNegativeButton("Abbrechen", null)
+            .setNegativeButton("Cancel", null)
             .show()
     }
 
     private fun showErrorDialog(message: String) {
         AlertDialog.Builder(requireContext())
-            .setTitle("Fehler")
+            .setTitle("Error")
             .setMessage(message)
             .setPositiveButton("OK", null)
             .show()
@@ -175,15 +162,14 @@ class PqcSigningKeyManagementFragment : Fragment(), ConfirmationDialogFragmentLi
 
     private fun promptEmailRecipients(onValidEmails: (List<String>) -> Unit) {
         val input = EditText(requireContext()).apply {
-            hint = "E-Mail-Adressen, durch Kommas getrennt"
+            hint = "Email addresses, separated by commas"
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
         }
-
         AlertDialog.Builder(requireContext())
-            .setTitle("Öffentliche Schlüssel versenden")
-            .setMessage("Bitte gib eine oder mehrere E-Mail-Adressen ein.")
+            .setTitle("Send public key")
+            .setMessage("Please enter one or more email addresses.")
             .setView(input)
-            .setPositiveButton("Senden") { _, _ ->
+            .setPositiveButton("Send") { _, _ ->
                 val raw = input.text.toString()
                 val emails = raw.split(",")
                     .map { it.trim() }
@@ -192,10 +178,10 @@ class PqcSigningKeyManagementFragment : Fragment(), ConfirmationDialogFragmentLi
                 if (emails.isNotEmpty()) {
                     onValidEmails(emails)
                 } else {
-                    showErrorDialog("Keine gültigen E-Mail-Adressen erkannt.")
+                    showErrorDialog("No valid email addresses detected.")
                 }
             }
-            .setNegativeButton("Abbrechen", null)
+            .setNegativeButton("Cancel", null)
             .show()
     }
 

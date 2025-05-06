@@ -11,7 +11,7 @@ package com.fsck.k9.pqcExtension.message.results;
 import android.os.Parcel;
 import android.os.Parcelable;
 
-public class PqcDecapsulationResult implements Parcelable {
+public class PqcDecryptionResult implements Parcelable {
     public static final int PARCELABLE_VERSION = 1;
 
     // Konstanten zur Ergebniskennung
@@ -27,14 +27,14 @@ public class PqcDecapsulationResult implements Parcelable {
     }
 
     // Konstruktor für "nicht verschlüsselt" oder minimalen Status
-    public PqcDecapsulationResult(int result) {
+    public PqcDecryptionResult(int result) {
         this.result = result;
         this.sessionKey = null;
         this.decryptedSessionKey = null;
     }
 
     // Konstruktor für "verschlüsselt", inkl. Session Keys
-    public PqcDecapsulationResult(int result, byte[] sessionKey, byte[] decryptedSessionKey) {
+    public PqcDecryptionResult(int result, byte[] sessionKey, byte[] decryptedSessionKey) {
         this.result = result;
         if ((sessionKey == null) != (decryptedSessionKey == null)) {
             throw new AssertionError("sessionKey must be null iff decryptedSessionKey is null");
@@ -44,7 +44,7 @@ public class PqcDecapsulationResult implements Parcelable {
     }
 
     // Copy-Konstruktor
-    public PqcDecapsulationResult(PqcDecapsulationResult other) {
+    public PqcDecryptionResult(PqcDecryptionResult other) {
         this.result = other.result;
         this.sessionKey = other.sessionKey;
         this.decryptedSessionKey = other.decryptedSessionKey;
@@ -82,8 +82,8 @@ public class PqcDecapsulationResult implements Parcelable {
      * Erzeugt ein Objekt aus einem Parcel (Deserialisierung).
      * Unterstützt verschiedene Versionen zur Abwärtskompatibilität.
      */
-    public static final Creator<PqcDecapsulationResult> CREATOR = new Creator<PqcDecapsulationResult>() {
-        public PqcDecapsulationResult createFromParcel(final Parcel source) {
+    public static final Creator<PqcDecryptionResult> CREATOR = new Creator<PqcDecryptionResult>() {
+        public PqcDecryptionResult createFromParcel(final Parcel source) {
             int version = source.readInt();          // Lese Version
             int parcelableSize = source.readInt();   // Lese Datenblockgröße
             int startPosition = source.dataPosition();
@@ -94,7 +94,7 @@ public class PqcDecapsulationResult implements Parcelable {
             byte[] decryptedSessionKey = version >= 1 ? source.createByteArray() : null;
 
             // Erzeuge Objekt
-            PqcDecapsulationResult pqcResult = new PqcDecapsulationResult(result, sessionKey, decryptedSessionKey);
+            PqcDecryptionResult pqcResult = new PqcDecryptionResult(result, sessionKey, decryptedSessionKey);
 
             // Position nach Leseblock wiederherstellen
             source.setDataPosition(startPosition + parcelableSize);
@@ -102,8 +102,8 @@ public class PqcDecapsulationResult implements Parcelable {
             return pqcResult;
         }
 
-        public PqcDecapsulationResult[] newArray(final int size) {
-            return new PqcDecapsulationResult[size];
+        public PqcDecryptionResult[] newArray(final int size) {
+            return new PqcDecryptionResult[size];
         }
     };
 

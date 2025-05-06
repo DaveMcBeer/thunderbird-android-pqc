@@ -312,12 +312,9 @@ class RecipientPresenter(
             CryptoMode.PQC_ENCRYPT_ONLY
         )
 
-        val pqcHideSignOnly = currentCryptoMode == CryptoMode.PQC_SIGN_AND_ENCRYPT && account.isPqcHideSignOnly
-
-        if (currentCryptoStatus != null &&
-            currentCryptoStatus.isProviderStateOk() &&
-            !isPqcMode
-        ) {
+        // Only show OpenPGP options if PQC is not active
+        if (currentCryptoStatus != null &&currentCryptoStatus.isProviderStateOk() && !isPqcMode)
+        {
             val isEncrypting = currentCryptoStatus.isEncryptionEnabled
             menu.findItem(R.id.openpgp_encrypt_enable).isVisible = !isEncrypting
             menu.findItem(R.id.openpgp_encrypt_disable).isVisible = isEncrypting
@@ -342,12 +339,29 @@ class RecipientPresenter(
 
         }
 
-        if(isPqcMode){
+        // Show PQC options only when in a PQC crypto mode
+        if (isPqcMode) {
+            val pqcSignMenu = menu.findItem(R.id.openpgp_sign_pqc_hybrid_enabled)
+            val pqcSignDisableMenu = menu.findItem(R.id.openpgp_sign_pqc_hybrid_disabled)
+            val pqcEncryptMenu = menu.findItem(R.id.openpgp_encrypt_pqc_hybrid_enabled)
+            val pqcEncryptDisableMenu = menu.findItem(R.id.openpgp_encrypt_pqc_hybrid_disabled)
 
-            // Hide hybrid sign checkbox if configured to do so
-            menu.findItem(R.id.openpgp_sign_pqc_hybrid)?.isVisible = !pqcHideSignOnly
-            menu.findItem(R.id.openpgp_sign_pqc_hybrid)?.isChecked = isSignPqcHybridEnabled
-            menu.findItem(R.id.openpgp_encrypt_pqc_hybrid)?.isChecked = isEncryptPqcHybridEnabled
+            if (!account.isPqcHideSignOnly) {
+                pqcSignMenu?.isVisible = !isSignPqcHybridEnabled
+                pqcSignDisableMenu?.isVisible = isSignPqcHybridEnabled
+            } else {
+                pqcSignMenu?.isVisible = false
+                pqcSignDisableMenu?.isVisible = false
+            }
+
+            pqcEncryptMenu?.isVisible = !isEncryptPqcHybridEnabled
+            pqcEncryptDisableMenu?.isVisible = isEncryptPqcHybridEnabled
+        }
+        else{
+            menu.findItem(R.id.openpgp_sign_pqc_hybrid_enabled).isVisible = false
+            menu.findItem(R.id.openpgp_sign_pqc_hybrid_disabled).isVisible = false
+            menu.findItem(R.id.openpgp_encrypt_pqc_hybrid_enabled).isVisible = false
+            menu.findItem(R.id.openpgp_encrypt_pqc_hybrid_disabled).isVisible = false
         }
 
         menu.findItem(R.id.add_from_contacts).isVisible = hasContactPermission() && hasContactPicker()
@@ -829,7 +843,6 @@ class RecipientPresenter(
         isEncryptPqcHybridEnabled = !isEncryptPqcHybridEnabled
         updateCryptoModeFromHybridSettings()
     }
-
     fun onClickSignPqcHybrid() {
         isSignPqcHybridEnabled = !isSignPqcHybridEnabled
         updateCryptoModeFromHybridSettings()

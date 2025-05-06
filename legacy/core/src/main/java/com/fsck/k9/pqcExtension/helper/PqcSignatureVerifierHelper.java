@@ -15,6 +15,7 @@ import com.fsck.k9.mailstore.CryptoResultAnnotation;
 import com.fsck.k9.mailstore.CryptoResultAnnotation.CryptoError;
 import com.fsck.k9.pqcExtension.keyManagement.PgpSimpleKeyManager;
 import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory.KeyType;
+import com.fsck.k9.pqcExtension.message.results.PqcError;
 import com.fsck.k9.pqcExtension.message.results.PqcSignatureResult;
 import com.fsck.k9.pqcExtension.message.results.PqcSignatureResult.SenderStatusResult;
 import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory;
@@ -47,21 +48,32 @@ public class PqcSignatureVerifierHelper {
 
             BodyPart signedContentPart = multipart.getBodyPart(0);
             byte[] signedData = PqcMessageHelper.canonicalize(signedContentPart);
-            Timber.d("PQC: Canonicalized data (sign): %s", new String(signedData, StandardCharsets.UTF_8));
 
             JSONObject keyData = SimpleKeyStoreFactory.getKeyStore(KeyType.PQC_SIG).loadRemotePublicKey(context, senderEmail);
             String declaredSigAlgorithm = keyData.has("algorithm") ? keyData.getString("algorithm") : "DEFAULT_ALGO";
             String pqcSigPk = keyData.has("publicKey") ? keyData.getString("publicKey") : "";
-
+            if (pqcSigPk.isEmpty()) {
+                return CryptoResultAnnotation.createPqcSignatureErrorAnnotation(
+                    new PqcError(PqcError.KEY_MISSING, "PQC public key is missing for sender " + senderEmail),
+                    null
+                );
+            }
             byte[] pqcPubKey = Base64.getDecoder().decode(pqcSigPk);
 
             String pgpPublicKeyArmored = SimpleKeyStoreFactory.getKeyStore(SimpleKeyStoreFactory.KeyType.PGP)
                 .loadRemotePublicKeyArmoredString(context, senderEmail);
 
-            Security.addProvider(new BouncyCastleProvider());
+            if (Security.getProvider("BC") == null) {
+                Security.addProvider(new BouncyCastleProvider());
+            }
             PGPPublicKeyRing pgpRing = PgpSimpleKeyManager.parsePublicKeyRing(pgpPublicKeyArmored);
             PGPPublicKey pgpPubKey = pgpRing.getPublicKey();
-
+            if (pgpPubKey == null) {
+                return CryptoResultAnnotation.createPqcSignatureErrorAnnotation(
+                    new PqcError(PqcError.KEY_MISSING, "PGP public key is missing or invalid for sender " + senderEmail),
+                    null
+                );
+            }
             boolean edValid = false;
             boolean pqcValid = false;
 
@@ -104,15 +116,16 @@ public class PqcSignatureVerifierHelper {
                 );
             } else {
                 return CryptoResultAnnotation.createPqcSignatureErrorAnnotation(
-                    null,
-                    PqcSignatureResult.createWithInvalidSignature(),
+                    new PqcError(PqcError.INVALID_SIGNATURE, "Invalid signature(s) in PQC or PGP"),
                     (MimeBodyPart) signedContentPart
                 );
             }
 
         } catch (Exception e) {
-            Timber.e(e, "Fehler bei PQC Signature-Verifikation");
-            return CryptoResultAnnotation.createErrorAnnotation(CryptoError.PQC_SIGNATURE_ERROR, null);
+            return CryptoResultAnnotation.createPqcSignatureErrorAnnotation(
+                new PqcError(PqcError.CLIENT_SIDE_ERROR, e.getMessage()),
+                null
+            );
         }
     }
 
@@ -129,7 +142,6 @@ public class PqcSignatureVerifierHelper {
             } else if (obj instanceof PGPSignature) {
                 sig = (PGPSignature) obj;
             } else {
-                Timber.w("Unknown signature object type: " + obj.getClass().getSimpleName());
                 return false;
             }
 
@@ -137,7 +149,6 @@ public class PqcSignatureVerifierHelper {
             sig.update(data);
             return sig.verify();
         } catch (Exception e) {
-            Timber.w(e, "PGP signature verification failed");
             return false;
         }
     }
@@ -150,7 +161,6 @@ public class PqcSignatureVerifierHelper {
             pqcVerifier.dispose_sig();
             return valid;
         } catch (Exception e) {
-            Timber.w(e, "PQC signature verification failed");
             return false;
         }
     }

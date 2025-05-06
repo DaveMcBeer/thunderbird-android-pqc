@@ -5,7 +5,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.fsck.k9.mail.internet.MimeBodyPart;
-import com.fsck.k9.pqcExtension.message.results.PqcDecapsulationResult;
+import com.fsck.k9.pqcExtension.message.results.PqcDecryptionResult;
+import com.fsck.k9.pqcExtension.message.results.PqcError;
 import com.fsck.k9.pqcExtension.message.results.PqcSignatureResult;
 import org.openintents.openpgp.OpenPgpDecryptionResult;
 import org.openintents.openpgp.OpenPgpError;
@@ -24,8 +25,9 @@ public final class CryptoResultAnnotation {
 
     private final CryptoResultAnnotation encapsulatedResult;
 //--- PQC Erweiterung ---
-    private final PqcDecapsulationResult pqcDecapsulationResult;
+    private final PqcDecryptionResult pqcDecryptionResult;
     private final PqcSignatureResult pqcSignatureResult;
+    private  final PqcError pqcError;
 //--- ENDE ---
 
     private CryptoResultAnnotation(
@@ -37,8 +39,9 @@ public final class CryptoResultAnnotation {
         PendingIntent openPgpInsecureWarningPendingIntent,
         OpenPgpError openPgpError,
         boolean overrideCryptoWarning,
-        PqcDecapsulationResult pqcDecapsulationResult,    //--- PQC Erweiterung ---
-        PqcSignatureResult pqcSignatureResult   //--- PQC Erweiterung ---
+        PqcDecryptionResult pqcDecryptionResult,    //--- PQC Erweiterung ---
+        PqcSignatureResult pqcSignatureResult,
+        PqcError pqcError//--- PQC Erweiterung ---
     ) {
         this.errorType = errorType;
         this.replacementData = replacementData;
@@ -53,8 +56,9 @@ public final class CryptoResultAnnotation {
         this.encapsulatedResult = null;
 
         //--- PQC Erweiterung ---
-        this.pqcDecapsulationResult = pqcDecapsulationResult;
+        this.pqcDecryptionResult = pqcDecryptionResult;
         this.pqcSignatureResult = pqcSignatureResult;
+        this.pqcError = pqcError;
         //--- ENDE ---
     }
 
@@ -76,8 +80,9 @@ public final class CryptoResultAnnotation {
         this.encapsulatedResult = encapsulatedResult;
 
         //--- PQC Erweiterung ---
-        this.pqcDecapsulationResult = annotation.pqcDecapsulationResult;
+        this.pqcDecryptionResult = annotation.pqcDecryptionResult;
         this.pqcSignatureResult = annotation.pqcSignatureResult;
+        this.pqcError = annotation.pqcError;
         //--- ENDE ---
     }
 
@@ -88,29 +93,29 @@ public final class CryptoResultAnnotation {
             boolean overrideCryptoWarning) {
         return new CryptoResultAnnotation(CryptoError.OPENPGP_OK, replacementPart,
                 decryptionResult, signatureResult, pendingIntent, insecureWarningPendingIntent, null,
-                overrideCryptoWarning, null, null);  //--- PQC Erweiterung: null,null zusätzlich ---
+                overrideCryptoWarning, null, null,null);  //--- PQC Erweiterung: null,null zusätzlich ---
     }
 
     public static CryptoResultAnnotation createErrorAnnotation(CryptoError error, MimeBodyPart replacementData) {
         if (error == CryptoError.OPENPGP_OK || error == CryptoError.PQC_ENCRYPTED_OK || error == CryptoError.PQC_SIGNED_OK) { //--- PQC Erweiterung ---
             throw new AssertionError("CryptoError must be an actual error state!");
         }
-        return new CryptoResultAnnotation(error, replacementData, null, null, null, null, null, false, null, null);
+        return new CryptoResultAnnotation(error, replacementData, null, null, null, null, null, false, null, null,null);
     }
 
     public static CryptoResultAnnotation createOpenPgpCanceledAnnotation() {
-        return new CryptoResultAnnotation(CryptoError.OPENPGP_UI_CANCELED, null, null, null, null, null, null, false, null, null);  //--- PQC Erweiterung: null,null zusätzlich ---
+        return new CryptoResultAnnotation(CryptoError.OPENPGP_UI_CANCELED, null, null, null, null, null, null, false, null, null,null);  //--- PQC Erweiterung: null,null zusätzlich ---
     }
 
     public static CryptoResultAnnotation createOpenPgpSignatureErrorAnnotation(
             OpenPgpError error, MimeBodyPart replacementData) {
         return new CryptoResultAnnotation(
-                CryptoError.OPENPGP_SIGNED_API_ERROR, replacementData, null, null, null, null, error, false, null, null);    //--- PQC Erweiterung: null,null zusätzlich ---
+                CryptoError.OPENPGP_SIGNED_API_ERROR, replacementData, null, null, null, null, error, false, null, null,null);    //--- PQC Erweiterung: null,null zusätzlich ---
     }
 
     public static CryptoResultAnnotation createOpenPgpEncryptionErrorAnnotation(OpenPgpError error) {
         return new CryptoResultAnnotation(
-                CryptoError.OPENPGP_ENCRYPTED_API_ERROR, null, null, null, null, null, error, false, null, null);   //--- PQC Erweiterung: null,null zusätzlich ---
+                CryptoError.OPENPGP_ENCRYPTED_API_ERROR, null, null, null, null, null, error, false, null, null,null);   //--- PQC Erweiterung: null,null zusätzlich ---
     }
 
     public boolean isOpenPgpResult() {
@@ -199,16 +204,29 @@ public final class CryptoResultAnnotation {
 
     //--- PQC Erweiterung ---
     public boolean isPqcResult() {
-        return pqcDecapsulationResult != null || pqcSignatureResult != null;
+        return pqcDecryptionResult != null || pqcSignatureResult != null;
     }
 
     @Nullable
-    public PqcDecapsulationResult getPqcDecryptionResult() {
-        return pqcDecapsulationResult;
+    public PqcDecryptionResult getPqcDecryptionResult() {
+        return pqcDecryptionResult;
+    }
+
+    @Nullable
+    public PqcError getPqcError() {
+        return pqcError;
+    }
+    @Nullable
+    public PqcSignatureResult getPqcSignatureResult() {
+        return pqcSignatureResult;
+    }
+
+    public boolean isPqcEncrypted() {
+        return pqcDecryptionResult != null && pqcDecryptionResult.result == PqcDecryptionResult.RESULT_ENCRYPTED; //--- PQC Erweiterung ---
     }
 
     public static CryptoResultAnnotation createPqcSignatureSuccessAnnotation(
-        @Nullable PqcDecapsulationResult decryptionResult,
+        @Nullable PqcDecryptionResult decryptionResult,
         @NonNull PqcSignatureResult signatureResult,
         @Nullable MimeBodyPart replacementData
     ) {
@@ -222,12 +240,12 @@ public final class CryptoResultAnnotation {
             null,
             false,
             decryptionResult,
-            signatureResult
+            signatureResult,
+            null
         );
     }
     public static CryptoResultAnnotation createPqcSignatureErrorAnnotation(
-        @Nullable PqcDecapsulationResult decryptionResult,
-        @NonNull PqcSignatureResult signatureResult,
+        @Nullable PqcError error,
         @Nullable MimeBodyPart replacementData
     ) {
         return new CryptoResultAnnotation(
@@ -239,12 +257,13 @@ public final class CryptoResultAnnotation {
             null,
             null,
             false,
-            decryptionResult,
-            signatureResult
+            null,
+            null,
+            error
         );
     }
     public static CryptoResultAnnotation createPqcEncryptionSuccessAnnotation(
-        @NonNull PqcDecapsulationResult decryptionResult,
+        @NonNull PqcDecryptionResult decryptionResult,
         @Nullable MimeBodyPart replacementData
     ) {
         return new CryptoResultAnnotation(
@@ -257,37 +276,31 @@ public final class CryptoResultAnnotation {
             null,
             false,
             decryptionResult,
+            null,
             null
         );
     }
-
     public static CryptoResultAnnotation createPqcEncryptionErrorAnnotation(
-        @NonNull PqcDecapsulationResult decryptionResult,
-        @Nullable MimeBodyPart replacementData
+        @NonNull PqcDecryptionResult decryptionResult,
+        @Nullable MimeBodyPart replacementData,
+        @Nullable PqcError pqcError
     ) {
         return new CryptoResultAnnotation(
             CryptoError.PQC_ENCRYPTED_ERROR,
             replacementData,
-            null,
-            null,
+            null,       // OpenPGP Decryption
+            null,       // OpenPGP Signature
             null,
             null,
             null,
             false,
             decryptionResult,
-            null
+            null,
+            pqcError
         );
     }
 
 
-    @Nullable
-    public PqcSignatureResult getPqcSignatureResult() {
-        return pqcSignatureResult;
-    }
-
-    public boolean isPqcEncrypted() {
-        return pqcDecapsulationResult != null && pqcDecapsulationResult.result == PqcDecapsulationResult.RESULT_ENCRYPTED; //--- PQC Erweiterung ---
-    }
     //--- ENDE ---
 
     public enum CryptoError {

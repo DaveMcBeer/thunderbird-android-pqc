@@ -77,10 +77,6 @@ public class PqcMessagebuilder extends MessageBuilder {
         this.cryptoStatus = cryptoStatus;
     }
 
-    public MimeMessage getProcessedMimeMessage() {
-        return currentProcessedMimeMessage;
-    }
-
     @RequiresApi(api = Build.VERSION_CODES.O)
     private void mimeBuildSignedMessage(MimeBodyPart signedBodyPart, Map<String, byte[]> signatureMap) throws MessagingException {
         MimeMultipart multipartSigned = createMimeMultipart();
@@ -157,7 +153,9 @@ public class PqcMessagebuilder extends MessageBuilder {
 
             String pgpPublicKeyArmored = SimpleKeyStoreFactory.getKeyStore(SimpleKeyStoreFactory.KeyType.PGP)
                 .loadRemotePublicKeyArmoredString(context, recipientEmail);
-            Security.addProvider(new BouncyCastleProvider());
+            if (Security.getProvider("BC") == null) {
+                Security.addProvider(new BouncyCastleProvider());
+            }
             PGPPublicKeyRing pgpRing = PgpSimpleKeyManager.parsePublicKeyRing(pgpPublicKeyArmored);
             PGPPublicKey rsaPubKey = null;
             for (PGPPublicKey key : pgpRing) {
@@ -207,6 +205,7 @@ public class PqcMessagebuilder extends MessageBuilder {
             currentProcessedMimeMessage.setHeader("X-Hybrid-PQC", foldedPqc);
 
             // (Optional) besser lesbar:
+            currentProcessedMimeMessage.setHeader("X-Pgp-Hybrid-Pqc", "true");
             currentProcessedMimeMessage.setHeader("MIME-Version", "1.0");
             currentProcessedMimeMessage.setHeader("Content-Transfer-Encoding", "7bit");
 
@@ -271,11 +270,8 @@ public class PqcMessagebuilder extends MessageBuilder {
             queueMessageBuildException(new MessagingException("Fehler beim Signieren mit PQC", e));
         }
     }
-
-
     @Override
     protected void buildMessageOnActivityResult(int requestCode, Intent data) {
         startOrContinueBuildMessage(data);
     }
-
 }

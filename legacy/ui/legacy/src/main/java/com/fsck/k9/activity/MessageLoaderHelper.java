@@ -30,7 +30,7 @@ import com.fsck.k9.mailstore.LocalMessage;
 import com.fsck.k9.mailstore.MessageCryptoAnnotations;
 import com.fsck.k9.mailstore.MessageViewInfo;
 import com.fsck.k9.mailstore.MessageViewInfoExtractor;
-import com.fsck.k9.pqcExtension.message.results.PqcDecapsulationResult;
+import com.fsck.k9.pqcExtension.message.results.PqcDecryptionResult;
 import com.fsck.k9.pqcExtension.KeyDistribution.KeyReciever;
 import com.fsck.k9.ui.crypto.MessageCryptoCallback;
 import com.fsck.k9.ui.crypto.MessageCryptoHelper;
@@ -100,7 +100,7 @@ public class MessageLoaderHelper {
 
     private MessageCryptoHelper messageCryptoHelper;
 
-    private PqcDecapsulationResult cachedPqcDecapsulationResult;
+    private PqcDecryptionResult cachedPqcDecryptionResult;
 
     public MessageLoaderHelper(Context context, LoaderManager loaderManager, FragmentManager fragmentManager,
             @NonNull MessageLoaderCallbacks callback, MessageViewInfoExtractor messageViewInfoExtractor) {
@@ -122,8 +122,8 @@ public class MessageLoaderHelper {
 
         if (cachedDecryptionResult instanceof OpenPgpDecryptionResult) {
             this.cachedDecryptionResult = (OpenPgpDecryptionResult) cachedDecryptionResult;
-        } else if (cachedDecryptionResult instanceof PqcDecapsulationResult) {
-            this.cachedPqcDecapsulationResult = (PqcDecapsulationResult) cachedDecryptionResult;
+        } else if (cachedDecryptionResult instanceof PqcDecryptionResult) {
+            this.cachedPqcDecryptionResult = (PqcDecryptionResult) cachedDecryptionResult;
         } else {
             Timber.e("Got decryption result of unknown type - ignoring");
         }
@@ -326,7 +326,7 @@ public class MessageLoaderHelper {
         if (retainCryptoHelperFragment.hasData()) {
             messageCryptoHelper = retainCryptoHelperFragment.getData();
         }
-        if (messageCryptoHelper == null || !messageCryptoHelper.isConfiguredForOpenPgpProvider(openPgpProvider)) {
+        if (messageCryptoHelper == null || !messageCryptoHelper.isConfiguredForOpenPgpProvider(openPgpProvider) ||isPqcHybridAktiv() ) {
             messageCryptoHelper = new MessageCryptoHelper(
                     context, new OpenPgpApiFactory(), AutocryptOperations.getInstance(), openPgpProvider,account);
             retainCryptoHelperFragment.setData(messageCryptoHelper);
@@ -335,6 +335,9 @@ public class MessageLoaderHelper {
                 localMessage, messageCryptoCallback, cachedDecryptionResult, !account.isOpenPgpHideSignOnly());
     }
 
+    private boolean isPqcHybridAktiv(){
+        return account.isPqcSigningEnabled() || account.isPqcKemEnabled();
+    }
     private void cancelAndClearCryptoOperation() {
         RetainFragment<MessageCryptoHelper> retainCryptoHelperFragment = getMessageCryptoHelperRetainFragment(false);
         if (retainCryptoHelperFragment != null) {
@@ -570,7 +573,7 @@ public class MessageLoaderHelper {
         // übergibt PGP- und PQC-Dekryptionsdaten gleichzeitig
         Parcelable preferredDecryptionResult = cachedDecryptionResult != null
             ? cachedDecryptionResult
-            : cachedPqcDecapsulationResult;
+            : cachedPqcDecryptionResult;
 
         messageCryptoHelper.asyncStartOrResumeProcessingMessage(
             localMessage,

@@ -623,8 +623,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
             PqcMessagebuilder pqcBuilder = PqcMessagebuilder.newInstance(getApplicationContext(),receptionAdress);
             recipientPresenter.builderSetProperties(pqcBuilder, cryptoStatus , account);
             if (pqcBuilder == null) {
-                Timber.e("PqcMessagebuilder returned null – PQC config missing?");
-                Toast.makeText(this, "Fehler beim Initialisieren von PQC", Toast.LENGTH_LONG).show();
+                Timber.w("PqcMessagebuilder returned null – PQC config missing?");
                 return null;
             }
             builder=pqcBuilder;
@@ -633,8 +632,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
             PqcMessagebuilder pqcBuilder = PqcMessagebuilder.newInstance(getApplicationContext(),receptionAdress);
             recipientPresenter.builderSetProperties(pqcBuilder, cryptoStatus , account);
             if (pqcBuilder == null) {
-                Timber.e("PqcMessagebuilder returned null – PQC config missing?");
-                Toast.makeText(this, "Fehler beim Initialisieren von PQC", Toast.LENGTH_LONG).show();
+                Timber.w("PqcMessagebuilder returned null – PQC config missing?");
                 return null;
             }
             builder=pqcBuilder;
@@ -645,7 +643,6 @@ public class MessageCompose extends K9Activity implements OnClickListener,
                 recipientPresenter.showPgpSendError(maybeSendErrorState);
                 return null;
             }
-
             PgpMessageBuilder pgpBuilder = PgpMessageBuilder.newInstance();
             recipientPresenter.builderSetProperties(pgpBuilder, cryptoStatus);
             builder = pgpBuilder;
@@ -653,7 +650,6 @@ public class MessageCompose extends K9Activity implements OnClickListener,
             builder = SimpleMessageBuilder.newInstance();
             recipientPresenter.builderSetProperties(builder);
         }
-
 
         builder.setSubject(Utility.stripNewLines(subjectView.getText().toString()))
                 .setSentDate(new Date())
@@ -989,12 +985,17 @@ public class MessageCompose extends K9Activity implements OnClickListener,
             attachmentPresenter.onClickAddAttachment(recipientPresenter);
         } else if (id == R.id.read_receipt) {
             onReadReceipt();
-        } else if(id == R.id.openpgp_encrypt_pqc_hybrid){
+        }else if (id == R.id.openpgp_sign_pqc_hybrid_enabled) {
+                recipientPresenter.onClickSignPqcHybrid();
+                invalidateOptionsMenu();
+        } else if (id == R.id.openpgp_sign_pqc_hybrid_disabled) {
+                recipientPresenter.onClickSignPqcHybrid();
+                invalidateOptionsMenu();
+        } else if (id == R.id.openpgp_encrypt_pqc_hybrid_enabled) {
             recipientPresenter.onClickEncryptPqcHybrid();
             invalidateOptionsMenu();
-        }
-        else if (id == R.id.openpgp_sign_pqc_hybrid) {
-            recipientPresenter.onClickSignPqcHybrid();
+        } else if (id == R.id.openpgp_encrypt_pqc_hybrid_disabled) {
+            recipientPresenter.onClickEncryptPqcHybrid();
             invalidateOptionsMenu();
         }
         else {

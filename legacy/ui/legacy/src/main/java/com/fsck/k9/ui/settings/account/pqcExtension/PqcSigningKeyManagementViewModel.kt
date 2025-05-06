@@ -44,11 +44,11 @@ class PqcSigningKeyManagementViewModel(
     private val account: Account? = try {
         loadAccount(accountUuid).also {
             if (it == null) {
-                _errorMessage.postValue(Event("Account nicht gefunden: $accountUuid"))
+                _errorMessage.postValue(Event("Account not found: $accountUuid"))
             }
         }
     } catch (e: Exception) {
-        _errorMessage.postValue(Event("Fehler beim Laden des Accounts: ${e.message}"))
+        _errorMessage.postValue(Event("Error while loading account: ${e.message}"))
         null
     }
 
@@ -70,7 +70,7 @@ class PqcSigningKeyManagementViewModel(
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                _errorMessage.postValue(Event("Fehler beim Generieren: ${e.message}"))
+                _errorMessage.postValue(Event("Error while generating: ${e.message}"))
             } finally {
                 updateKeyStatus(context)
                 _isLoading.value = false
@@ -89,7 +89,7 @@ class PqcSigningKeyManagementViewModel(
                 registry.clearAllKeys(context, id)
             } catch (e: Exception) {
                 e.printStackTrace()
-                _errorMessage.postValue(Event("Fehler beim Zurücksetzen des Schlüsselpaars: ${e.message}"))
+                _errorMessage.postValue(Event("Error while resetting key pair: ${e.message}"))
             } finally {
                 updateKeyStatus(context)
                 _isLoading.value = false
@@ -127,7 +127,7 @@ class PqcSigningKeyManagementViewModel(
 
             } catch (e: Exception) {
                 e.printStackTrace()
-                _errorMessage.postValue(Event("Fehler beim Exportieren: ${e.message}"))
+                _errorMessage.postValue(Event("Error while exporting: ${e.message}"))
             } finally {
                 updateKeyStatus(context)
             }
@@ -143,7 +143,7 @@ class PqcSigningKeyManagementViewModel(
 
                 val json = withContext(Dispatchers.IO) {
                     val inputStream: InputStream = context.contentResolver.openInputStream(uri)
-                        ?: throw Exception("Datei konnte nicht geöffnet werden.")
+                        ?: throw Exception("Could not open file.")
                     val content = inputStream.bufferedReader().use { it.readText() }
                     JSONObject(content)
                 }
@@ -157,7 +157,7 @@ class PqcSigningKeyManagementViewModel(
 
             } catch (e: Exception) {
                 e.printStackTrace()
-                _errorMessage.postValue(Event("Fehler beim Importieren: ${e.message}"))
+                _errorMessage.postValue(Event("Error while importing: ${e.message}"))
             } finally {
                 updateKeyStatus(context)
             }
@@ -218,17 +218,17 @@ class PqcSigningKeyManagementViewModel(
                 val pgpStore = SimpleKeyStoreFactory.getKeyStore(SimpleKeyStoreFactory.KeyType.PGP)
 
                 if (!sigStore.hasOwnKeyPair(context, id)) {
-                    _errorMessage.postValue(Event("Es ist kein Signaturschlüssel vorhanden."))
+                    _errorMessage.postValue(Event("No signing key available."))
                     return@launch
                 }
                 if (!pgpStore.hasOwnKeyPair(context, id)) {
-                    _errorMessage.postValue(Event("Es ist kein PGP-Schlüssel vorhanden."))
+                    _errorMessage.postValue(Event("No PGP key available."))
                     return@launch
                 }
 
                 val pgpKey = pgpStore.exportPublicKey(context, id)
                 if (pgpKey.isNullOrEmpty()) {
-                    _errorMessage.postValue(Event("Es konnte kein PGP-Schlüssel geladen werden."))
+                    _errorMessage.postValue(Event("Could not load PGP key."))
                     return@launch
                 }
 
@@ -253,13 +253,13 @@ class PqcSigningKeyManagementViewModel(
                     sigAlgo,
                     pgpKey,
                     null,
-                    "Meine öffentlichen Schlüssel",
+                    "My public keys",
                     null,
                     null
                 )
 
             } catch (e: Exception) {
-                _errorMessage.postValue(Event("Fehler beim Versenden: ${e.message}"))
+                _errorMessage.postValue(Event("Error while sending: ${e.message}"))
             } finally {
                 updateKeyStatus(context)
             }

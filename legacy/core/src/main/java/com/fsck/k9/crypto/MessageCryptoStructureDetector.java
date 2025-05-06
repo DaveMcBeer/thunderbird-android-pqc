@@ -10,6 +10,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
 import com.fsck.k9.helper.StringHelper;
+import com.fsck.k9.logging.Timber;
 import com.fsck.k9.mail.Body;
 import com.fsck.k9.mail.BodyPart;
 import com.fsck.k9.mail.MessagingException;
@@ -287,7 +288,11 @@ public class MessageCryptoStructureDetector {
         String protocolParameter = MimeUtility.getHeaderParameter(part.getContentType(), PROTOCOL_PARAMETER);
         return APPLICATION_PGP_ENCRYPTED.equalsIgnoreCase(protocolParameter);
     }
+    public static boolean isHybridPqcEncrypted(Part part) {
+        String[] headers = part.getHeader("X-Pgp-Hybrid-Pqc");
+        return headers != null && headers.length > 0 && "true".equalsIgnoreCase(headers[0]);
 
+    }
     public static boolean isMultipartSignedOpenPgpProtocol(Part part) {
         String protocolParameter = MimeUtility.getHeaderParameter(part.getContentType(), PROTOCOL_PARAMETER);
         return APPLICATION_PGP_SIGNATURE.equalsIgnoreCase(protocolParameter);

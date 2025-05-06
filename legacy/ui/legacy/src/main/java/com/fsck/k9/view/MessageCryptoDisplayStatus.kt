@@ -39,6 +39,7 @@ enum class MessageCryptoDisplayStatus(
 
     @StringRes
     val descriptionTextRes: Int? = null,
+
 ) {
     LOADING(
         isEnabled = false,
@@ -208,7 +209,18 @@ enum class MessageCryptoDisplayStatus(
         colorAttr = R.attr.openpgp_red,
         statusIconRes = Icons.Outlined.Error,
         titleTextRes = R.string.crypto_msg_title_mixed_signed_error,
-        descriptionTextRes = R.string.crypto_msg_mixed_sign_pqc_failed,
+        descriptionTextRes = R.string.crypto_msg_mixed_sign_pqc_failed
+    ),PQC_ENCRYPTED_VERIFIED(
+        colorAttr = R.attr.openpgp_green,
+        statusIconRes = R.drawable.status_lock_dots_3,
+        titleTextRes = R.string.crypto_msg_title_pqc_encrypted,
+        descriptionTextRes = R.string.crypto_msg_pqc_encrypted_verified
+    ),
+    PQC_ENCRYPTED_ERROR(
+        colorAttr = R.attr.openpgp_red,
+        statusIconRes = R.drawable.status_lock_error,
+        titleTextRes = R.string.crypto_msg_title_pqc_encrypted,
+        descriptionTextRes = R.string.crypto_msg_pqc_encrypted_error
     ),
     ;
 
@@ -262,6 +274,8 @@ enum class MessageCryptoDisplayStatus(
                 null -> DISABLED
                 CryptoError.PQC_SIGNATURE_ERROR -> MIXED_SIGN_PQC_FAILED
                 CryptoError.PQC_SIGNED_OK -> MIXED_SIGN_VERIFIED
+                CryptoError.PQC_ENCRYPTED_OK -> PQC_ENCRYPTED_VERIFIED
+                CryptoError.PQC_ENCRYPTED_ERROR -> PQC_ENCRYPTED_ERROR
                 CryptoError.OPENPGP_OK -> getDisplayStatusForPgpResult(cryptoResult)
                 CryptoError.OPENPGP_ENCRYPTED_BUT_INCOMPLETE -> INCOMPLETE_ENCRYPTED
                 CryptoError.OPENPGP_SIGNED_BUT_INCOMPLETE -> INCOMPLETE_SIGNED

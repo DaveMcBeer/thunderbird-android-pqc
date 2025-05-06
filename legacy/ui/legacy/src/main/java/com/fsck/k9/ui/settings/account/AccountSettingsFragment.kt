@@ -5,9 +5,11 @@ import android.app.AlertDialog
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.text.InputType
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
+import android.widget.EditText
 import android.widget.Toast
 import androidx.core.net.toUri
 import androidx.preference.ListPreference
@@ -100,6 +102,8 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
         initializePqcSigningKeyManagement()
         initializePqcKemKeyManagement()
         initializeInternalKeyDeletion()
+        initializePqcSendKeys()
+        initializePgpKeyGeneration()
         //--- END ---
     }
 
@@ -114,7 +118,7 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
         // we might be returning from OpenPgpAppSelectDialog, make sure settings are up to date
         val account = getAccount()
         initializeCryptoSettings(account)
-
+        initializePqcSendKeys()
         // Don't update the notification preferences when resuming after the user has selected a new notification sound
         // via NotificationSoundPreference. Otherwise we race the background thread and might read data from the old
         // NotificationChannel, overwriting the notification sound with the previous value.
@@ -673,5 +677,80 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
                 .show()
         }
     }
+
+    private fun initializePqcSendKeys() {
+        val pref = findPreference<Preference>("pqc_send_keys") ?: return
+        val account = getAccount()
+
+        val hasPgpKeyPair = try {
+            SimpleKeyStoreFactory
+                .getKeyStore(SimpleKeyStoreFactory.KeyType.PGP)
+                .hasOwnKeyPair(requireContext(), account.uuid)
+        } catch (e: Exception) {
+            false
+        }
+
+
+        if (!hasPgpKeyPair) {
+            pref.isEnabled = false
+            pref.summary = "Requires a PGP key pair to be available"
+            return
+        }
+
+        pref.onClick {
+            val input = EditText(requireContext()).apply {
+                hint = "Email addresses, separated by commas"
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+            }
+
+            AlertDialog.Builder(requireContext())
+                .setTitle("Send public key")
+                .setMessage("Please enter one or more email addresses.")
+                .setView(input)
+                .setPositiveButton("Send") { _, _ ->
+                    val raw = input.text.toString()
+                    val emails = raw.split(",")
+                        .map { it.trim() }
+                        .filter { android.util.Patterns.EMAIL_ADDRESS.matcher(it).matches() }
+
+                    if (emails.isNotEmpty()) {
+                        viewModel.sendPqcKeysByEmail(requireContext(), account, emails)
+                        Snackbar.make(requireView(), "Email sending started 📧", Snackbar.LENGTH_SHORT).show()
+                    } else {
+                        Snackbar.make(requireView(), "No valid email addresses found.", Snackbar.LENGTH_LONG).show()
+                    }
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+    }
+
+    private fun initializePgpKeyGeneration() {
+        val pref = findPreference<Preference>("pqc_generate_pgp_key") ?: return
+        val account = getAccount()
+
+        pref.onClick {
+            try {
+                val hasKey = SimpleKeyStoreFactory
+                    .getKeyStore(SimpleKeyStoreFactory.KeyType.PGP)
+                    .hasOwnKeyPair(requireContext(), account.uuid)
+
+                if (hasKey) {
+                    Snackbar.make(requireView(), getString(R.string._pqc_generate_pgp_exists), Snackbar.LENGTH_SHORT).show()
+                    return@onClick
+                }
+
+                SimpleKeyStoreFactory
+                    .getKeyStore(SimpleKeyStoreFactory.KeyType.PGP)
+                    .generateKeyPair(requireContext(), account.uuid, "RSA")
+
+                Snackbar.make(requireView(), getString(R.string._pqc_generate_pgp_success), Snackbar.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Snackbar.make(requireView(), getString(R.string._pqc_generate_pgp_error, e.message ?: "unknown"), Snackbar.LENGTH_LONG).show()
+            }
+        }
+    }
+
+
     //--- ENDE ---
 }

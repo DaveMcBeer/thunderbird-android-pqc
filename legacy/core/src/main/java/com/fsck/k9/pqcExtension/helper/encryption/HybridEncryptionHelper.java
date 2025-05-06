@@ -72,7 +72,9 @@ public class HybridEncryptionHelper {
     }
 
     public static byte[] deriveRsaSharedSecretFromPrivateKey(Context context, String userId, byte[] encryptedSessionKey) throws Exception {
-        Security.addProvider(new BouncyCastleProvider());
+        if (Security.getProvider("BC") == null) {
+            Security.addProvider(new BouncyCastleProvider());
+        }
         String armoredPriv = context.getSharedPreferences("pgp_key_store", Context.MODE_PRIVATE)
             .getString(userId + "_priv", null);
 
