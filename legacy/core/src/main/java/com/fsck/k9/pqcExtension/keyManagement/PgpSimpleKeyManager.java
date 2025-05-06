@@ -16,8 +16,11 @@ import org.json.JSONObject;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.Date;
+import java.util.Iterator;
+
 
 public class PgpSimpleKeyManager {
     private static final String PREFS_NAME = "pgp_key_store";
@@ -127,7 +130,20 @@ public class PgpSimpleKeyManager {
 
     public static String loadRemotePublicKey(Context context, String remoteEmail) throws Exception {
         String key = getPrefs(context, REMOTE_PREFS).getString(remoteEmail.toLowerCase(), null);
-        if (key == null) throw new Exception("Kein Remote-Key vorhanden");
+        if (key == null) {
+            throw new Exception("Kein Remote-Key vorhanden");
+        }
+
+        // Prüfe, ob es ein JSON-Objekt ist
+        if (key.trim().startsWith("{")) {
+            JSONObject json = new JSONObject(key);
+            if (!json.has("publicKey")) {
+                throw new Exception("JSON enthält keinen 'publicKey'");
+            }
+            return json.getString("publicKey");
+        }
+
+        // Falls es kein JSON ist, Rückgabe wie bisher
         return key;
     }
 
@@ -163,14 +179,17 @@ public class PgpSimpleKeyManager {
 
     // Optional: zum Parsen & Prüfen, falls du willst
     public static PGPPublicKeyRing parsePublicKeyRing(String armored) throws Exception {
-        InputStream in = PGPUtil.getDecoderStream(new ByteArrayInputStream(armored.getBytes("UTF-8")));
-        PGPObjectFactory factory = new PGPObjectFactory(in, new JcaKeyFingerprintCalculator());
-        Object obj = factory.nextObject();
-        if (!(obj instanceof PGPPublicKeyRing)) {
-            throw new IllegalArgumentException("Kein gültiger PublicKeyRing");
+        InputStream in = PGPUtil.getDecoderStream(new ByteArrayInputStream(armored.getBytes(StandardCharsets.UTF_8)));
+        PGPPublicKeyRingCollection keyRings = new PGPPublicKeyRingCollection(in, new JcaKeyFingerprintCalculator());
+
+        Iterator<PGPPublicKeyRing> ringIter = keyRings.getKeyRings();
+        if (ringIter.hasNext()) {
+            return ringIter.next();
+        } else {
+            throw new IllegalArgumentException("Kein gültiger PGPPublicKeyRing in der Eingabe gefunden");
         }
-        return (PGPPublicKeyRing) obj;
     }
+
 
     public static PGPSecretKeyRing parseSecretKeyRing(String armored) throws Exception {
         InputStream in = PGPUtil.getDecoderStream(new ByteArrayInputStream(armored.getBytes("UTF-8")));

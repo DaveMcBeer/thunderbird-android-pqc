@@ -468,6 +468,7 @@ public class MessageCryptoHelper {
 
 
     // -- PQC Erweiterung --
+    @RequiresApi(api = VERSION_CODES.TIRAMISU)
     private void callPqcVerify(Part part) {
         try {
             String senderEmail = currentMessage.getFrom()[0].getAddress();

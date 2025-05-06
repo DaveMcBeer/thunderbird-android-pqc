@@ -615,9 +615,14 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         }
 
         boolean shouldUsePgpMessageBuilder = cryptoStatus.isOpenPgpConfigured();
-
-        if (cryptoStatus.isSignPqcHybrid() || cryptoStatus.isEncryptPqcHybrid()) {
-            PqcMessagebuilder pqcBuilder = PqcMessagebuilder.newInstance(getApplicationContext());
+        String receptionAdress = recipientPresenter.getToAddresses().get(0).getAddress();
+        if (cryptoStatus.isSignPqcHybrid()) {
+            PqcMessagebuilder pqcBuilder = PqcMessagebuilder.newInstance(getApplicationContext(),receptionAdress);
+            recipientPresenter.builderSetProperties(pqcBuilder, cryptoStatus , account);
+            builder=pqcBuilder;
+        }
+        else if(cryptoStatus.isEncryptPqcHybrid()){
+            PqcMessagebuilder pqcBuilder = PqcMessagebuilder.newInstance(getApplicationContext(),receptionAdress);
             recipientPresenter.builderSetProperties(pqcBuilder, cryptoStatus , account);
             builder=pqcBuilder;
         }
