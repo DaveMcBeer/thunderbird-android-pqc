@@ -51,4 +51,9 @@ public class PqcKemSimpleKeyStore implements SimpleKeyStore {
     public boolean hasOwnKeyPair(Context context, String userId) {
         return PqcKemSimpleKeyManager.hasKeyPair(context, userId);
     }
+
+    @Override
+    public JSONObject loadLocalPrivateKey(Context context, String userId) throws Exception {
+        return PqcKemSimpleKeyManager.loadLocalPrivateKey(context, userId);
+    }
 }

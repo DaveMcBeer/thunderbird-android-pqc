@@ -19,5 +19,7 @@ public interface SimpleKeyStore {
         return obj.getString("publicKey");  // Du kannst das gerne anpassen
     }
     boolean hasOwnKeyPair(Context context, String userId);
+    JSONObject loadLocalPrivateKey(Context context, String userId) throws Exception;
+
 }
 

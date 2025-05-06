@@ -44,7 +44,8 @@ import com.fsck.k9.mailstore.CryptoResultAnnotation.CryptoError;
 import com.fsck.k9.mailstore.MessageCryptoAnnotations;
 import com.fsck.k9.mailstore.MessageHelper;
 import com.fsck.k9.mailstore.MimePartStreamParser;
-import com.fsck.k9.pqcExtension.helper.PqcSignatureVerifierHelper;
+import com.fsck.k9.pqcExtension.helper.encryption.PqcDecryptionHelper;
+import com.fsck.k9.pqcExtension.helper.signature.PqcSignatureVerifierHelper;
 import com.fsck.k9.pqcExtension.message.results.PqcDecryptionResult;
 import com.fsck.k9.mailstore.util.FileFactory;
 import com.fsck.k9.provider.DecryptedFileProvider;
@@ -493,15 +494,29 @@ public class MessageCryptoHelper {
             CryptoResultAnnotation annotation = PqcSignatureVerifierHelper.verifyAll(context, part, senderEmail, account.getUuid());
             onCryptoOperationSuccess(annotation);
         } catch (Exception e) {
-            Timber.e(e, "Failed to verify PQC signature");
             MimeBodyPart replacement = getMultipartSignedContentPartIfAvailable(part);
             CryptoResultAnnotation annotation = CryptoResultAnnotation.createErrorAnnotation(CryptoError.PQC_SIGNATURE_ERROR, replacement);
             onCryptoOperationSuccess(annotation);
         }
     }
 
-    private void callPqcDecryption(Part part){
+    @RequiresApi(api = VERSION_CODES.TIRAMISU)
+    private void callPqcDecryption(Part part) {
+        try {
+            // Absender-Email ermitteln
+            String senderEmail = currentMessage.getFrom()[0].getAddress();
 
+            // PQC-Entschlüsselung durchführen
+            CryptoResultAnnotation annotation = PqcDecryptionHelper.decrypt(context, part, senderEmail, account.getUuid());
+            // Erfolgreiche Operation behandeln
+            onCryptoOperationSuccess(annotation);
+        } catch (Exception e) {
+            Timber.e(e, "Fehler bei PQC-Entschlüsselung");
+            // Fehlerannotation erstellen
+            CryptoResultAnnotation annotation = CryptoResultAnnotation.createErrorAnnotation(CryptoError.PQC_ENCRYPTED_ERROR, MessageHelper.createEmptyPart());
+            // Fehlerbehandlung durchführen
+            onCryptoOperationSuccess(annotation);
+        }
     }
     // -- END --
     private OpenPgpDataSource getDataSourceForSignedData(final Part signedPart) {

@@ -52,4 +52,9 @@ public class PqcSigSimpleKeyStore implements SimpleKeyStore {
     public boolean hasOwnKeyPair(Context context, String userId) {
         return PqcSigSimpleKeyManager.hasKeyPair(context, userId);
     }
+
+    @Override
+    public JSONObject loadLocalPrivateKey(Context context, String userId) throws Exception {
+        return PqcSigSimpleKeyManager.loadLocalPrivateKey(context, userId);
+    }
 }

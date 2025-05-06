@@ -1,4 +1,4 @@
-package com.fsck.k9.pqcExtension.helper;
+package com.fsck.k9.pqcExtension.helper.signature;
 
 import android.content.Context;
 import android.os.Build.VERSION_CODES;
@@ -12,7 +12,7 @@ import com.fsck.k9.mail.Part;
 import com.fsck.k9.mail.internet.MimeBodyPart;
 import com.fsck.k9.mail.internet.MimeUtility;
 import com.fsck.k9.mailstore.CryptoResultAnnotation;
-import com.fsck.k9.mailstore.CryptoResultAnnotation.CryptoError;
+import com.fsck.k9.pqcExtension.helper.PqcMessageHelper;
 import com.fsck.k9.pqcExtension.keyManagement.PgpSimpleKeyManager;
 import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory.KeyType;
 import com.fsck.k9.pqcExtension.message.results.PqcError;
@@ -26,7 +26,6 @@ import org.bouncycastle.openpgp.operator.jcajce.JcaKeyFingerprintCalculator;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentVerifierBuilderProvider;
 import org.json.JSONObject;
 import org.openquantumsafe.Signature;
-import org.openquantumsafe.Sigs;
 import timber.log.Timber;
 
 import java.io.ByteArrayInputStream;

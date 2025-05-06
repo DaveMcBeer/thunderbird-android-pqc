@@ -191,8 +191,6 @@ public class PgpSimpleKeyManager {
             throw new IllegalArgumentException("Kein gültiger PGPPublicKeyRing in der Eingabe gefunden");
         }
     }
-
-
     public static PGPSecretKeyRing parseSecretKeyRing(String armored) throws Exception {
         InputStream in = PGPUtil.getDecoderStream(new ByteArrayInputStream(armored.getBytes("UTF-8")));
         PGPObjectFactory factory = new PGPObjectFactory(in, new JcaKeyFingerprintCalculator());
@@ -202,4 +200,16 @@ public class PgpSimpleKeyManager {
         }
         return (PGPSecretKeyRing) obj;
     }
+
+    public static JSONObject loadLocalPrivateKey(Context context, String userId) throws Exception {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String privArmored = prefs.getString(userId + "_priv", null);
+        if (privArmored == null) throw new Exception("Kein privater Schlüssel gefunden");
+
+        JSONObject keyJson = new JSONObject();
+        keyJson.put("algorithm", "RSA"); // RSA ist festgelegt für PGP-Keys
+        keyJson.put("privateKey", privArmored);
+        return keyJson;
+    }
+
 }

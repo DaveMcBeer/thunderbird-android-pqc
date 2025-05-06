@@ -1,16 +1,12 @@
 package com.fsck.k9.pqcExtension.keyManagement;
 
-
 import java.util.Base64;
-
 import android.content.Context;
 import android.content.SharedPreferences;
-
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.openquantumsafe.KEMs;
 import org.openquantumsafe.KeyEncapsulation;
-
 
 public class PqcKemSimpleKeyManager {
     private static final String PREFS_NAME = "pqc_kem_keys";
@@ -61,5 +57,16 @@ public class PqcKemSimpleKeyManager {
 
     private static SharedPreferences getPrefs(Context context) {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+    }
+
+    public static JSONObject loadLocalPrivateKey(Context context, String userId) throws Exception {
+        JSONObject keyPair = loadKeyPair(context, userId);
+        String algorithm = keyPair.getString("algorithm");
+        String privateKey = keyPair.getString("privateKey");
+
+        JSONObject keyJson = new JSONObject();
+        keyJson.put("algorithm", algorithm);
+        keyJson.put("privateKey", privateKey);
+        return keyJson;
     }
 }

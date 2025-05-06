@@ -51,4 +51,10 @@ public class PgpSimpleKeyStore implements SimpleKeyStore {
     public boolean hasOwnKeyPair(Context context, String userId) {
         return PgpSimpleKeyManager.hasKeyPair(context, userId);
     }
+
+    @Override
+    public JSONObject loadLocalPrivateKey(Context context, String userId) throws Exception {
+        return PgpSimpleKeyManager.loadLocalPrivateKey(context, userId);
+    }
+
 }

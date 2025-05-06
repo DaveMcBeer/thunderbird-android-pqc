@@ -79,4 +79,11 @@ public class PqcMessageHelper {
             .replaceAll("(\r\n|\r|\n)", "\r\n")
             .getBytes(StandardCharsets.UTF_8);
     }
+
+    public static byte[] extractEncryptedPayload(Part part) throws Exception {
+        String armoredText = new String(canonicalize(part), StandardCharsets.UTF_8);
+        String payloadBase64 = extractContent(armoredText, "ENCRYPTED MESSAGE");
+        return decodeCleanBase64(payloadBase64);
+    }
+
 }

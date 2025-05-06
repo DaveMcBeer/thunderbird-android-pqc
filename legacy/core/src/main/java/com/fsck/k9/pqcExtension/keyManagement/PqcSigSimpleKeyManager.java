@@ -44,6 +44,7 @@ public class PqcSigSimpleKeyManager {
         }
     }
 
+
     public static JSONObject loadKeyPair(Context context, String userId) throws Exception {
         if(hasKeyPair(context, userId)){
             String json = getPrefs(context).getString(userId, null);
@@ -61,7 +62,16 @@ public class PqcSigSimpleKeyManager {
     public static boolean hasKeyPair(Context context, String userId) {
         return getPrefs(context).contains(userId);
     }
+    public static JSONObject loadLocalPrivateKey(Context context, String userId) throws Exception {
+        JSONObject keyPair = loadKeyPair(context, userId);
+        String algorithm = keyPair.getString("algorithm");
+        String privateKey = keyPair.getString("privateKey");
 
+        JSONObject keyJson = new JSONObject();
+        keyJson.put("algorithm", algorithm);
+        keyJson.put("privateKey", privateKey);
+        return keyJson;
+    }
     private static SharedPreferences getPrefs(Context context) {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
