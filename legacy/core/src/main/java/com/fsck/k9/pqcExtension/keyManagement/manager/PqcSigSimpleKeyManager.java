@@ -1,4 +1,4 @@
-package com.fsck.k9.pqcExtension.keyManagement;
+package com.fsck.k9.pqcExtension.keyManagement.manager;
 
 
 import java.util.Base64;
@@ -14,7 +14,7 @@ import org.openquantumsafe.Sigs;
 
 public class PqcSigSimpleKeyManager {
     private static final String PREFS_NAME = "pqc_sig_keys";
-
+    private static final String REMOTE_PREFS = "pqc_sig_remote_keys";
     public static void generateAndStoreKeyPair(Context context, String userId, String algorithm) {
         if (!Sigs.is_sig_enabled(algorithm)) {
             throw new IllegalArgumentException("Algorithmus nicht unterstützt: " + algorithm);
@@ -48,7 +48,7 @@ public class PqcSigSimpleKeyManager {
     public static JSONObject loadKeyPair(Context context, String userId) throws Exception {
         if(hasKeyPair(context, userId)){
             String json = getPrefs(context).getString(userId, null);
-            if (json == null) throw new Exception("Kein Schlüssel gefunden");
+            if (json == null || json.isEmpty()) return new JSONObject(); // statt Exception
             return new JSONObject(json);
         }
         else
@@ -58,12 +58,17 @@ public class PqcSigSimpleKeyManager {
     public static void deleteKeyPair(Context context, String userId) {
         getPrefs(context).edit().remove(userId).apply();
     }
-
+    public static void deleteAll(Context context) {
+        getPrefs(context).edit().clear().apply();
+    }
     public static boolean hasKeyPair(Context context, String userId) {
         return getPrefs(context).contains(userId);
     }
     public static JSONObject loadLocalPrivateKey(Context context, String userId) throws Exception {
         JSONObject keyPair = loadKeyPair(context, userId);
+        if (!keyPair.has("algorithm") || !keyPair.has("privateKey")) {
+            return null;
+        }
         String algorithm = keyPair.getString("algorithm");
         String privateKey = keyPair.getString("privateKey");
 
@@ -74,6 +79,30 @@ public class PqcSigSimpleKeyManager {
     }
     private static SharedPreferences getPrefs(Context context) {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+    }
+
+    public static void importRemotePublicKey(Context context, String remoteEmail, String algorithm, String publicKey) throws Exception {
+        SharedPreferences prefs = context.getSharedPreferences(REMOTE_PREFS, Context.MODE_PRIVATE);
+        JSONObject json = new JSONObject();
+        json.put("algorithm", algorithm);
+        json.put("publicKey", publicKey);
+
+        prefs.edit().putString(remoteEmail.toLowerCase(), json.toString()).apply();
+    }
+
+    public static String exportPublicKey(Context context, String userId) throws Exception {
+        JSONObject json = PqcSigSimpleKeyManager.loadKeyPair(context, userId);
+        if(json.has("publicKey"))
+            return json.getString("publicKey");
+        else
+            return "";
+    }
+
+    public static JSONObject loadRemotePublicKey(Context context, String remoteEmail) throws Exception {
+        SharedPreferences prefs = context.getSharedPreferences(REMOTE_PREFS, Context.MODE_PRIVATE);
+        String json = prefs.getString(remoteEmail.toLowerCase(), null);
+        if (json == null) return null;
+        return new JSONObject(json);
     }
 }
 

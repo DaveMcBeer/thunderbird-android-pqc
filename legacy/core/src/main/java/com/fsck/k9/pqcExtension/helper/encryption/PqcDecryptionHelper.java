@@ -2,30 +2,23 @@ package com.fsck.k9.pqcExtension.helper.encryption;
 
 import android.content.Context;
 import android.os.Build.VERSION_CODES;
-import android.os.Parcel;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import com.fsck.k9.crypto.MessageCryptoStructureDetector;
 import com.fsck.k9.mail.Part;
 import com.fsck.k9.mail.internet.MimeBodyPart;
 import com.fsck.k9.mail.internet.MimeMessage;
-import com.fsck.k9.mailstore.BinaryMemoryBody;
 import com.fsck.k9.mailstore.CryptoResultAnnotation;
-import com.fsck.k9.mailstore.CryptoResultAnnotation.CryptoError;
 import com.fsck.k9.pqcExtension.helper.PqcMessageHelper;
 import com.fsck.k9.pqcExtension.helper.signature.PqcSignatureVerifierHelper;
-import com.fsck.k9.pqcExtension.keyManagement.PgpSimpleKeyManager;
+import com.fsck.k9.pqcExtension.keyManagement.manager.PgpSimpleKeyManager;
 import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory;
 import com.fsck.k9.pqcExtension.message.results.PqcDecryptionResult;
-import com.fsck.k9.pqcExtension.message.results.PqcError;
 import javax.crypto.Cipher;
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-import org.apache.james.mime4j.util.MimeUtil;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPSecretKey;
@@ -39,6 +32,7 @@ import org.openquantumsafe.KeyEncapsulation;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
 import java.security.Security;
 import java.util.ArrayList;
@@ -102,7 +96,10 @@ public class PqcDecryptionHelper {
         }
     }
     public static byte[] decryptWithAes(byte[] encrypted, byte[] sessionKey) throws Exception {
-        ByteBuffer buffer = ByteBuffer.wrap(encrypted);
+
+        byte[] decoded = Base64.getDecoder().decode(encrypted);
+
+        ByteBuffer buffer = ByteBuffer.wrap(decoded);
         // Schutz: Check, ob genug Daten für ein plausibles IV vorhanden sind
         if (buffer.remaining() < 4) {
             throw new IllegalArgumentException("Encrypted data too short to contain IV length");
@@ -173,5 +170,11 @@ public class PqcDecryptionHelper {
         byte[] pqcSharedSecret = kem.decap_secret(pqcCiphertext);
         kem.dispose_KEM();
         return pqcSharedSecret;
+    }
+
+    private static boolean isProbablyBase64(byte[] input){
+        String s = new String(input, StandardCharsets.US_ASCII).replaceAll("\\s", "");
+        // Base64 erlaubt: A-Z, a-z, 0-9, +, / und =
+        return s.matches("^[A-Za-z0-9+/=]+$") && (s.length() % 4 == 0);
     }
 }

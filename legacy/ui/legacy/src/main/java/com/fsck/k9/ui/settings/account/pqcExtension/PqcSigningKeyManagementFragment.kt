@@ -32,6 +32,7 @@ class PqcSigningKeyManagementFragment : Fragment(), ConfirmationDialogFragmentLi
     private lateinit var keyStatusIconView: TextView
     private lateinit var dynamicActionButton: Button
     private lateinit var algorithmTextView: TextView
+
     private val filePickerLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let {
             val fileName = getFileNameFromUri(requireContext(), it)
@@ -42,6 +43,15 @@ class PqcSigningKeyManagementFragment : Fragment(), ConfirmationDialogFragmentLi
             viewModel.importKeyFile(requireContext(), it)
         }
     }
+
+    private val exportFileLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+        if (uri != null) {
+            viewModel.exportKeyFileToUri(requireContext(), uri)
+        } else {
+            Snackbar.make(requireView(), "Export cancelled", Snackbar.LENGTH_SHORT).show()
+        }
+    }
+
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val view = inflater.inflate(R.layout.pqc_signing_key_management_fragment, container, false)
@@ -59,13 +69,15 @@ class PqcSigningKeyManagementFragment : Fragment(), ConfirmationDialogFragmentLi
                 val algorithm = viewModel.getCurrentAlgorithm() ?: "None"
                 viewModel.generateSigningKey(context, accountId, algorithm)
             } else {
-                showConfirmResetDialog()
+                showDeleteKeyOptionsDialog()
             }
             updateKeyTexts()
         }
 
         view.findViewById<Button>(R.id.export_keys_button).setOnClickListener {
-            viewModel.exportKeyFile(requireContext())
+            val accountName = viewModel.account?.name ?: "account"
+            val safeName = accountName.replace("[^a-zA-Z0-9-_]".toRegex(), "_")
+            exportFileLauncher.launch("pqkeys_${safeName}.pqk")
         }
 
         view.findViewById<Button>(R.id.import_keys_button).setOnClickListener {
@@ -97,7 +109,6 @@ class PqcSigningKeyManagementFragment : Fragment(), ConfirmationDialogFragmentLi
         updateKeyTexts()
         return view
     }
-
     private fun updateKeyTexts() {
         val context = requireContext()
         val publicKey = viewModel.getPublicKey(context)
@@ -112,17 +123,6 @@ class PqcSigningKeyManagementFragment : Fragment(), ConfirmationDialogFragmentLi
         dynamicActionButton.text = if (hasKeys) "🧹 Delete key pair" else "🛠 Generate key pair"
     }
 
-    private fun showConfirmResetDialog() {
-        AlertDialog.Builder(requireContext())
-            .setTitle("Delete key pair?")
-            .setMessage("Are you sure you want to delete the key pair?")
-            .setPositiveButton("Delete") { _, _ ->
-                viewModel.resetKeyPair(requireContext())
-                updateKeyTexts()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
 
     private fun showErrorDialog(message: String) {
         AlertDialog.Builder(requireContext())
@@ -141,6 +141,19 @@ class PqcSigningKeyManagementFragment : Fragment(), ConfirmationDialogFragmentLi
             }
         }
         return ""
+    }
+    private fun showDeleteKeyOptionsDialog() {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Delete keys?")
+            .setMessage("Do you want to delete only your own keys, or also the stored public keys of others?")
+            .setPositiveButton("Delete all") { _, _ ->
+                viewModel.resetKeyPair(requireContext(),true)
+            }
+            .setNeutralButton("Delete own only") { _, _ ->
+                viewModel.resetKeyPair(requireContext(), false)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun Cursor.getColumnIndexOpenableColumnName(): Int {

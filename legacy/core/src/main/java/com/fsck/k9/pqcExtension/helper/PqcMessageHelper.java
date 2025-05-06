@@ -100,10 +100,8 @@ public class PqcMessageHelper {
             if (bodyPart.isMimeType("application/octet-stream")) {
                 Body innerBody = bodyPart.getBody();
                 if (innerBody instanceof BinaryMemoryBody) {
-                    byte[] base64Bytes = innerBody.getInputStream().readAllBytes();
-
-                    // FIX: Base64-dekodieren
-                    return Base64.getDecoder().decode(base64Bytes);
+                    BinaryMemoryBody binaryBody = (BinaryMemoryBody) innerBody;
+                    return binaryBody.getInputStream().readAllBytes();
                 } else {
                     throw new Exception("application/octet-stream body is not a BinaryMemoryBody (was: " + innerBody.getClass().getSimpleName() + ")");
                 }

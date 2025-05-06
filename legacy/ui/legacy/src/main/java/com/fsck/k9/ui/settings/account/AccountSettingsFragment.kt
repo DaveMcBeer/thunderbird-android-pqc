@@ -559,7 +559,7 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
                     .setPositiveButton("Ja") { _, _ ->
                         SimpleKeyStoreFactory
                             .getKeyStore(SimpleKeyStoreFactory.KeyType.PQC_SIG)
-                            .clearAllKeys(requireContext(), account.uuid)
+                            .clearAllKeys(requireContext(), account.uuid,false)
                         account.pqcSigningAlgorithm = selected
                         dataStore.saveSettingsInBackground()
                     }
@@ -635,7 +635,7 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
                     .setPositiveButton("Ja") { _, _ ->
                         SimpleKeyStoreFactory
                             .getKeyStore(SimpleKeyStoreFactory.KeyType.PQC_KEM)
-                            .clearAllKeys(requireContext(), account.uuid)
+                            .clearAllKeys(requireContext(), account.uuid,false)
                         account.pqcKemAlgorithm = selected
                         dataStore.saveSettingsInBackground()
                     }
@@ -696,8 +696,11 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
 
         if (!hasPgpKeyPair) {
             pref.isEnabled = false
-            pref.summary = "Requires a PGP key pair to be available"
+            pref.summary = "Requires a one key pair to be available"
             return
+        }
+        else{
+            pref.isEnabled = true
         }
 
         pref.onClick {
@@ -746,7 +749,7 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
                 SimpleKeyStoreFactory
                     .getKeyStore(SimpleKeyStoreFactory.KeyType.PGP)
                     .generateKeyPair(requireContext(), account.uuid, "RSA")
-
+                initializePqcSendKeys()
                 Snackbar.make(requireView(), getString(R.string._pqc_generate_pgp_success), Snackbar.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Snackbar.make(requireView(), getString(R.string._pqc_generate_pgp_error, e.message ?: "unknown"), Snackbar.LENGTH_LONG).show()

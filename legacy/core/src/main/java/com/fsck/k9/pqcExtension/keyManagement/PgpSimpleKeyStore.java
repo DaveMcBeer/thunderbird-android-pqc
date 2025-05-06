@@ -1,6 +1,8 @@
 package com.fsck.k9.pqcExtension.keyManagement;
 
 import android.content.Context;
+
+import com.fsck.k9.pqcExtension.keyManagement.manager.PgpSimpleKeyManager;
 import org.bouncycastle.openpgp.PGPException;
 import org.json.JSONObject;
 
@@ -10,7 +12,6 @@ public class PgpSimpleKeyStore implements SimpleKeyStore {
 
     @Override
     public void generateKeyPair(Context context, String userId, String algorithm) throws Exception {
-        // Algorithm wird ignoriert, da Ed25519 festgelegt ist
         PgpSimpleKeyManager.generateAndStoreKeyPair(context, userId);
     }
 
@@ -25,8 +26,8 @@ public class PgpSimpleKeyStore implements SimpleKeyStore {
     }
 
     @Override
-    public void clearAllKeys(Context context, String userId) {
-        PgpSimpleKeyManager.deleteKeyPair(context, userId);
+    public void clearAllKeys(Context context, String userId,Boolean deleteRemote) {
+        PgpSimpleKeyManager.deleteAll(context);
     }
 
     @Override

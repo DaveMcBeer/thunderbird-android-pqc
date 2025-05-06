@@ -13,7 +13,7 @@ import com.fsck.k9.mail.internet.MimeBodyPart;
 import com.fsck.k9.mail.internet.MimeUtility;
 import com.fsck.k9.mailstore.CryptoResultAnnotation;
 import com.fsck.k9.pqcExtension.helper.PqcMessageHelper;
-import com.fsck.k9.pqcExtension.keyManagement.PgpSimpleKeyManager;
+import com.fsck.k9.pqcExtension.keyManagement.manager.PgpSimpleKeyManager;
 import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory.KeyType;
 import com.fsck.k9.pqcExtension.message.results.PqcError;
 import com.fsck.k9.pqcExtension.message.results.PqcSignatureResult;

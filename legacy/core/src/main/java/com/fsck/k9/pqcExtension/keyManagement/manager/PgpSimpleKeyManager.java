@@ -1,4 +1,4 @@
-package com.fsck.k9.pqcExtension.keyManagement;
+package com.fsck.k9.pqcExtension.keyManagement.manager;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -112,6 +112,10 @@ public class PgpSimpleKeyManager {
             .remove(userId + "_pub")
             .remove(userId + "_priv")
             .apply();
+    }
+
+    public static void deleteAll(Context context) {
+        getPrefs(context, PREFS_NAME).edit().clear().apply();
     }
 
     public static void saveRemotePublicKey(Context context, String userId, String remoteEmail, String algorithm, String publicKey) {

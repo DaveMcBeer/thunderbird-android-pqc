@@ -15,6 +15,8 @@ import com.fsck.k9.autocrypt.AutocryptDraftStateHeader;
 import com.fsck.k9.autocrypt.AutocryptOpenPgpApiInteractor;
 import com.fsck.k9.autocrypt.AutocryptOperations;
 import com.fsck.k9.logging.Timber;
+import com.fsck.k9.mail.Body;
+import com.fsck.k9.mail.BodyPart;
 import com.fsck.k9.mail.BoundaryGenerator;
 import com.fsck.k9.mail.MessagingException;
 import com.fsck.k9.mail.internet.MessageIdGenerator;
@@ -23,6 +25,7 @@ import com.fsck.k9.mail.internet.MimeHeader;
 import com.fsck.k9.mail.internet.MimeMessage;
 import com.fsck.k9.mail.internet.MimeMessageHelper;
 import com.fsck.k9.mail.internet.MimeMultipart;
+import com.fsck.k9.mail.internet.MimeUtility;
 import com.fsck.k9.mail.internet.TextBody;
 import com.fsck.k9.mailstore.BinaryMemoryBody;
 import com.fsck.k9.message.CryptoStatus;
@@ -30,7 +33,7 @@ import com.fsck.k9.message.MessageBuilder;
 import com.fsck.k9.pqcExtension.helper.encryption.HybridEncryptionHelper;
 import com.fsck.k9.pqcExtension.helper.signature.CompositeSignatureHelper;
 import com.fsck.k9.pqcExtension.helper.PqcMessageHelper;
-import com.fsck.k9.pqcExtension.keyManagement.PgpSimpleKeyManager;
+import com.fsck.k9.pqcExtension.keyManagement.manager.PgpSimpleKeyManager;
 import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory;
 import org.apache.james.mime4j.util.MimeUtil;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -42,6 +45,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.Security;
 import java.util.Base64;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 
 
@@ -75,7 +79,7 @@ public class PqcMessagebuilder extends MessageBuilder {
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
-    private void mimeBuildSignedMessage(MimeBodyPart signedBodyPart, Map<String, byte[]> signatureMap) throws MessagingException {
+    private MimeBodyPart mimeBuildSignedMessage(MimeBodyPart signedBodyPart, Map<String, byte[]> signatureMap) throws MessagingException {
         MimeMultipart multipartSigned = createMimeMultipart();
         multipartSigned.setSubType("signed");
 
@@ -104,11 +108,11 @@ public class PqcMessagebuilder extends MessageBuilder {
             String filename = "signature-" + algorithm + ".asc";
 
             MimeBodyPart sigPart = MimeBodyPart.create(
-                new BinaryMemoryBody(armored.getBytes(StandardCharsets.US_ASCII), MimeUtil.ENC_7BIT),
+                new BinaryMemoryBody(sigData, MimeUtil.ENC_7BIT),
                 "application/pgp-signature; name=\"" + filename + "\""
             );
+            sigPart.setHeader("Content-Transfer-Encoding", "7bit");
             sigPart.setHeader("Content-Disposition", "inline; filename=\"" + filename + "\"");
-
             multipartSigned.addBodyPart(sigPart);
         }
 
@@ -118,9 +122,9 @@ public class PqcMessagebuilder extends MessageBuilder {
             getAccount().getPqcSigningAlgorithm()
         );
 
-
         MimeMessageHelper.setBody(currentProcessedMimeMessage, multipartSigned);
         currentProcessedMimeMessage.setHeader(MimeHeader.HEADER_CONTENT_TYPE, signedContentType);
+        return currentProcessedMimeMessage.toBodyPart();
     }
 
     private MimeBodyPart extractBodyPartFromCurrentMessage() throws MessagingException {
@@ -178,8 +182,8 @@ public class PqcMessagebuilder extends MessageBuilder {
             multipartEncrypted.addBodyPart(versionPart);
 
             // Part 2: verschlüsselter Body
-            String encodedPayload = Base64.getEncoder().encodeToString(encryptedPayload);
-            BinaryMemoryBody body = new BinaryMemoryBody(encodedPayload.getBytes(StandardCharsets.US_ASCII), MimeUtil.ENC_7BIT);
+            String base64Encoded = Base64.getEncoder().encodeToString(encryptedPayload);
+            BinaryMemoryBody body = new BinaryMemoryBody(base64Encoded.getBytes(StandardCharsets.US_ASCII), MimeUtil.ENC_7BIT);
             MimeBodyPart encryptedPart = new MimeBodyPart();
             encryptedPart.setBody(body);
             encryptedPart.setHeader("Content-Type", "application/octet-stream; name=\"encrypted.asc\"");
@@ -243,14 +247,10 @@ public class PqcMessagebuilder extends MessageBuilder {
             if (shouldSign && shouldEncrypt) {
                 // 1. Signieren
                 byte[] canonicalData = PqcMessageHelper.canonicalize(messageContentBodyPart);
-                Timber.d("PQC: Canonicalized data (sign+encrypt): %s", new String(canonicalData, StandardCharsets.UTF_8));
                 CompositeSignatureHelper signatureHelper = new CompositeSignatureHelper(getAccount().getUuid(), context);
                 Map<String, byte[]> signatureMap = signatureHelper.signAll(canonicalData);
-                mimeBuildSignedMessage(messageContentBodyPart, signatureMap);
 
-                // 2. Danach verschlüsseln (signierte Nachricht ist jetzt bodyPart)
-                MimeBodyPart signedPart = extractBodyPartFromCurrentMessage(); // Das signierte Ergebnis erneut holen
-                mimeBuildEncryptedMessageHybridRFC(signedPart);
+                mimeBuildEncryptedMessageHybridRFC(mimeBuildSignedMessage(messageContentBodyPart, signatureMap));
 
             } else if (shouldSign) {
                 byte[] canonicalData = PqcMessageHelper.canonicalize(messageContentBodyPart);

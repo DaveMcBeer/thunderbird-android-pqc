@@ -10,7 +10,7 @@ public interface SimpleKeyStore {
     void generateKeyPair(Context context, String userId, String algorithm) throws Exception;
     void importOwnKeyPair(Context context, String userId, String algorithm, String publicKey, String privateKey) throws Exception;
     void importRemotePublicKey(Context context, String ownerUserId, String remoteEmail, String algorithm, String publicKey) throws Exception;
-    void clearAllKeys(Context context, String userId) throws Exception;
+    void clearAllKeys(Context context, String userId,Boolean deleteAll) throws Exception;
 
     String exportPublicKey(Context context, String userId) throws Exception;
     JSONObject loadRemotePublicKey(Context context, String remoteEmail) throws Exception;

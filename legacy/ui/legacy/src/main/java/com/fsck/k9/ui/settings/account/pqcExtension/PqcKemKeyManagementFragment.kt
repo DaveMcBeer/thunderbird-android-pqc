@@ -62,8 +62,11 @@ class PqcKemKeyManagementFragment : Fragment(), ConfirmationDialogFragmentListen
         }
 
         view.findViewById<Button>(R.id.export_keys_button).setOnClickListener {
-            viewModel.exportKeyFile(requireContext())
+            val accountName = viewModel.account?.name ?: "account"
+            val safeName = accountName.replace("[^a-zA-Z0-9-_]".toRegex(), "_")
+            exportFileLauncher.launch("pqkeys_${safeName}.pqk")
         }
+
 
         view.findViewById<Button>(R.id.import_keys_button).setOnClickListener {
             filePickerLauncher.launch(arrayOf("application/octet-stream", "*/*"))
@@ -94,6 +97,13 @@ class PqcKemKeyManagementFragment : Fragment(), ConfirmationDialogFragmentListen
         updateKeyTexts()
         return view
     }
+    private val exportFileLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+        if (uri != null) {
+            viewModel.exportKeyFileToUri(requireContext(), uri)
+        } else {
+            Snackbar.make(requireView(), "Export cancelled", Snackbar.LENGTH_SHORT).show()
+        }
+    }
 
 
     private fun updateKeyTexts() {
@@ -110,19 +120,23 @@ class PqcKemKeyManagementFragment : Fragment(), ConfirmationDialogFragmentListen
         dynamicActionButton.text = if (hasKeys) "🧹 Delete key pair" else "🛠 Generate key pair"
     }
 
-
     private fun showConfirmResetDialog() {
         AlertDialog.Builder(requireContext())
-            .setTitle("Delete Key Pair?")
-            .setMessage("Are you sure you want to delete the key pair?")
-            .setPositiveButton("Delete") { _, _ ->
-                viewModel.resetKeyPair(requireContext())
+            .setTitle("Delete key pair?")
+            .setMessage("Do you want to delete only your own keys, or also remove remote keys?")
+            .setPositiveButton("Delete all keys") { _, _ ->
+                viewModel.resetKeyPair(requireContext(),true)
+                updateKeyTexts()
+            }
+            .setNeutralButton("Delete own keys only") { _, _ ->
+                viewModel.resetKeyPair(requireContext(),false)
                 updateKeyTexts()
             }
             .setNegativeButton("Cancel", null)
             .show()
     }
-    
+
+
 
     private fun showErrorDialog(message: String) {
         AlertDialog.Builder(requireContext())

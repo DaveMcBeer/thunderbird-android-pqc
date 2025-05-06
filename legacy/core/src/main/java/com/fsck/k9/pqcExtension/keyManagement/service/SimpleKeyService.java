@@ -22,15 +22,15 @@ public class SimpleKeyService {
      */
     public static void ClearAllUsersKeys(Context context, String accountId) {
         try {
-            pgpStore.clearAllKeys(context, accountId);
+            pgpStore.clearAllKeys(context,accountId,true);
         } catch (Exception ignored) {}
 
         try {
-            pqcSigStore.clearAllKeys(context, accountId);
+            pqcSigStore.clearAllKeys(context,accountId,true);
         } catch (Exception ignored) {}
 
         try {
-            pqcKemStore.clearAllKeys(context, accountId);
+            pqcKemStore.clearAllKeys(context,accountId,true);
         } catch (Exception ignored) {}
     }
 

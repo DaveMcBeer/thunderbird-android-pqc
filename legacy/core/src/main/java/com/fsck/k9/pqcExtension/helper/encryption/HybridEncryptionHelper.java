@@ -1,28 +1,18 @@
 package com.fsck.k9.pqcExtension.helper.encryption;
 
-import android.content.Context;
 
-import com.fsck.k9.pqcExtension.keyManagement.PgpSimpleKeyManager;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPPublicKey;
-import org.bouncycastle.openpgp.PGPPrivateKey;
-import org.bouncycastle.openpgp.PGPSecretKey;
-import org.bouncycastle.openpgp.PGPSecretKeyRing;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyConverter;
-import org.bouncycastle.openpgp.operator.jcajce.JcePBESecretKeyDecryptorBuilder;
-import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
 import org.openquantumsafe.KeyEncapsulation;
 import org.openquantumsafe.Pair;
 import javax.crypto.Cipher;
-import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.ByteBuffer;
-import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.security.Security;
 
 
 public class HybridEncryptionHelper {
@@ -92,12 +82,6 @@ public class HybridEncryptionHelper {
        catch (Exception e){
            throw new RuntimeException(e);
        }
-    }
-
-
-    public static byte[] encryptHybridMessage(PGPPublicKey rsaPubKey, byte[] pqcPublicKey, String pqcAlgorithm, byte[] plaintext) throws Exception {
-        HybridKEMResult kemResult = encapsulateBoth(rsaPubKey, pqcPublicKey, pqcAlgorithm);
-        return encryptWithAes(plaintext, kemResult.sessionKey);
     }
 
     public static String foldHeaderValue(String value) {

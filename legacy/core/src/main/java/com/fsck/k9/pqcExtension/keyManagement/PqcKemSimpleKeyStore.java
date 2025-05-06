@@ -4,6 +4,8 @@ package com.fsck.k9.pqcExtension.keyManagement;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import com.fsck.k9.pqcExtension.keyManagement.manager.PqcKemSimpleKeyManager;
+import com.fsck.k9.pqcExtension.keyManagement.manager.PqcSigSimpleKeyManager;
 import org.json.JSONObject;
 
 
@@ -21,30 +23,24 @@ public class PqcKemSimpleKeyStore implements SimpleKeyStore {
 
     @Override
     public void importRemotePublicKey(Context context, String ownerUserId, String remoteEmail, String algorithm, String publicKey) throws Exception {
-        SharedPreferences prefs = context.getSharedPreferences("pqc_kem_remote_keys", Context.MODE_PRIVATE);
-        JSONObject json = new JSONObject();
-        json.put("algorithm", algorithm);
-        json.put("publicKey", publicKey);
-        prefs.edit().putString(remoteEmail.toLowerCase(), json.toString()).apply();
+        PqcKemSimpleKeyManager.importRemotePublicKey(context,ownerUserId,remoteEmail,algorithm,publicKey);
     }
 
     @Override
-    public void clearAllKeys(Context context, String userId) throws Exception {
-        PqcKemSimpleKeyManager.deleteKeyPair(context, userId);
+    public void clearAllKeys(Context context, String userId,Boolean deleteAll) throws Exception {
+        if(deleteAll)
+            PqcKemSimpleKeyManager.deleteAll(context);
+        else
+            PqcKemSimpleKeyManager.deleteKeyPair(context, userId);
     }
-
     @Override
     public String exportPublicKey(Context context, String userId) throws Exception {
-        JSONObject json = PqcKemSimpleKeyManager.loadKeyPair(context, userId);
-        return json.getString("publicKey");
+        return PqcKemSimpleKeyManager.exportPublicKey(context,userId);
     }
 
     @Override
     public JSONObject loadRemotePublicKey(Context context, String remoteEmail) throws Exception {
-        SharedPreferences prefs = context.getSharedPreferences("pqc_kem_remote_keys", Context.MODE_PRIVATE);
-        String json = prefs.getString(remoteEmail.toLowerCase(), null);
-        if (json == null) throw new Exception("Kein Remote-Key vorhanden");
-        return new JSONObject(json);
+        return PqcKemSimpleKeyManager.loadRemotePublicKey(context,remoteEmail);
     }
 
     @Override

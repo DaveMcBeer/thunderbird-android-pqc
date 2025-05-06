@@ -2,7 +2,10 @@ package com.fsck.k9.pqcExtension.helper.signature;
 
 import android.content.Context;
 
-import com.fsck.k9.pqcExtension.keyManagement.PgpSimpleKeyManager;
+import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory;
+import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory.KeyType;
+import com.fsck.k9.pqcExtension.keyManagement.manager.PgpSimpleKeyManager;
+import com.fsck.k9.pqcExtension.keyManagement.manager.PqcKemSimpleKeyManager;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.*;
@@ -33,8 +36,12 @@ public class CompositeSignatureHelper {
     }
 
     private byte[] signWithPgp(byte[] data) throws Exception {
-        String armoredPriv = context.getSharedPreferences("pgp_key_store", Context.MODE_PRIVATE)
-            .getString(userId + "_priv", null);
+        JSONObject json = SimpleKeyStoreFactory.getKeyStore(KeyType.PGP).loadLocalPrivateKey(context,userId);
+        String armoredPriv = "";
+        if(json.has("privateKey"))
+        {
+            armoredPriv=json.getString("privateKey");
+        }
         PGPSecretKeyRing secretKeyRing = PgpSimpleKeyManager.parseSecretKeyRing(armoredPriv);
         if (secretKeyRing == null) throw new Exception("PGP priv key missing");
 

@@ -4,7 +4,9 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.core.content.ContentProviderCompat.requireContext
 import androidx.lifecycle.*
 import app.k9mail.legacy.account.Account
 import app.k9mail.legacy.account.AccountManager
@@ -25,7 +27,7 @@ import java.io.FileOutputStream
 import java.io.InputStream
 
 class PqcSigningKeyManagementViewModel(
-    private val accountManager: AccountManager,
+    val accountManager: AccountManager,
     private val preferences: Preferences,
     accountUuid: String
 ) : ViewModel() {
@@ -41,7 +43,7 @@ class PqcSigningKeyManagementViewModel(
 
     val accounts = accountManager.getAccountsFlow().asLiveData()
 
-    private val account: Account? = try {
+    val account: Account? = try {
         loadAccount(accountUuid).also {
             if (it == null) {
                 _errorMessage.postValue(Event("Account not found: $accountUuid"))
@@ -79,14 +81,14 @@ class PqcSigningKeyManagementViewModel(
     }
 
 
-    fun resetKeyPair(context: Context) {
+    fun resetKeyPair(context: Context,deleteAll:Boolean) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
                 val id = account?.uuid ?: return@launch
                 val registry = SimpleKeyStoreFactory.getKeyStore(
                     SimpleKeyStoreFactory.KeyType.PQC_SIG)
-                registry.clearAllKeys(context, id)
+                registry.clearAllKeys(context, id,deleteAll)
             } catch (e: Exception) {
                 e.printStackTrace()
                 _errorMessage.postValue(Event("Error while resetting key pair: ${e.message}"))
@@ -97,21 +99,18 @@ class PqcSigningKeyManagementViewModel(
         }
     }
 
-    fun exportKeyFile(context: Context) {
+    fun exportKeyFileToUri(context: Context, uri: Uri) {
         viewModelScope.launch {
             try {
                 val id = account?.uuid ?: return@launch
                 val name = account?.name ?: "account"
                 val email = account?.email ?: "unknown@example.com"
-                val safeName = name.replace("[^a-zA-Z0-9-_]".toRegex(), "_")
+                val algorithm = account?.pqcSigningAlgorithm ?: "None"
 
                 val keyStore = SimpleKeyStoreFactory.getKeyStore(SimpleKeyStoreFactory.KeyType.PQC_SIG)
                 val publicKey = withContext(Dispatchers.IO) {
                     keyStore.exportPublicKey(context, id)
                 }
-
-                // Aktuell festgelegter Algorithmus (je nach UI z. B. gespeichert in `account.pqcSigningAlgorithm`)
-                val algorithm = account?.pqcSigningAlgorithm ?: "None"
 
                 val json = JSONObject().apply {
                     put("email", email)
@@ -119,12 +118,11 @@ class PqcSigningKeyManagementViewModel(
                     put("publicKey", publicKey)
                 }
 
-                val exportDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
-                if (!exportDir.exists()) exportDir.mkdirs()
+                context.contentResolver.openOutputStream(uri)?.use { output ->
+                    output.write(json.toString().toByteArray())
+                } ?: throw Exception("Could not open output stream")
 
-                val file = File(exportDir, "pqkeys_${safeName}.pqk")
-                FileOutputStream(file).use { it.write(json.toString().toByteArray()) }
-
+                _errorMessage.postValue(Event("Key export successful"))
             } catch (e: Exception) {
                 e.printStackTrace()
                 _errorMessage.postValue(Event("Error while exporting: ${e.message}"))
@@ -207,65 +205,6 @@ class PqcSigningKeyManagementViewModel(
     }
 
 
-    fun sendKeysByEmail(context: Context, recipients: List<String>) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val id = account?.uuid ?: return@launch
-                val accountObj = account ?: return@launch
-
-                val sigStore = SimpleKeyStoreFactory.getKeyStore(SimpleKeyStoreFactory.KeyType.PQC_SIG)
-                val kemStore = SimpleKeyStoreFactory.getKeyStore(SimpleKeyStoreFactory.KeyType.PQC_KEM)
-                val pgpStore = SimpleKeyStoreFactory.getKeyStore(SimpleKeyStoreFactory.KeyType.PGP)
-
-                if (!sigStore.hasOwnKeyPair(context, id)) {
-                    _errorMessage.postValue(Event("No signing key available."))
-                    return@launch
-                }
-                if (!pgpStore.hasOwnKeyPair(context, id)) {
-                    _errorMessage.postValue(Event("No PGP key available."))
-                    return@launch
-                }
-
-                val pgpKey = pgpStore.exportPublicKey(context, id)
-                if (pgpKey.isNullOrEmpty()) {
-                    _errorMessage.postValue(Event("Could not load PGP key."))
-                    return@launch
-                }
-
-                val sigKey = sigStore.exportPublicKey(context, id)
-                val sigAlgo = accountObj.pqcSigningAlgorithm
-
-                val kemKey = if (kemStore.hasOwnKeyPair(context, id)) {
-                    kemStore.exportPublicKey(context, id)
-                } else null
-                val kemAlgo = accountObj.pqcKemAlgorithm
-
-                KeyDistributor.createAndSendKeyDistributionMessage(
-                    context,
-                    DI.get(MessagingController::class.java),
-                    DI.get(Preferences::class.java),
-                    DI.get(Contacts::class.java),
-                    accountObj,
-                    recipients,
-                    kemKey,
-                    sigKey,
-                    kemAlgo,
-                    sigAlgo,
-                    pgpKey,
-                    null,
-                    "My public keys",
-                    null,
-                    null
-                )
-
-            } catch (e: Exception) {
-                _errorMessage.postValue(Event("Error while sending: ${e.message}"))
-            } finally {
-                updateKeyStatus(context)
-            }
-        }
-    }
-
 
     class Event<out T>(private val content: T) {
         private var hasBeenHandled = false
@@ -277,4 +216,3 @@ class PqcSigningKeyManagementViewModel(
         }
     }
 }
-
