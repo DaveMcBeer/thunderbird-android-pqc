@@ -416,7 +416,10 @@ class RecipientMvpView(private val activity: MessageCompose) : View.OnFocusChang
         val dialog = PqcEncryptionDescriptionDialog.newInstance(R.id.crypto_special_pqc_encrypt)
         dialog.show(activity.supportFragmentManager, "pqc_encrypt_description")
     }
-
+    fun showPqcSignEncryptExplanationDialog() {
+        val dialog = PqcSigEncrytpDescriptionDialog.newInstance(R.id.crypto_special_pqc_encrypt)
+        dialog.show(activity.supportFragmentManager, "pqc_sig_encrypt_description")
+    }
 
     fun launchUserInteractionPendingIntent(pendingIntent: PendingIntent?, requestCode: Int) {
         activity.launchUserInteractionPendingIntent(pendingIntent, requestCode)

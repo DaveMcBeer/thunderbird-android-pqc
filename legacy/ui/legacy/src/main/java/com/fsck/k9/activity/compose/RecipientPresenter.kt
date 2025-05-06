@@ -306,11 +306,9 @@ class RecipientPresenter(
     fun onPrepareOptionsMenu(menu: Menu) {
         val currentCryptoStatus = currentCachedCryptoStatus
 
-        val isPqcMode = currentCryptoMode in listOf(
-            CryptoMode.PQC_SIGN_ONLY,
-            CryptoMode.PQC_SIGN_AND_ENCRYPT,
-            CryptoMode.PQC_ENCRYPT_ONLY
-        )
+        val isPqcSigMode = account.isPqcSigningEnabled
+        val isPqcKemMode = account.isPqcKemEnabled
+        val isPqcMode = isPqcSigMode || isPqcKemMode
 
         // Only show OpenPGP options if PQC is not active
         if (currentCryptoStatus != null &&currentCryptoStatus.isProviderStateOk() && !isPqcMode)
@@ -339,13 +337,10 @@ class RecipientPresenter(
 
         }
 
-        // Show PQC options only when in a PQC crypto mode
-        if (isPqcMode) {
+        // PQC Sign-Menüs nur zeigen, wenn Signieren aktiv ist
+        if (isPqcSigMode) {
             val pqcSignMenu = menu.findItem(R.id.openpgp_sign_pqc_hybrid_enabled)
             val pqcSignDisableMenu = menu.findItem(R.id.openpgp_sign_pqc_hybrid_disabled)
-            val pqcEncryptMenu = menu.findItem(R.id.openpgp_encrypt_pqc_hybrid_enabled)
-            val pqcEncryptDisableMenu = menu.findItem(R.id.openpgp_encrypt_pqc_hybrid_disabled)
-
             if (!account.isPqcHideSignOnly) {
                 pqcSignMenu?.isVisible = !isSignPqcHybridEnabled
                 pqcSignDisableMenu?.isVisible = isSignPqcHybridEnabled
@@ -353,13 +348,20 @@ class RecipientPresenter(
                 pqcSignMenu?.isVisible = false
                 pqcSignDisableMenu?.isVisible = false
             }
+        } else {
+            // Wenn Sign-Modus deaktiviert ist, immer verstecken
+            menu.findItem(R.id.openpgp_sign_pqc_hybrid_enabled).isVisible = false
+            menu.findItem(R.id.openpgp_sign_pqc_hybrid_disabled).isVisible = false
+        }
+
+        // PQC KEM-Menüs nur zeigen, wenn KEM aktiv ist
+        if (isPqcKemMode) {
+            val pqcEncryptMenu = menu.findItem(R.id.openpgp_encrypt_pqc_hybrid_enabled)
+            val pqcEncryptDisableMenu = menu.findItem(R.id.openpgp_encrypt_pqc_hybrid_disabled)
 
             pqcEncryptMenu?.isVisible = !isEncryptPqcHybridEnabled
             pqcEncryptDisableMenu?.isVisible = isEncryptPqcHybridEnabled
-        }
-        else{
-            menu.findItem(R.id.openpgp_sign_pqc_hybrid_enabled).isVisible = false
-            menu.findItem(R.id.openpgp_sign_pqc_hybrid_disabled).isVisible = false
+        } else {
             menu.findItem(R.id.openpgp_encrypt_pqc_hybrid_enabled).isVisible = false
             menu.findItem(R.id.openpgp_encrypt_pqc_hybrid_disabled).isVisible = false
         }
@@ -770,8 +772,17 @@ class RecipientPresenter(
 
     fun onCryptoPqcSignOnlyDisabled() {
         onCryptoModeChanged(CryptoMode.NO_CHOICE)
+        isSignPqcHybridEnabled = false
     }
-
+    fun onCryptoPqcEncryptOnlyDisabled(){
+        onCryptoModeChanged(CryptoMode.NO_CHOICE)
+        isEncryptPqcHybridEnabled =false
+    }
+    fun onCryptoPqcSignEncryptOnlyDisabled(){
+        onCryptoModeChanged(CryptoMode.NO_CHOICE)
+        isSignPqcHybridEnabled = false
+        isEncryptPqcHybridEnabled =false
+    }
     private fun checkAndIncrementPgpInlineDialogCounter(): Boolean {
         val pgpInlineDialogCounter = K9.pgpInlineDialogCounter
         if (pgpInlineDialogCounter < PGP_DIALOG_DISPLAY_THRESHOLD) {
@@ -802,9 +813,11 @@ class RecipientPresenter(
             CryptoMode.PQC_SIGN_ONLY -> {
                 recipientMvpView.showPqcSignOnlyDialog(false)
             }
-            CryptoMode.PQC_ENCRYPT_ONLY,
-            CryptoMode.PQC_SIGN_AND_ENCRYPT -> {
+            CryptoMode.PQC_ENCRYPT_ONLY-> {
                 recipientMvpView.showPqcEncryptExplanationDialog()
+            }
+            CryptoMode.PQC_SIGN_AND_ENCRYPT->{
+                recipientMvpView.showPqcSignEncryptExplanationDialog()
             }
             CryptoMode.CHOICE_ENABLED,
             CryptoMode.CHOICE_DISABLED,

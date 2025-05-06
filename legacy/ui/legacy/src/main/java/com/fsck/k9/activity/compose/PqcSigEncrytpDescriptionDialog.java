@@ -1,6 +1,5 @@
 package com.fsck.k9.activity.compose;
 
-
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Dialog;
@@ -11,33 +10,29 @@ import android.view.LayoutInflater;
 import android.view.View;
 
 import androidx.annotation.IdRes;
+
 import com.fsck.k9.ui.R;
 import com.fsck.k9.view.HighlightDialogFragment;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
-
-
-public class PqcSignOnlyDialog extends HighlightDialogFragment {
+public class PqcSigEncrytpDescriptionDialog extends HighlightDialogFragment {
     public static final String ARG_FIRST_TIME = "first_time";
 
-
-    public static PqcSignOnlyDialog newInstance(boolean firstTime, @IdRes int showcaseView) {
-        PqcSignOnlyDialog dialog = new PqcSignOnlyDialog();
+    public static PqcSigEncrytpDescriptionDialog newInstance(@IdRes int showcaseView) {
+        PqcSigEncrytpDescriptionDialog dialog = new PqcSigEncrytpDescriptionDialog();
 
         Bundle args = new Bundle();
-        args.putInt(ARG_FIRST_TIME, firstTime ? 1 : 0);
         args.putInt(ARG_HIGHLIGHT_VIEW, showcaseView);
         dialog.setArguments(args);
 
         return dialog;
     }
 
-    @Override
     public Dialog onCreateDialog(Bundle savedInstanceState) {
         Activity activity = getActivity();
 
         @SuppressLint("InflateParams")
-        View view = LayoutInflater.from(activity).inflate(R.layout.pqc_sign_only_dialog, null);
+        View view = LayoutInflater.from(activity).inflate(R.layout.pqc_sig_encrypt_dialog, null);
 
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireActivity());
         builder.setView(view);
@@ -58,7 +53,7 @@ public class PqcSignOnlyDialog extends HighlightDialogFragment {
                         return;
                     }
 
-                    ((PqcSignOnlyDialog.OnPqcSignOnlyChangeListener) activity).onPqcSignOnlyChange(false);
+                    ((PqcSigEncrytpDescriptionDialog.OnPqcSigEncryptOnlyChangeListener) activity).onSigEncryptSignOnlyChange(false);
                     dialog.dismiss();
                 }
             });
@@ -73,7 +68,7 @@ public class PqcSignOnlyDialog extends HighlightDialogFragment {
         return builder.create();
     }
 
-    public interface OnPqcSignOnlyChangeListener {
-        void onPqcSignOnlyChange(boolean enabled);
+    public interface OnPqcSigEncryptOnlyChangeListener {
+        void onSigEncryptSignOnlyChange(boolean enabled);
     }
 }

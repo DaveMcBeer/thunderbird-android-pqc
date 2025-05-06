@@ -127,7 +127,6 @@ public class PqcSignatureVerifierHelper {
             );
         }
     }
-
     private static boolean verifyPgpSignature(byte[] data, byte[] sigBytes, PGPPublicKey pubKey) {
         try {
             InputStream sigIn = PGPUtil.getDecoderStream(new ByteArrayInputStream(sigBytes));

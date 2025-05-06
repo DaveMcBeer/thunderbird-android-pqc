@@ -67,6 +67,8 @@ import com.fsck.k9.activity.compose.IdentityAdapter.IdentityContainer;
 import com.fsck.k9.activity.compose.PgpEnabledErrorDialog.OnOpenPgpDisableListener;
 import com.fsck.k9.activity.compose.PgpInlineDialog.OnOpenPgpInlineChangeListener;
 import com.fsck.k9.activity.compose.PgpSignOnlyDialog.OnOpenPgpSignOnlyChangeListener;
+import com.fsck.k9.activity.compose.PqcEncryptionDescriptionDialog.OnPqcEncryptOnlyChangeListener;
+import com.fsck.k9.activity.compose.PqcSigEncrytpDescriptionDialog.OnPqcSigEncryptOnlyChangeListener;
 import com.fsck.k9.activity.compose.PqcSignOnlyDialog.OnPqcSignOnlyChangeListener;
 import com.fsck.k9.activity.compose.RecipientMvpView;
 import com.fsck.k9.activity.compose.RecipientPresenter;
@@ -132,7 +134,8 @@ import timber.log.Timber;
 public class MessageCompose extends K9Activity implements OnClickListener,
     CancelListener, AttachmentDownloadCancelListener, OnFocusChangeListener,
     OnOpenPgpInlineChangeListener, OnOpenPgpSignOnlyChangeListener, MessageBuilder.Callback,
-    AttachmentPresenter.AttachmentsChangedListener, OnOpenPgpDisableListener, OnPqcSignOnlyChangeListener {
+    AttachmentPresenter.AttachmentsChangedListener, OnOpenPgpDisableListener, OnPqcSignOnlyChangeListener,
+    OnPqcEncryptOnlyChangeListener, OnPqcSigEncryptOnlyChangeListener {
 
     private static final int DIALOG_SAVE_OR_DISCARD_DRAFT_MESSAGE = 1;
     private static final int DIALOG_CONFIRM_DISCARD_ON_BACK = 2;
@@ -1418,7 +1421,16 @@ public class MessageCompose extends K9Activity implements OnClickListener,
     @Override
     public void onPqcSignOnlyChange(boolean enabled) {
         recipientPresenter.onCryptoPqcSignOnlyDisabled();
+    }
 
+    @Override
+    public void onEncryptSignOnlyChange(boolean enabled) {
+        recipientPresenter.onCryptoPqcEncryptOnlyDisabled();
+    }
+
+    @Override
+    public void onSigEncryptSignOnlyChange(boolean enabled) {
+        recipientPresenter.onCryptoPqcSignEncryptOnlyDisabled();
     }
 
     static class SendMessageTask extends AsyncTask<Void, Void, Void> {

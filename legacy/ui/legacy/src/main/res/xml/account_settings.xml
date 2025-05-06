@@ -530,6 +530,12 @@
                 android:key="pqc_delete_all_keys"
                 android:title="@string/_pqc_delete_all_keys_title"
                 android:summary="@string/_pqc_delete_all_keys_summary" />
+
+            <Preference
+                android:key="run_pqc_benchmark"
+                android:title="Run PQC Benchmark"
+                android:summary="Run a full benchmark for PQC algorithms and export results."
+                />
         </PreferenceCategory>
 
     </PreferenceScreen>

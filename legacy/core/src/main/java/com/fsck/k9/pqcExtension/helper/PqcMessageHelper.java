@@ -5,7 +5,14 @@ import java.util.Base64;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import android.os.Build.VERSION_CODES;
+
+import androidx.annotation.RequiresApi;
+import com.fsck.k9.mail.Body;
+import com.fsck.k9.mail.BodyPart;
+import com.fsck.k9.mail.Multipart;
 import com.fsck.k9.mail.Part;
+import com.fsck.k9.mailstore.BinaryMemoryBody;
 
 
 public class PqcMessageHelper {
@@ -80,10 +87,31 @@ public class PqcMessageHelper {
             .getBytes(StandardCharsets.UTF_8);
     }
 
+    @RequiresApi(api = VERSION_CODES.TIRAMISU)
     public static byte[] extractEncryptedPayload(Part part) throws Exception {
-        String armoredText = new String(canonicalize(part), StandardCharsets.UTF_8);
-        String payloadBase64 = extractContent(armoredText, "ENCRYPTED MESSAGE");
-        return decodeCleanBase64(payloadBase64);
+        Body body = part.getBody();
+        if (!(body instanceof Multipart)) {
+            throw new IllegalArgumentException("Expected Multipart body");
+        }
+
+        Multipart multipart = (Multipart) body;
+
+        for (BodyPart bodyPart : multipart.getBodyParts()) {
+            if (bodyPart.isMimeType("application/octet-stream")) {
+                Body innerBody = bodyPart.getBody();
+                if (innerBody instanceof BinaryMemoryBody) {
+                    byte[] base64Bytes = innerBody.getInputStream().readAllBytes();
+
+                    // FIX: Base64-dekodieren
+                    return Base64.getDecoder().decode(base64Bytes);
+                } else {
+                    throw new Exception("application/octet-stream body is not a BinaryMemoryBody (was: " + innerBody.getClass().getSimpleName() + ")");
+                }
+            }
+        }
+
+        throw new Exception("Encrypted payload part not found in multipart/encrypted");
     }
+
 
 }

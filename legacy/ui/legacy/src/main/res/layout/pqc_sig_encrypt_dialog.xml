@@ -10,7 +10,7 @@
     android:paddingRight="10dp"
     android:paddingTop="14dp"
     android:paddingBottom="14dp"
-    tools:context="com.fsck.k9.activity.compose.PqcEncryptionDescriptionDialog">
+    tools:context="com.fsck.k9.activity.compose.PqcSigEncrytpDescriptionDialog">
 
     <LinearLayout
         android:layout_width="wrap_content"
@@ -32,7 +32,7 @@
             android:layout_marginLeft="6dp"
             android:layout_marginRight="6dp"
             android:textAppearance="?android:textAppearanceMedium"
-            android:text="@string/pqc_encryption_label" />
+            android:text="@string/pqc_sig_encryption_label" />
     </LinearLayout>
 
     <com.google.android.material.textview.MaterialTextView
@@ -41,7 +41,7 @@
         android:textAppearance="?android:textAppearanceSmall"
         android:layout_marginTop="10dp"
         android:layout_marginBottom="10dp"
-        android:text="@string/pqc_encryption_description_text1" />
+        android:text="@string/pqc_sig_encryption_description_text1" />
 
 
     <com.google.android.material.textview.MaterialTextView

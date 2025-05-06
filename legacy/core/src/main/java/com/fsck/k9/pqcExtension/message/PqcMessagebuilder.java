@@ -32,7 +32,6 @@ import com.fsck.k9.pqcExtension.helper.signature.CompositeSignatureHelper;
 import com.fsck.k9.pqcExtension.helper.PqcMessageHelper;
 import com.fsck.k9.pqcExtension.keyManagement.PgpSimpleKeyManager;
 import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory;
-import org.apache.james.mime4j.Charsets;
 import org.apache.james.mime4j.util.MimeUtil;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPPublicKey;
@@ -44,8 +43,6 @@ import java.security.Security;
 import java.util.Base64;
 import java.util.Date;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 
 public class PqcMessagebuilder extends MessageBuilder {
@@ -126,7 +123,7 @@ public class PqcMessagebuilder extends MessageBuilder {
         currentProcessedMimeMessage.setHeader(MimeHeader.HEADER_CONTENT_TYPE, signedContentType);
     }
 
-    private MimeBodyPart createBodyPartFromMessageContent() throws MessagingException {
+    private MimeBodyPart extractBodyPartFromCurrentMessage() throws MessagingException {
         MimeBodyPart bodyPart = currentProcessedMimeMessage.toBodyPart();
         String[] contentType = currentProcessedMimeMessage.getHeader(MimeHeader.HEADER_CONTENT_TYPE);
         if (contentType.length > 0) {
@@ -221,7 +218,7 @@ public class PqcMessagebuilder extends MessageBuilder {
             currentProcessedMimeMessage = build();
 
             if (messageContentBodyPart == null) {
-                messageContentBodyPart = createBodyPartFromMessageContent();
+                messageContentBodyPart = extractBodyPartFromCurrentMessage();
             }
             startOrContinueBuildMessage(null);
         } catch (MessagingException me) {
@@ -243,7 +240,19 @@ public class PqcMessagebuilder extends MessageBuilder {
             boolean shouldSign = cryptoStatus.isSignPqcHybridEnabled();
             boolean shouldEncrypt = cryptoStatus.isEncryptPqcHybridEnabled();
 
-            if (shouldSign) {
+            if (shouldSign && shouldEncrypt) {
+                // 1. Signieren
+                byte[] canonicalData = PqcMessageHelper.canonicalize(messageContentBodyPart);
+                Timber.d("PQC: Canonicalized data (sign+encrypt): %s", new String(canonicalData, StandardCharsets.UTF_8));
+                CompositeSignatureHelper signatureHelper = new CompositeSignatureHelper(getAccount().getUuid(), context);
+                Map<String, byte[]> signatureMap = signatureHelper.signAll(canonicalData);
+                mimeBuildSignedMessage(messageContentBodyPart, signatureMap);
+
+                // 2. Danach verschlüsseln (signierte Nachricht ist jetzt bodyPart)
+                MimeBodyPart signedPart = extractBodyPartFromCurrentMessage(); // Das signierte Ergebnis erneut holen
+                mimeBuildEncryptedMessageHybridRFC(signedPart);
+
+            } else if (shouldSign) {
                 byte[] canonicalData = PqcMessageHelper.canonicalize(messageContentBodyPart);
                 Timber.d("PQC: Canonicalized data (sign): %s", new String(canonicalData, StandardCharsets.UTF_8));
                 CompositeSignatureHelper signatureHelper = new CompositeSignatureHelper(getAccount().getUuid(), context);

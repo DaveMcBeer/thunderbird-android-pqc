@@ -39,6 +39,7 @@ import com.fsck.k9.ui.base.extensions.withArguments
 import com.fsck.k9.ui.endtoend.AutocryptKeyTransferActivity
 import com.fsck.k9.ui.settings.account.pqcExtension.PqcKemKeyManagementFragment
 import com.fsck.k9.ui.settings.account.pqcExtension.PqcSigningKeyManagementFragment
+import com.fsck.k9.ui.settings.account.pqcExtension.bechmark.PQCBenchmarkRunner
 import com.fsck.k9.ui.settings.onClick
 import com.fsck.k9.ui.settings.oneTimeClickListener
 import com.fsck.k9.ui.settings.remove
@@ -104,6 +105,7 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
         initializeInternalKeyDeletion()
         initializePqcSendKeys()
         initializePgpKeyGeneration()
+        initializePqcBenchmarkRunner()
         //--- END ---
     }
 
@@ -667,6 +669,7 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
                     try {
                         // Lösche PGP
                         SimpleKeyService.ClearAllUsersKeys(requireContext(), account.uuid)
+                        initializePqcSendKeys()
                         // Lösche PQC Signatur- und KEM-Schlüssel
                         Snackbar.make(requireView(), "Alle Schlüssel erfolgreich gelöscht", Snackbar.LENGTH_SHORT).show()
                     } catch (e: Exception) {
@@ -748,6 +751,16 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
             } catch (e: Exception) {
                 Snackbar.make(requireView(), getString(R.string._pqc_generate_pgp_error, e.message ?: "unknown"), Snackbar.LENGTH_LONG).show()
             }
+        }
+    }
+    private fun initializePqcBenchmarkRunner() {
+        findPreference<Preference>("run_pqc_benchmark")?.onClick {
+            Toast.makeText(requireContext(), "Running PQC Benchmark...", Toast.LENGTH_SHORT).show()
+
+            // Benchmark starten
+            val result = PQCBenchmarkRunner.runAllBenchmarks(requireContext())
+
+            Toast.makeText(requireContext(), result, Toast.LENGTH_LONG).show()
         }
     }
 

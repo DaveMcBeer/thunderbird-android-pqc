@@ -1229,6 +1229,11 @@ You can keep this message and use it as a backup for your secret key. If you wan
     <string name="pqc_encryption_enabled_error_disable">Disable Hybrid Encryption</string>
     <string name="pqc_encryption_label">PQC/PGP Hybrid Encryption</string>
 
+    <string name="pqc_sig_encryption_label">PQC/PGP Hybrid Encryption and Signing</string>
+    <string name="pqc_sig_encryption_description_text1">Encrypting and signing messages with hybrid algorithms ensures forward secrecy against future quantum adversaries.</string>
+    <string name="pqc_sig_encryption_description_text2">Tap the lock icon to toggle hybrid encryption/signing on or off.</string>
+    <string name="pqc_sig_encryption_description_text3">Hybrid encryption/singing is only possible if all recipients support both PGP and PQC.</string>
+
     <string name="crypto_msg_title_pqc_encrypted">Hybrid Encrypted</string>
     <string name="crypto_msg_pqc_encrypted_verified">This message was successfully decrypted using hybrid post-quantum encryption (PQC + PGP).</string>
     <string name="crypto_msg_pqc_encrypted_error">The message could not be decrypted using hybrid PQC encryption.</string>

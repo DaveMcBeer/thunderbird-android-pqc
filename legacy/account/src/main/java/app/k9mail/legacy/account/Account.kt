@@ -318,7 +318,7 @@ class Account(
 
     @get:Synchronized
     @set:Synchronized
-    var isPqcKemEnabled: Boolean = false
+    var isPqcKemEnabled = false
 
     @get:Synchronized
     @set:Synchronized
