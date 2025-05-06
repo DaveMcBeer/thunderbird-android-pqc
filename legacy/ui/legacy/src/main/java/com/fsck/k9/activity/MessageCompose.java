@@ -35,8 +35,10 @@ import android.view.View.OnFocusChangeListener;
 import android.view.ViewStub;
 import android.view.Window;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -246,7 +248,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
     private boolean navigateUp;
 
     private boolean sendMessageHasBeenTriggered = false;
-
+    private View  progressBar;
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -259,7 +261,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
 
         setLayout(R.layout.message_compose);
         ViewStub contentContainer = findViewById(R.id.message_compose_content);
-
+        setupProgressBar();
         sizeFormatter = new SizeFormatter(getResources());
 
         ThemeManager themeManager = getThemeManager();
@@ -274,7 +276,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
 
         // on api level 15, setContentView() shows the progress bar for some reason...
         setProgressBarIndeterminateVisibility(false);
-
+        showProgressBar(false);
         final Intent intent = getIntent();
 
         String messageReferenceString = intent.getStringExtra(EXTRA_MESSAGE_REFERENCE);
@@ -505,6 +507,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         currentMessageBuilder = (MessageBuilder) getLastCustomNonConfigurationInstance();
         if (currentMessageBuilder != null) {
             setProgressBarIndeterminateVisibility(true);
+            showProgressBar(true);
             currentMessageBuilder.reattachCallback(this);
         }
 
@@ -619,11 +622,21 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         if (cryptoStatus.isSignPqcHybrid()) {
             PqcMessagebuilder pqcBuilder = PqcMessagebuilder.newInstance(getApplicationContext(),receptionAdress);
             recipientPresenter.builderSetProperties(pqcBuilder, cryptoStatus , account);
+            if (pqcBuilder == null) {
+                Timber.e("PqcMessagebuilder returned null – PQC config missing?");
+                Toast.makeText(this, "Fehler beim Initialisieren von PQC", Toast.LENGTH_LONG).show();
+                return null;
+            }
             builder=pqcBuilder;
         }
         else if(cryptoStatus.isEncryptPqcHybrid()){
             PqcMessagebuilder pqcBuilder = PqcMessagebuilder.newInstance(getApplicationContext(),receptionAdress);
             recipientPresenter.builderSetProperties(pqcBuilder, cryptoStatus , account);
+            if (pqcBuilder == null) {
+                Timber.e("PqcMessagebuilder returned null – PQC config missing?");
+                Toast.makeText(this, "Fehler beim Initialisieren von PQC", Toast.LENGTH_LONG).show();
+                return null;
+            }
             builder=pqcBuilder;
         }
         else if(shouldUsePgpMessageBuilder) {
@@ -723,6 +736,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         currentMessageBuilder = createMessageBuilder(true);
         if (currentMessageBuilder != null) {
             setProgressBarIndeterminateVisibility(true);
+            showProgressBar(true);
             currentMessageBuilder.buildAsync(this);
         }
     }
@@ -737,6 +751,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
             sendMessageHasBeenTriggered = true;
             changesMadeSinceLastSave = false;
             setProgressBarIndeterminateVisibility(true);
+            showProgressBar(true);
             currentMessageBuilder.buildAsync(this);
         }
     }
@@ -1537,7 +1552,8 @@ public class MessageCompose extends K9Activity implements OnClickListener,
     public void onMessageBuildSuccess(MimeMessage message, boolean isDraft) {
         String plaintextSubject =
                 (currentMessageBuilder instanceof PgpMessageBuilder) ? currentMessageBuilder.getSubject() : null;
-
+        setProgressBarIndeterminateVisibility(false);
+        showProgressBar(false);
         if (isDraft) {
             changesMadeSinceLastSave = false;
             currentMessageBuilder = null;
@@ -1548,6 +1564,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
                 finish();
             } else {
                 setProgressBarIndeterminateVisibility(false);
+                showProgressBar(false);
             }
         } else {
             currentMessageBuilder = null;
@@ -1562,6 +1579,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         sendMessageHasBeenTriggered = false;
         currentMessageBuilder = null;
         setProgressBarIndeterminateVisibility(false);
+        showProgressBar(false);
     }
 
     @Override
@@ -1572,6 +1590,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         sendMessageHasBeenTriggered = false;
         currentMessageBuilder = null;
         setProgressBarIndeterminateVisibility(false);
+        showProgressBar(false);
     }
 
     @Override
@@ -1870,9 +1889,11 @@ public class MessageCompose extends K9Activity implements OnClickListener,
             switch (msg.what) {
                 case MSG_PROGRESS_ON:
                     setProgressBarIndeterminateVisibility(true);
+                    showProgressBar(true);
                     break;
                 case MSG_PROGRESS_OFF:
                     setProgressBarIndeterminateVisibility(false);
+                    showProgressBar(false);
                     break;
                 case MSG_SAVED_DRAFT:
                     draftMessageId = (Long) msg.obj;
@@ -1911,6 +1932,14 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         @StringRes
         public int getTitleResource() {
             return titleResource;
+        }
+    }
+    private void setupProgressBar() {
+        progressBar = findViewById(R.id.progress_overlay);
+    }
+    public void showProgressBar(boolean visible) {
+        if (progressBar != null) {
+            progressBar.setVisibility(visible ? View.VISIBLE : View.GONE);
         }
     }
 }
