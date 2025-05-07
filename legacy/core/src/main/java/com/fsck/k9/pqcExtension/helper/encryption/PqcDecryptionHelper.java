@@ -14,6 +14,7 @@ import com.fsck.k9.pqcExtension.helper.signature.PqcSignatureVerifierHelper;
 import com.fsck.k9.pqcExtension.keyManagement.manager.PgpSimpleKeyManager;
 import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory;
 import com.fsck.k9.pqcExtension.message.results.PqcDecryptionResult;
+import com.fsck.k9.pqcExtension.message.results.PqcSignatureResult;
 import javax.crypto.Cipher;
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
@@ -78,12 +79,17 @@ public class PqcDecryptionHelper {
             MimeBodyPart replacementData = decryptedMime.toBodyPart();
             Part primaryPart = MessageCryptoStructureDetector.findPrimaryEncryptedOrSignedPart(decryptedMime, new ArrayList<>());
             if (primaryPart != null && MessageCryptoStructureDetector.isMultipartSignedWithMultipleSignatures(primaryPart)) {
+
+
                 CryptoResultAnnotation annotation = PqcSignatureVerifierHelper.verifyAll(context, primaryPart, senderEmail, userId);
-                replacementData = annotation.getReplacementData();
-                return CryptoResultAnnotation.createPqcEncryptionSuccessAnnotation(
-                    pqcResult,
-                    replacementData
-                ).withEncapsulatedResult(annotation);
+                PqcSignatureResult pqcSigResult= annotation.getPqcSignatureResult();
+                if(pqcSigResult != null){
+                    return CryptoResultAnnotation.createPqcEncryptionSignatureSuccessAnnotation(
+                        pqcResult,
+                        pqcSigResult,
+                        replacementData
+                    );
+                }
             }
             // Korrekte Annotation mit replacementData als MIME-BodyPart
             return CryptoResultAnnotation.createPqcEncryptionSuccessAnnotation(
