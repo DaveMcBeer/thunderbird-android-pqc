@@ -89,27 +89,45 @@ public class PqcMessageHelper {
 
     @RequiresApi(api = VERSION_CODES.TIRAMISU)
     public static byte[] extractEncryptedPayload(Part part) throws Exception {
-        Body body = part.getBody();
-        if (!(body instanceof Multipart)) {
+        if (!(part.getBody() instanceof Multipart)) {
             throw new IllegalArgumentException("Expected Multipart body");
         }
 
-        Multipart multipart = (Multipart) body;
+        Multipart multipart = (Multipart) part.getBody();
 
         for (BodyPart bodyPart : multipart.getBodyParts()) {
             if (bodyPart.isMimeType("application/octet-stream")) {
                 Body innerBody = bodyPart.getBody();
-                if (innerBody instanceof BinaryMemoryBody) {
-                    BinaryMemoryBody binaryBody = (BinaryMemoryBody) innerBody;
-                    return binaryBody.getInputStream().readAllBytes();
-                } else {
-                    throw new Exception("application/octet-stream body is not a BinaryMemoryBody (was: " + innerBody.getClass().getSimpleName() + ")");
+
+                if (!(innerBody instanceof BinaryMemoryBody)) {
+                    throw new IllegalArgumentException("Unexpected body type: " + innerBody.getClass().getSimpleName());
                 }
+
+                BinaryMemoryBody binaryBody = (BinaryMemoryBody) innerBody;
+                byte[] rawBytes = binaryBody.getInputStream().readAllBytes();
+
+                // 1. Base64-Rohdaten (als Text)
+                String rawText = new String(rawBytes, StandardCharsets.US_ASCII);
+                System.out.println("📦 Base64-Rohtext (erste 100 Zeichen):");
+                System.out.println(rawText.substring(0, Math.min(100, rawText.length())));
+
+                // 2. Prüfung: Nur gültige Base64-Zeichen
+                if (!rawText.matches("[A-Za-z0-9+/=\\r\\n]+")) {
+                    throw new IllegalArgumentException("Ungültige Zeichen in Base64-Daten gefunden");
+                }
+
+                // 3. Dekodierung mit MIME-kompatiblem Decoder (erlaubt \r\n)
+                byte[] decoded = Base64.getMimeDecoder().decode(rawText);
+
+                System.out.println("✅ Dekodiert: Länge = " + decoded.length + " Bytes");
+                return decoded;
             }
         }
 
-        throw new Exception("Encrypted payload part not found in multipart/encrypted");
+        throw new Exception("⚠️ Kein verschlüsselter Payload-Part gefunden");
     }
+
+
 
 
 }

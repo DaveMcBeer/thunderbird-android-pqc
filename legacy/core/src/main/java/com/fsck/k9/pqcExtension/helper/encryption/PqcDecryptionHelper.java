@@ -97,9 +97,8 @@ public class PqcDecryptionHelper {
     }
     public static byte[] decryptWithAes(byte[] encrypted, byte[] sessionKey) throws Exception {
 
-        byte[] decoded = Base64.getDecoder().decode(encrypted);
 
-        ByteBuffer buffer = ByteBuffer.wrap(decoded);
+        ByteBuffer buffer = ByteBuffer.wrap(encrypted);
         // Schutz: Check, ob genug Daten für ein plausibles IV vorhanden sind
         if (buffer.remaining() < 4) {
             throw new IllegalArgumentException("Encrypted data too short to contain IV length");

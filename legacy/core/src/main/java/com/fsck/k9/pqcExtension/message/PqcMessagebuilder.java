@@ -108,10 +108,9 @@ public class PqcMessagebuilder extends MessageBuilder {
             String filename = "signature-" + algorithm + ".asc";
 
             MimeBodyPart sigPart = MimeBodyPart.create(
-                new BinaryMemoryBody(sigData, MimeUtil.ENC_7BIT),
+                new BinaryMemoryBody(armored.getBytes(StandardCharsets.US_ASCII), MimeUtil.ENC_7BIT),
                 "application/pgp-signature; name=\"" + filename + "\""
             );
-            sigPart.setHeader("Content-Transfer-Encoding", "7bit");
             sigPart.setHeader("Content-Disposition", "inline; filename=\"" + filename + "\"");
             multipartSigned.addBodyPart(sigPart);
         }
@@ -182,7 +181,7 @@ public class PqcMessagebuilder extends MessageBuilder {
             multipartEncrypted.addBodyPart(versionPart);
 
             // Part 2: verschlüsselter Body
-            String base64Encoded = Base64.getEncoder().encodeToString(encryptedPayload);
+            String base64Encoded = Base64.getMimeEncoder(76, "\r\n".getBytes()).encodeToString(encryptedPayload);
             BinaryMemoryBody body = new BinaryMemoryBody(base64Encoded.getBytes(StandardCharsets.US_ASCII), MimeUtil.ENC_7BIT);
             MimeBodyPart encryptedPart = new MimeBodyPart();
             encryptedPart.setBody(body);
