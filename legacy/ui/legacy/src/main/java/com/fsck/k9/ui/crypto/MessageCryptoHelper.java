@@ -734,6 +734,8 @@ public class MessageCryptoHelper {
         onCryptoFinished();
     }
 
+
+
     private void propagateEncapsulatedSignedPart(CryptoResultAnnotation resultAnnotation, Part part) {
         Part encapsulatingPart = messageAnnotations.findKeyForAnnotationWithReplacementPart(part);
         CryptoResultAnnotation encapsulatingPartAnnotation = messageAnnotations.get(encapsulatingPart);

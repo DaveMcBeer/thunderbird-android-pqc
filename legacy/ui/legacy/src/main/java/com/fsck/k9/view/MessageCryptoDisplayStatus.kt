@@ -222,7 +222,12 @@ enum class MessageCryptoDisplayStatus(
         titleTextRes = R.string.crypto_msg_title_pqc_encrypted,
         descriptionTextRes = R.string.crypto_msg_pqc_encrypted_error
     ),
-    ;
+    PQC_ENCRYPTED_SIGNED_VERIFIED(
+        colorAttr = R.attr.openpgp_green,
+        statusIconRes = R.drawable.status_lock_dots_3,
+        titleTextRes = R.string.crypto_msg_title_pqc_encrypted_sig,
+        descriptionTextRes = R.string.crypto_msg_pqc_encrypted_sig_verified
+    );
 
     fun hasAssociatedKey(): Boolean {
         return when (this) {
@@ -276,6 +281,7 @@ enum class MessageCryptoDisplayStatus(
                 CryptoError.PQC_SIGNED_OK -> MIXED_SIGN_VERIFIED
                 CryptoError.PQC_ENCRYPTED_OK -> PQC_ENCRYPTED_VERIFIED
                 CryptoError.PQC_ENCRYPTED_ERROR -> PQC_ENCRYPTED_ERROR
+                CryptoError.PQC_SIGNED_AND_ENCRYPT_OK -> PQC_ENCRYPTED_SIGNED_VERIFIED
                 CryptoError.OPENPGP_OK -> getDisplayStatusForPgpResult(cryptoResult)
                 CryptoError.OPENPGP_ENCRYPTED_BUT_INCOMPLETE -> INCOMPLETE_ENCRYPTED
                 CryptoError.OPENPGP_SIGNED_BUT_INCOMPLETE -> INCOMPLETE_SIGNED

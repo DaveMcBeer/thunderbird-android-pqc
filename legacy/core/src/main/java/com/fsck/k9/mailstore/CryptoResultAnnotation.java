@@ -280,6 +280,26 @@ public final class CryptoResultAnnotation {
             null
         );
     }
+
+    public static CryptoResultAnnotation createPqcEncryptionSignatureSuccessAnnotation(
+        @NonNull PqcDecryptionResult decryptionResult,
+        @NonNull PqcSignatureResult signatureResult,
+        @Nullable MimeBodyPart replacementData
+    ) {
+        return new CryptoResultAnnotation(
+            CryptoError.PQC_SIGNED_AND_ENCRYPT_OK,
+            replacementData,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false,
+            decryptionResult,
+            signatureResult,
+            null
+        );
+    }
     public static CryptoResultAnnotation createPqcEncryptionErrorAnnotation(
         @NonNull PqcDecryptionResult decryptionResult,
         @Nullable MimeBodyPart replacementData,
@@ -318,7 +338,8 @@ public final class CryptoResultAnnotation {
         PQC_SIGNED_OK,
         PQC_SIGNATURE_ERROR,
         PQC_ENCRYPTED_OK,
-        PQC_ENCRYPTED_ERROR
+        PQC_ENCRYPTED_ERROR,
+        PQC_SIGNED_AND_ENCRYPT_OK,
 
         //--- ENDE ---
     }
