@@ -203,6 +203,7 @@ public class PqcMessagebuilder extends MessageBuilder {
             String foldedPqc = HybridEncryptionHelper.foldHeaderValue(Base64.getEncoder().encodeToString(kemResult.pqcCiphertext));
             currentProcessedMimeMessage.setHeader("X-Hybrid-RSA", foldedRsa);
             currentProcessedMimeMessage.setHeader("X-Hybrid-PQC", foldedPqc);
+            currentProcessedMimeMessage.setHeader("X-Hybrid-KDF"," HKDF-SHA256");
 
             // (Optional) besser lesbar:
             currentProcessedMimeMessage.setHeader("X-Pgp-Hybrid-Pqc", "true");

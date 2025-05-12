@@ -76,15 +76,7 @@ public class PqcDecryptionHelper {
             InputStream plaintextStream = new ByteArrayInputStream(plaintext);
             MimeMessage decryptedMime = MimeMessage.parseMimeMessage(plaintextStream, true); // oder false, je nach Bedarf
             MimeBodyPart replacementData = decryptedMime.toBodyPart();
-            Part primaryPart = MessageCryptoStructureDetector.findPrimaryEncryptedOrSignedPart(decryptedMime, new ArrayList<>());
-            if (primaryPart != null && MessageCryptoStructureDetector.isMultipartSignedWithMultipleSignatures(primaryPart)) {
-                CryptoResultAnnotation annotation = PqcSignatureVerifierHelper.verifyAll(context, primaryPart, senderEmail, userId);
-                replacementData = annotation.getReplacementData();
-                return CryptoResultAnnotation.createPqcEncryptionSuccessAnnotation(
-                    pqcResult,
-                    replacementData
-                ).withEncapsulatedResult(annotation);
-            }
+     
             // Korrekte Annotation mit replacementData als MIME-BodyPart
             return CryptoResultAnnotation.createPqcEncryptionSuccessAnnotation(
                 pqcResult,
