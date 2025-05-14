@@ -1234,13 +1234,13 @@ You can keep this message and use it as a backup for your secret key. If you wan
     <string name="pqc_sig_encryption_description_text2">Tap the lock icon to toggle hybrid encryption/signing on or off.</string>
     <string name="pqc_sig_encryption_description_text3">Hybrid encryption/singing is only possible if all recipients support both PGP and PQC.</string>
 
-    <string name="crypto_msg_title_pqc_encrypted">Hybrid Encrypted and Signed</string>
-    <string name="crypto_msg_pqc_encrypted_verified">This message was successfully decrypted and verified using hybrid post-quantum encryption (PQC + PGP).</string>
-    <string name="crypto_msg_pqc_encrypted_error">The message could not be decrypted using hybrid PQC encryption.</string>
-
-    <string name="crypto_msg_title_pqc_encrypted_sig">Hybrid Encrypted</string>
-    <string name="crypto_msg_pqc_encrypted_sig_verified">This message was successfully decrypted using hybrid post-quantum encryption (PQC + PGP).</string>
+    <string name="crypto_msg_title_pqc_encrypted_sig">Hybrid Encrypted and Signed</string>
+    <string name="crypto_msg_pqc_encrypted_sig_verified">This message was successfully decrypted and verified using hybrid post-quantum encryption (PQC + PGP).</string>
     <string name="crypto_msg_pqc_encrypted_sig_error">The message could not be decrypted using hybrid PQC encryption.</string>
+
+    <string name="crypto_msg_title_pqc_encrypted">Hybrid Encrypted</string>
+    <string name="crypto_msg_pqc_encrypted_verified">This message was successfully decrypted using hybrid post-quantum encryption (PQC + PGP).</string>
+    <string name="crypto_msg_pqc_encrypted_error">The message could not be decrypted using hybrid PQC encryption.</string>
 
 
     <string name="crypto_msg_title_mixed_signed">Hybrid Signature</string>

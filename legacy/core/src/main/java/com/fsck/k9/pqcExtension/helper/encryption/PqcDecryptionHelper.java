@@ -10,12 +10,15 @@ import com.fsck.k9.mail.Part;
 import com.fsck.k9.mail.internet.MimeBodyPart;
 import com.fsck.k9.mail.internet.MimeMessage;
 import com.fsck.k9.mailstore.CryptoResultAnnotation;
+import com.fsck.k9.mailstore.MimePartStreamParser;
+import com.fsck.k9.mailstore.util.FileFactory;
 import com.fsck.k9.pqcExtension.helper.PqcMessageHelper;
 import com.fsck.k9.pqcExtension.helper.signature.PqcSignatureVerifierHelper;
 import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory;
 import com.fsck.k9.pqcExtension.keyManagement.manager.PgpSimpleKeyManager;
 import com.fsck.k9.pqcExtension.message.results.PqcDecryptionResult;
 
+import com.fsck.k9.provider.DecryptedFileProvider;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPSecretKey;
@@ -42,6 +45,7 @@ import java.util.Base64;
 
 public class PqcDecryptionHelper {
 
+
     @RequiresApi(api = VERSION_CODES.TIRAMISU)
     public static CryptoResultAnnotation decrypt(Context context, Part part, String senderEmail, String userId) throws Exception {
         try {
@@ -58,22 +62,25 @@ public class PqcDecryptionHelper {
             byte[] pqcPrivateKey = Base64.getDecoder().decode(keyData.getString("privateKey"));
 
             byte[] encryptedPayload = PqcMessageHelper.extractEncryptedPayload(part);
-
             byte[] plaintext = decryptHybridMessage(
-                context,
-                userId,
-                encryptedPayload,
-                rsaCiphertext,
-                pqcCiphertext,
-                pqcPrivateKey,
-                pqcAlgorithm
+                context, userId,
+                encryptedPayload, rsaCiphertext, pqcCiphertext,
+                pqcPrivateKey, pqcAlgorithm
             );
 
+            // ➕ Parsen der entschlüsselten Nachricht
+            InputStream plaintextStream = new ByteArrayInputStream(plaintext);
+            FileFactory fileFactory = DecryptedFileProvider.getFileFactory(context);
+            MimeBodyPart replacementData = MimePartStreamParser.parse(fileFactory, plaintextStream);
+
+            // 🔁 Falls keine Signatur vorhanden
             PqcDecryptionResult pqcResult = new PqcDecryptionResult(PqcDecryptionResult.RESULT_ENCRYPTED);
 
-            InputStream plaintextStream = new ByteArrayInputStream(plaintext);
-            MimeMessage decryptedMime = MimeMessage.parseMimeMessage(plaintextStream, true);
-            MimeBodyPart replacementData = decryptedMime.toBodyPart();
+            // 🔍 Prüfen auf Signaturstruktur
+            if (MessageCryptoStructureDetector.isMultipartSignedWithMultipleSignatures(replacementData)) {
+                return PqcSignatureVerifierHelper.verifyAll(context, replacementData, senderEmail, userId,pqcResult);
+            }
+
 
             return CryptoResultAnnotation.createPqcEncryptionSuccessAnnotation(pqcResult, replacementData);
 
@@ -81,6 +88,7 @@ public class PqcDecryptionHelper {
             throw new RuntimeException(e);
         }
     }
+
 
     public static byte[] decryptWithAes(byte[] encrypted, byte[] sessionKey) throws Exception {
         ByteBuffer buffer = ByteBuffer.wrap(encrypted);

@@ -3,6 +3,7 @@ package com.fsck.k9.pqcExtension.helper.signature;
 import android.content.Context;
 import android.os.Build.VERSION_CODES;
 
+import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
 import com.fsck.k9.mail.BodyPart;
@@ -16,6 +17,7 @@ import com.fsck.k9.pqcExtension.helper.PqcMessageHelper;
 import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory;
 import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory.KeyType;
 import com.fsck.k9.pqcExtension.keyManagement.manager.PgpSimpleKeyManager;
+import com.fsck.k9.pqcExtension.message.results.PqcDecryptionResult;
 import com.fsck.k9.pqcExtension.message.results.PqcError;
 import com.fsck.k9.pqcExtension.message.results.PqcSignatureResult;
 import com.fsck.k9.pqcExtension.message.results.PqcSignatureResult.SenderStatusResult;
@@ -38,7 +40,7 @@ import java.util.Base64;
 public class PqcSignatureVerifierHelper {
 
     @RequiresApi(api = VERSION_CODES.TIRAMISU)
-    public static CryptoResultAnnotation verifyAll(Context context, Part part, String senderEmail, String accountId) {
+    public static CryptoResultAnnotation verifyAll(Context context, Part part, String senderEmail, String accountId, @Nullable PqcDecryptionResult decryptionResult) {
         try {
             Multipart multipart = (Multipart) part.getBody();
             if (multipart.getCount() < 2) {
@@ -49,30 +51,35 @@ public class PqcSignatureVerifierHelper {
             byte[] signedData = PqcMessageHelper.canonicalize(signedContentPart);
 
             JSONObject keyData = SimpleKeyStoreFactory.getKeyStore(KeyType.PQC_SIG).loadRemotePublicKey(context, senderEmail);
-            String declaredSigAlgorithm = keyData.has("algorithm") ? keyData.getString("algorithm") : "DEFAULT_ALGO";
-            String pqcSigPk = keyData.has("publicKey") ? keyData.getString("publicKey") : "";
+            String declaredSigAlgorithm = keyData.optString("algorithm", "DEFAULT_ALGO");
+            String pqcSigPk = keyData.optString("publicKey", "");
+
             if (pqcSigPk.isEmpty()) {
                 return CryptoResultAnnotation.createPqcSignatureErrorAnnotation(
                     new PqcError(PqcError.KEY_MISSING, "PQC public key is missing for sender " + senderEmail),
                     null
                 );
             }
+
             byte[] pqcPubKey = Base64.getDecoder().decode(pqcSigPk);
 
-            String pgpPublicKeyArmored = SimpleKeyStoreFactory.getKeyStore(SimpleKeyStoreFactory.KeyType.PGP)
+            String pgpPublicKeyArmored = SimpleKeyStoreFactory.getKeyStore(KeyType.PGP)
                 .loadRemotePublicKeyArmoredString(context, senderEmail);
 
             if (Security.getProvider("BC") == null) {
                 Security.addProvider(new BouncyCastleProvider());
             }
+
             PGPPublicKeyRing pgpRing = PgpSimpleKeyManager.parsePublicKeyRing(pgpPublicKeyArmored);
             PGPPublicKey pgpPubKey = pgpRing.getPublicKey();
+
             if (pgpPubKey == null) {
                 return CryptoResultAnnotation.createPqcSignatureErrorAnnotation(
                     new PqcError(PqcError.KEY_MISSING, "PGP public key is missing or invalid for sender " + senderEmail),
                     null
                 );
             }
+
             boolean edValid = false;
             boolean pqcValid = false;
 
@@ -89,34 +96,46 @@ public class PqcSignatureVerifierHelper {
 
                 boolean isPgp = filename.toLowerCase().contains("pgp");
 
-                byte[] sigBytes;
-
                 if (isPgp) {
-                    sigBytes = asciiSig.getBytes(StandardCharsets.US_ASCII);
+                    byte[] sigBytes = asciiSig.getBytes(StandardCharsets.US_ASCII);
                     edValid = verifyPgpSignature(signedData, sigBytes, pgpPubKey);
                 } else if (filename.toLowerCase().contains("pqc")) {
                     String sigContent = PqcMessageHelper.extractContent(asciiSig, "PQC SIGNATURE");
-                    sigBytes = PqcMessageHelper.decodeCleanBase64(sigContent);
+                    byte[] sigBytes = PqcMessageHelper.decodeCleanBase64(sigContent);
                     pqcValid = verifyPqcSignature(signedData, sigBytes, pqcPubKey, declaredSigAlgorithm);
                 }
             }
 
+            MimeBodyPart replacementData = (MimeBodyPart) signedContentPart;
+
             if (edValid && pqcValid) {
+                PqcSignatureResult signatureResult = PqcSignatureResult.createWithValidSignature(
+                    PqcSignatureResult.RESULT_VALID_KEY_CONFIRMED,
+                    senderEmail, 0L, new ArrayList<>(), new ArrayList<>(),
+                    SenderStatusResult.USER_ID_CONFIRMED
+                );
+
+                if (decryptionResult != null && decryptionResult.getResult() == PqcDecryptionResult.RESULT_ENCRYPTED) {
+                    return CryptoResultAnnotation.createPqcEncryptionSignatureSuccessAnnotation(
+                        decryptionResult,
+                        signatureResult,
+                        replacementData
+                    );
+                }
+
                 return CryptoResultAnnotation.createPqcSignatureSuccessAnnotation(
                     null,
-                    PqcSignatureResult.createWithValidSignature(
-                        PqcSignatureResult.RESULT_VALID_KEY_CONFIRMED,
-                        senderEmail, 0L, new ArrayList<>(), new ArrayList<>(),
-                        SenderStatusResult.USER_ID_CONFIRMED
-                    ),
-                    (MimeBodyPart) signedContentPart
-                );
-            } else {
-                return CryptoResultAnnotation.createPqcSignatureErrorAnnotation(
-                    new PqcError(PqcError.INVALID_SIGNATURE, "Invalid signature(s) in PQC or PGP"),
-                    (MimeBodyPart) signedContentPart
+                    signatureResult,
+                    replacementData
                 );
             }
+
+            // Wenn Signatur ungültig
+            return CryptoResultAnnotation.createPqcEncryptionErrorAnnotation(
+                decryptionResult != null ? decryptionResult : new PqcDecryptionResult(PqcDecryptionResult.RESULT_ENCRYPTED),
+                (MimeBodyPart) signedContentPart,
+                new PqcError(PqcError.INVALID_SIGNATURE, "Invalid signature(s) in PQC or PGP")
+            );
 
         } catch (Exception e) {
             return CryptoResultAnnotation.createPqcSignatureErrorAnnotation(
@@ -125,6 +144,7 @@ public class PqcSignatureVerifierHelper {
             );
         }
     }
+
 
     private static boolean verifyPgpSignature(byte[] data, byte[] sigBytes, PGPPublicKey pubKey) {
         try {

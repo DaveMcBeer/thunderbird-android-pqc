@@ -491,7 +491,7 @@ public class MessageCryptoHelper {
     private void callPqcVerify(Part part) {
         try {
             String senderEmail = currentMessage.getFrom()[0].getAddress();
-            CryptoResultAnnotation annotation = PqcSignatureVerifierHelper.verifyAll(context, part, senderEmail, account.getUuid());
+            CryptoResultAnnotation annotation = PqcSignatureVerifierHelper.verifyAll(context, part, senderEmail, account.getUuid(),null);
             onCryptoOperationSuccess(annotation);
         } catch (Exception e) {
             MimeBodyPart replacement = getMultipartSignedContentPartIfAvailable(part);
