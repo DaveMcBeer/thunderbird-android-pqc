@@ -2,6 +2,10 @@ package com.fsck.k9.pqcExtension.keyManagement.manager;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+
+import androidx.security.crypto.EncryptedSharedPreferences;
+import androidx.security.crypto.MasterKey;
+
 import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.bcpg.HashAlgorithmTags;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
@@ -21,15 +25,28 @@ import java.security.*;
 import java.util.Date;
 import java.util.Iterator;
 
-
 public class PgpSimpleKeyManager {
-    private static final String PREFS_NAME = "pgp_key_store";
+    private static final String PREFS_NAME = "pgp_key_store_secure";
     private static final String REMOTE_PREFS = "pgp_remote_keys";
 
     static {
         if (Security.getProvider("BC") == null) {
             Security.addProvider(new BouncyCastleProvider());
         }
+    }
+
+    private static SharedPreferences getEncryptedPrefs(Context context, String name) throws Exception {
+        MasterKey masterKey = new MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build();
+
+        return EncryptedSharedPreferences.create(
+            context,
+            name,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        );
     }
 
     public static void generateAndStoreKeyPair(Context context, String userId) throws Exception {
@@ -42,7 +59,7 @@ public class PgpSimpleKeyManager {
         String pubArmored = armorKeyRing(pubRing);
         String privArmored = armorKeyRing(secRing);
 
-        SharedPreferences prefs = getPrefs(context, PREFS_NAME);
+        SharedPreferences prefs = getEncryptedPrefs(context, PREFS_NAME);
         prefs.edit()
             .putString(userId + "_pub", pubArmored)
             .putString(userId + "_priv", privArmored)
@@ -50,44 +67,33 @@ public class PgpSimpleKeyManager {
     }
 
     private static PGPKeyRingGenerator generateKeyRing(String identity, char[] passphrase) {
-        try{
-            // RSA-Schlüsselpaar generieren (4096 Bit für starke Sicherheit)
+        try {
             KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA", new BouncyCastleProvider());
-            kpg.initialize(4096); // Wichtig: Schlüssellänge explizit setzen!
+            kpg.initialize(4096);
             KeyPair keyPair = kpg.generateKeyPair();
 
-            // PGP-Schlüsselpaar erstellen (RSA_GENERAL ist der Standard-Tag für RSA)
             PGPKeyPair pgpKeyPair = new JcaPGPKeyPair(PublicKeyAlgorithmTags.RSA_GENERAL, keyPair, new Date());
 
-            // SHA-256 statt SHA-1 für bessere Sicherheit
-            PGPDigestCalculator sha1Cal = new JcaPGPDigestCalculatorProviderBuilder()
-                .build()
-                .get(HashAlgorithmTags.SHA1);
-
-            // Passwort-Verschlüsselung mit AES-256
+            PGPDigestCalculator sha1Cal = new JcaPGPDigestCalculatorProviderBuilder().build().get(HashAlgorithmTags.SHA1);
             PBESecretKeyEncryptor encryptor = new JcePBESecretKeyEncryptorBuilder(
-                SymmetricKeyAlgorithmTags.AES_256,
-                sha1Cal)
-                .setProvider(new BouncyCastleProvider())
-                .build(passphrase);
+                SymmetricKeyAlgorithmTags.AES_256, sha1Cal).setProvider(new BouncyCastleProvider()).build(passphrase);
 
-            // KeyRingGenerator erstellen (POSITIVE_CERTIFICATION für Selbstsignatur)
             return new PGPKeyRingGenerator(
                 PGPSignature.POSITIVE_CERTIFICATION,
                 pgpKeyPair,
                 identity,
                 sha1Cal,
-                null, // Keine zusätzlichen Subkeys hier
-                null, // Keine zusätzlichen Subkeys hier
+                null,
+                null,
                 new JcaPGPContentSignerBuilder(
                     pgpKeyPair.getPublicKey().getAlgorithm(),
-                    HashAlgorithmTags.SHA256), // SHA-256 für Signaturen
-                encryptor);
+                    HashAlgorithmTags.SHA256
+                ),
+                encryptor
+            );
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
-        catch (Exception e){
-           throw new RuntimeException(e);
-        }
-
     }
 
     private static String armorKeyRing(PGPPublicKeyRing keyRing) throws Exception {
@@ -106,70 +112,24 @@ public class PgpSimpleKeyManager {
         return out.toString("UTF-8");
     }
 
-    public static void deleteKeyPair(Context context, String userId) {
-        getPrefs(context, PREFS_NAME)
-            .edit()
+    public static void deleteKeyPair(Context context, String userId) throws Exception {
+        getEncryptedPrefs(context, PREFS_NAME).edit()
             .remove(userId + "_pub")
             .remove(userId + "_priv")
             .apply();
     }
 
-    public static void deleteAll(Context context) {
-        getPrefs(context, PREFS_NAME).edit().clear().apply();
+    public static void deleteAll(Context context) throws Exception {
+        getEncryptedPrefs(context, PREFS_NAME).edit().clear().apply();
     }
 
-    public static void saveRemotePublicKey(Context context, String userId, String remoteEmail, String algorithm, String publicKey) {
-        try {
-            SharedPreferences prefs = getPrefs(context, REMOTE_PREFS);
-            JSONObject json = new JSONObject();
-            json.put("algorithm", algorithm);
-            json.put("publicKey", publicKey);
-
-            prefs.edit()
-                .putString(remoteEmail.toLowerCase(), json.toString())
-                .apply();
-        } catch (Exception e) {
-            throw new RuntimeException("Fehler beim Speichern des Remote-Keys", e);
-        }
-    }
-
-
-    public static String loadRemotePublicKey(Context context, String remoteEmail) throws Exception {
-        String key = getPrefs(context, REMOTE_PREFS).getString(remoteEmail.toLowerCase(), null);
-        if (key == null) {
-            throw new Exception("Kein Remote-Key vorhanden");
-        }
-
-        // Prüfe, ob es ein JSON-Objekt ist
-        if (key.trim().startsWith("{")) {
-            JSONObject json = new JSONObject(key);
-            if (!json.has("publicKey")) {
-                throw new Exception("JSON enthält keinen 'publicKey'");
-            }
-            return json.getString("publicKey");
-        }
-
-        // Falls es kein JSON ist, Rückgabe wie bisher
-        return key;
-    }
-
-    public static boolean hasKeyPair(Context context, String userId) {
-        SharedPreferences prefs = getPrefs(context, PREFS_NAME);
+    public static boolean hasKeyPair(Context context, String userId) throws Exception {
+        SharedPreferences prefs = getEncryptedPrefs(context, PREFS_NAME);
         return prefs.contains(userId + "_pub") && prefs.contains(userId + "_priv");
     }
 
-    private static SharedPreferences getPrefs(Context context, String name) {
-        return context.getSharedPreferences(name, Context.MODE_PRIVATE);
-    }
-
     public static void importArmoredKeyPair(Context context, String userId, String armoredPublic, String armoredPrivate) throws Exception {
-        // Validierung
-        if (armoredPublic == null || armoredPrivate == null) {
-            throw new IllegalArgumentException("Public or Private key is null");
-        }
-
-        // Speichern
-        SharedPreferences prefs = getPrefs(context, PREFS_NAME);
+        SharedPreferences prefs = getEncryptedPrefs(context, PREFS_NAME);
         prefs.edit()
             .putString(userId + "_pub", armoredPublic)
             .putString(userId + "_priv", armoredPrivate)
@@ -177,43 +137,62 @@ public class PgpSimpleKeyManager {
     }
 
     public static String exportArmoredPublicKey(Context context, String userId) throws Exception {
-        SharedPreferences prefs = getPrefs(context, PREFS_NAME);
+        SharedPreferences prefs = getEncryptedPrefs(context, PREFS_NAME);
         String pub = prefs.getString(userId + "_pub", null);
         if (pub == null) throw new Exception("Kein öffentlicher Schlüssel gefunden");
         return pub;
     }
 
-    // Optional: zum Parsen & Prüfen, falls du willst
-    public static PGPPublicKeyRing parsePublicKeyRing(String armored) throws Exception {
-        InputStream in = PGPUtil.getDecoderStream(new ByteArrayInputStream(armored.getBytes(StandardCharsets.UTF_8)));
-        PGPPublicKeyRingCollection keyRings = new PGPPublicKeyRingCollection(in, new JcaKeyFingerprintCalculator());
-
-        Iterator<PGPPublicKeyRing> ringIter = keyRings.getKeyRings();
-        if (ringIter.hasNext()) {
-            return ringIter.next();
-        } else {
-            throw new IllegalArgumentException("Kein gültiger PGPPublicKeyRing in der Eingabe gefunden");
-        }
-    }
-    public static PGPSecretKeyRing parseSecretKeyRing(String armored) throws Exception {
-        InputStream in = PGPUtil.getDecoderStream(new ByteArrayInputStream(armored.getBytes("UTF-8")));
-        PGPObjectFactory factory = new PGPObjectFactory(in, new JcaKeyFingerprintCalculator());
-        Object obj = factory.nextObject();
-        if (!(obj instanceof PGPSecretKeyRing)) {
-            throw new IllegalArgumentException("Kein gültiger SecretKeyRing");
-        }
-        return (PGPSecretKeyRing) obj;
-    }
-
     public static JSONObject loadLocalPrivateKey(Context context, String userId) throws Exception {
-        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        SharedPreferences prefs = getEncryptedPrefs(context, PREFS_NAME);
         String privArmored = prefs.getString(userId + "_priv", null);
         if (privArmored == null) throw new Exception("Kein privater Schlüssel gefunden");
 
         JSONObject keyJson = new JSONObject();
-        keyJson.put("algorithm", "RSA"); // RSA ist festgelegt für PGP-Keys
+        keyJson.put("algorithm", "RSA");
         keyJson.put("privateKey", privArmored);
         return keyJson;
     }
 
+    public static PGPPublicKeyRing parsePublicKeyRing(String armored) throws Exception {
+        InputStream in = PGPUtil.getDecoderStream(new ByteArrayInputStream(armored.getBytes(StandardCharsets.UTF_8)));
+        PGPPublicKeyRingCollection keyRings = new PGPPublicKeyRingCollection(in, new JcaKeyFingerprintCalculator());
+        Iterator<PGPPublicKeyRing> ringIter = keyRings.getKeyRings();
+        if (ringIter.hasNext()) return ringIter.next();
+        else throw new IllegalArgumentException("Kein gültiger PGPPublicKeyRing");
+    }
+
+    public static PGPSecretKeyRing parseSecretKeyRing(String armored) throws Exception {
+        InputStream in = PGPUtil.getDecoderStream(new ByteArrayInputStream(armored.getBytes("UTF-8")));
+        PGPObjectFactory factory = new PGPObjectFactory(in, new JcaKeyFingerprintCalculator());
+        Object obj = factory.nextObject();
+        if (!(obj instanceof PGPSecretKeyRing)) throw new IllegalArgumentException("Kein gültiger SecretKeyRing");
+        return (PGPSecretKeyRing) obj;
+    }
+
+    public static void saveRemotePublicKey(Context context, String userId, String remoteEmail, String algorithm, String publicKey) {
+        try {
+            SharedPreferences prefs = context.getSharedPreferences(REMOTE_PREFS, Context.MODE_PRIVATE);
+            JSONObject json = new JSONObject();
+            json.put("algorithm", algorithm);
+            json.put("publicKey", publicKey);
+            prefs.edit().putString(remoteEmail.toLowerCase(), json.toString()).apply();
+        } catch (Exception e) {
+            throw new RuntimeException("Fehler beim Speichern des Remote-Keys", e);
+        }
+    }
+
+    public static String loadRemotePublicKey(Context context, String remoteEmail) throws Exception {
+        String key = context.getSharedPreferences(REMOTE_PREFS, Context.MODE_PRIVATE)
+            .getString(remoteEmail.toLowerCase(), null);
+        if (key == null) throw new Exception("Kein Remote-Key vorhanden");
+
+        if (key.trim().startsWith("{")) {
+            JSONObject json = new JSONObject(key);
+            if (!json.has("publicKey")) throw new Exception("JSON enthält keinen 'publicKey'");
+            return json.getString("publicKey");
+        }
+
+        return key;
+    }
 }

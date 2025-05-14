@@ -13,12 +13,12 @@ import com.fsck.k9.mail.internet.MimeBodyPart;
 import com.fsck.k9.mail.internet.MimeUtility;
 import com.fsck.k9.mailstore.CryptoResultAnnotation;
 import com.fsck.k9.pqcExtension.helper.PqcMessageHelper;
-import com.fsck.k9.pqcExtension.keyManagement.manager.PgpSimpleKeyManager;
+import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory;
 import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory.KeyType;
+import com.fsck.k9.pqcExtension.keyManagement.manager.PgpSimpleKeyManager;
 import com.fsck.k9.pqcExtension.message.results.PqcError;
 import com.fsck.k9.pqcExtension.message.results.PqcSignatureResult;
 import com.fsck.k9.pqcExtension.message.results.PqcSignatureResult.SenderStatusResult;
-import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.*;
@@ -92,11 +92,9 @@ public class PqcSignatureVerifierHelper {
                 byte[] sigBytes;
 
                 if (isPgp) {
-                    // PGP: ganze armierte Signatur als bytes übergeben – NICHT decodieren
                     sigBytes = asciiSig.getBytes(StandardCharsets.US_ASCII);
                     edValid = verifyPgpSignature(signedData, sigBytes, pgpPubKey);
                 } else if (filename.toLowerCase().contains("pqc")) {
-                    // PQC: Armored → Base64 extrahieren → dekodieren
                     String sigContent = PqcMessageHelper.extractContent(asciiSig, "PQC SIGNATURE");
                     sigBytes = PqcMessageHelper.decodeCleanBase64(sigContent);
                     pqcValid = verifyPqcSignature(signedData, sigBytes, pqcPubKey, declaredSigAlgorithm);
@@ -127,6 +125,7 @@ public class PqcSignatureVerifierHelper {
             );
         }
     }
+
     private static boolean verifyPgpSignature(byte[] data, byte[] sigBytes, PGPPublicKey pubKey) {
         try {
             InputStream sigIn = PGPUtil.getDecoderStream(new ByteArrayInputStream(sigBytes));
@@ -150,7 +149,6 @@ public class PqcSignatureVerifierHelper {
             return false;
         }
     }
-
 
     private static boolean verifyPqcSignature(byte[] data, byte[] signature, byte[] pubKeyBytes, String algorithm) {
         try {

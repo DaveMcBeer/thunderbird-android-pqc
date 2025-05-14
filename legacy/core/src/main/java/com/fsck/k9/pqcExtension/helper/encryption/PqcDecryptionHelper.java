@@ -4,6 +4,7 @@ import android.content.Context;
 import android.os.Build.VERSION_CODES;
 
 import androidx.annotation.RequiresApi;
+
 import com.fsck.k9.crypto.MessageCryptoStructureDetector;
 import com.fsck.k9.mail.Part;
 import com.fsck.k9.mail.internet.MimeBodyPart;
@@ -11,14 +12,10 @@ import com.fsck.k9.mail.internet.MimeMessage;
 import com.fsck.k9.mailstore.CryptoResultAnnotation;
 import com.fsck.k9.pqcExtension.helper.PqcMessageHelper;
 import com.fsck.k9.pqcExtension.helper.signature.PqcSignatureVerifierHelper;
-import com.fsck.k9.pqcExtension.keyManagement.manager.PgpSimpleKeyManager;
 import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory;
+import com.fsck.k9.pqcExtension.keyManagement.manager.PgpSimpleKeyManager;
 import com.fsck.k9.pqcExtension.message.results.PqcDecryptionResult;
-import javax.crypto.Cipher;
-import javax.crypto.Mac;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
+
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPSecretKey;
@@ -29,13 +26,18 @@ import org.bouncycastle.openpgp.operator.jcajce.JcePBESecretKeyDecryptorBuilder;
 import org.json.JSONObject;
 import org.openquantumsafe.KeyEncapsulation;
 
+import javax.crypto.Cipher;
+import javax.crypto.Mac;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
 import java.security.Security;
-import java.util.ArrayList;
 import java.util.Base64;
 
 public class PqcDecryptionHelper {
@@ -66,32 +68,22 @@ public class PqcDecryptionHelper {
                 pqcPrivateKey,
                 pqcAlgorithm
             );
-            // PQC-Entschlüsselungsergebnis (ohne SessionKeys)
-            PqcDecryptionResult pqcResult = new PqcDecryptionResult(
-                PqcDecryptionResult.RESULT_ENCRYPTED
-            );
 
-            // Erstelle den sichtbaren MIME-Part, der den verschlüsselten ersetzt
-            // 1. Entschlüsselten MIME-Inhalt korrekt parsen
+            PqcDecryptionResult pqcResult = new PqcDecryptionResult(PqcDecryptionResult.RESULT_ENCRYPTED);
+
             InputStream plaintextStream = new ByteArrayInputStream(plaintext);
-            MimeMessage decryptedMime = MimeMessage.parseMimeMessage(plaintextStream, true); // oder false, je nach Bedarf
+            MimeMessage decryptedMime = MimeMessage.parseMimeMessage(plaintextStream, true);
             MimeBodyPart replacementData = decryptedMime.toBodyPart();
-     
-            // Korrekte Annotation mit replacementData als MIME-BodyPart
-            return CryptoResultAnnotation.createPqcEncryptionSuccessAnnotation(
-                pqcResult,
-                replacementData
-            );
+
+            return CryptoResultAnnotation.createPqcEncryptionSuccessAnnotation(pqcResult, replacementData);
 
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
+
     public static byte[] decryptWithAes(byte[] encrypted, byte[] sessionKey) throws Exception {
-
-
         ByteBuffer buffer = ByteBuffer.wrap(encrypted);
-        // Schutz: Check, ob genug Daten für ein plausibles IV vorhanden sind
         if (buffer.remaining() < 4) {
             throw new IllegalArgumentException("Encrypted data too short to contain IV length");
         }
@@ -107,7 +99,6 @@ public class PqcDecryptionHelper {
 
         byte[] ciphertext = new byte[buffer.remaining()];
         buffer.get(ciphertext);
-        System.out.println("IV-Length = " + ivLength + ", Ciphertext length = " + ciphertext.length);
 
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         SecretKey key = new SecretKeySpec(sessionKey, 0, 32, "AES");
@@ -116,6 +107,7 @@ public class PqcDecryptionHelper {
 
         return cipher.doFinal(ciphertext);
     }
+
     public static byte[] deriveSessionKey(byte[] s1, byte[] s2) throws Exception {
         byte[] input = ByteBuffer.allocate(s1.length + s2.length).put(s1).put(s2).array();
         SecretKeySpec keySpec = new SecretKeySpec("hybrid-key-ctx".getBytes(), "HmacSHA256");
@@ -123,12 +115,16 @@ public class PqcDecryptionHelper {
         mac.init(keySpec);
         return mac.doFinal(input);
     }
+
     public static byte[] deriveRsaSharedSecretFromPrivateKey(Context context, String userId, byte[] encryptedSessionKey) throws Exception {
         if (Security.getProvider("BC") == null) {
             Security.addProvider(new BouncyCastleProvider());
         }
-        String armoredPriv = context.getSharedPreferences("pgp_key_store", Context.MODE_PRIVATE)
-            .getString(userId + "_priv", null);
+
+        JSONObject json = SimpleKeyStoreFactory.getKeyStore(SimpleKeyStoreFactory.KeyType.PGP)
+            .loadLocalPrivateKey(context, userId);
+
+        String armoredPriv = json.getString("privateKey");
 
         PGPSecretKeyRing secretKeyRing = PgpSimpleKeyManager.parseSecretKeyRing(armoredPriv);
         PGPSecretKey decryptKey = null;
@@ -150,12 +146,14 @@ public class PqcDecryptionHelper {
         cipher.init(Cipher.DECRYPT_MODE, jcePrivateKey);
         return cipher.doFinal(encryptedSessionKey);
     }
+
     public static byte[] decryptHybridMessage(Context context, String userId, byte[] encryptedAesData, byte[] rsaKemCiphertext, byte[] pqcKemCiphertext, byte[] pqcPrivateKey, String pqcAlgorithm) throws Exception {
         byte[] rsaSharedSecret = deriveRsaSharedSecretFromPrivateKey(context, userId, rsaKemCiphertext);
         byte[] pqcSharedSecret = derivePqcSharedSecret(pqcKemCiphertext, pqcPrivateKey, pqcAlgorithm);
         byte[] sessionKey = deriveSessionKey(rsaSharedSecret, pqcSharedSecret);
         return decryptWithAes(encryptedAesData, sessionKey);
     }
+
     public static byte[] derivePqcSharedSecret(byte[] pqcCiphertext, byte[] pqcPrivateKey, String pqcAlgorithm) {
         KeyEncapsulation kem = new KeyEncapsulation(pqcAlgorithm, pqcPrivateKey);
         byte[] pqcSharedSecret = kem.decap_secret(pqcCiphertext);
@@ -163,9 +161,4 @@ public class PqcDecryptionHelper {
         return pqcSharedSecret;
     }
 
-    private static boolean isProbablyBase64(byte[] input){
-        String s = new String(input, StandardCharsets.US_ASCII).replaceAll("\\s", "");
-        // Base64 erlaubt: A-Z, a-z, 0-9, +, / und =
-        return s.matches("^[A-Za-z0-9+/=]+$") && (s.length() % 4 == 0);
-    }
 }

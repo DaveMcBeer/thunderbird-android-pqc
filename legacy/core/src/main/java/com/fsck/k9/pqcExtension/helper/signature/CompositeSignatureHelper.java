@@ -5,7 +5,6 @@ import android.content.Context;
 import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory;
 import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory.KeyType;
 import com.fsck.k9.pqcExtension.keyManagement.manager.PgpSimpleKeyManager;
-import com.fsck.k9.pqcExtension.keyManagement.manager.PqcKemSimpleKeyManager;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.*;
@@ -38,13 +37,11 @@ public class CompositeSignatureHelper {
     private byte[] signWithPgp(byte[] data) throws Exception {
         JSONObject json = SimpleKeyStoreFactory.getKeyStore(KeyType.PGP).loadLocalPrivateKey(context,userId);
         String armoredPriv = "";
-        if(json.has("privateKey"))
-        {
+        if(json.has("privateKey")) {
             armoredPriv=json.getString("privateKey");
         }
         PGPSecretKeyRing secretKeyRing = PgpSimpleKeyManager.parseSecretKeyRing(armoredPriv);
         if (secretKeyRing == null) throw new Exception("PGP priv key missing");
-
 
         PGPSecretKey signingKey = null;
         for (PGPSecretKey key : secretKeyRing) {
@@ -80,15 +77,9 @@ public class CompositeSignatureHelper {
     }
 
     private byte[] signWithPqcSig(byte[] data) {
-        String keyJson = context.getSharedPreferences("pqc_sig_keys", Context.MODE_PRIVATE)
-            .getString(userId, null);
-        if (keyJson == null) {
-            throw new RuntimeException("PQC private key not found");
-        }
-
         Signature signer = null;
         try {
-            JSONObject obj = new JSONObject(keyJson);
+            JSONObject obj = SimpleKeyStoreFactory.getKeyStore(KeyType.PQC_SIG).loadLocalPrivateKey(context, userId);
             String algorithm = obj.getString("algorithm");
             String privB64 = obj.getString("privateKey");
 
@@ -106,6 +97,4 @@ public class CompositeSignatureHelper {
             }
         }
     }
-
-
 }
