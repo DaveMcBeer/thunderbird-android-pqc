@@ -500,14 +500,15 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
         )
     }
 
-    //--- PQC Erweiterung ---
+    //--- PQC Integration  ---
+
     /**
-     * Initialisiert die Einstellungen für die Verwaltung von PQC-Schlüsseln (Post-Quantum Cryptography).
+     * Initializes PQC signing key management UI and logic.
      *
-     * - Verknüpft die UI-Präferenzen für PQC-Aktivierung, Algorithmuswahl und Schlüsselverwaltung.
-     * - Aktiviert oder deaktiviert die Schlüsselauswahl basierend auf dem gewählten Algorithmus und ob PQC aktiviert ist.
-     * - Reagiert auf Änderungen der PQC-Aktivierung und Algorithmuswahl, aktualisiert dabei die gespeicherten Schlüssel und Einstellungen.
-     * - Öffnet bei Klick auf die Schlüsselverwaltungsoption ein neues Fragment zur Verwaltung der PQC-Schlüssel.
+     * - Enables or disables the key management option based on toggle and algorithm selection.
+     * - When PQC is enabled, ensures that a PGP key pair exists.
+     * - When the user switches the algorithm, the old key pair will be deleted after confirmation.
+     * - Launches the PQC Signing Key Management screen when the preference is clicked.
      */
     private fun initializePqcSigningKeyManagement() {
         val keyManagementPref = findPreference<Preference>("pqc_key_management")
@@ -586,6 +587,14 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
 
 
 
+    /**
+     * Initializes PQC KEM (Key Encapsulation Mechanism) key management UI and logic.
+     *
+     * - Similar to the signing key logic: enables management only when toggle and algorithm are valid.
+     * - On enabling PQC-KEM, ensures a fallback PGP key exists.
+     * - Prompts the user to confirm key deletion when switching algorithms.
+     * - Opens the PQC KEM key management fragment on click.
+     */
     private fun initializePqcKemKeyManagement() {
         val kemKeyManagementPref = findPreference<Preference>("pqc_kem_key_management")
         val kemAlgorithmPref = findPreference<ListPreference>("pqc_kem_algorithm")
@@ -659,28 +668,52 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
         }
     }
 
-    private fun initializeInternalKeyDeletion(){
+
+    /**
+     * Initializes a deletion dialog allowing the user to choose whether to:
+     * - Delete all keys (own and stored remote ones)
+     * - Delete only own keys
+     * - Cancel the operation
+     *
+     * This uses `SimpleKeyService.ClearAllUsersKeys()` with `deleteAll = true|false`.
+     */
+    private fun initializeInternalKeyDeletion() {
         findPreference<Preference>("pqc_delete_all_keys")?.onClick {
             AlertDialog.Builder(requireContext())
-                .setTitle("Alle Schlüssel löschen?")
-                .setMessage("Dies wird alle gespeicherten PGP- und PQC-Schlüssel für dieses Konto unwiderruflich entfernen. Fortfahren?")
-                .setPositiveButton("Löschen") { _, _ ->
+                .setTitle("Delete stored keys?")
+                .setMessage("Do you want to delete only your own keys or also all stored public keys (PGP and PQC) for this account? This action cannot be undone.")
+                .setPositiveButton("Delete all") { _, _ ->
                     val account = getAccount()
                     try {
-                        // Lösche PGP
-                        SimpleKeyService.ClearAllUsersKeys(requireContext(), account.uuid)
+                        SimpleKeyService.ClearAllUsersKeys(requireContext(), account.uuid, true)
                         initializePqcSendKeys()
-                        // Lösche PQC Signatur- und KEM-Schlüssel
-                        Snackbar.make(requireView(), "Alle Schlüssel erfolgreich gelöscht", Snackbar.LENGTH_SHORT).show()
+                        Snackbar.make(requireView(), "All keys successfully deleted", Snackbar.LENGTH_SHORT).show()
                     } catch (e: Exception) {
-                        Snackbar.make(requireView(), "Fehler beim Löschen der Schlüssel: ${e.message}", Snackbar.LENGTH_LONG).show()
+                        Snackbar.make(requireView(), "Error while deleting keys: ${e.message}", Snackbar.LENGTH_LONG).show()
                     }
                 }
-                .setNegativeButton("Abbrechen", null)
+                .setNeutralButton("Delete own only") { _, _ ->
+                    val account = getAccount()
+                    try {
+                        SimpleKeyService.ClearAllUsersKeys(requireContext(), account.uuid, false)
+                        initializePqcSendKeys()
+                        Snackbar.make(requireView(), "Your keys successfully deleted", Snackbar.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Snackbar.make(requireView(), "Error while deleting your keys: ${e.message}", Snackbar.LENGTH_LONG).show()
+                    }
+                }
+                .setNegativeButton("Cancel", null)
                 .show()
         }
     }
 
+    /**
+     * Initializes the feature to manually send your public keys (PGP + PQC) to one or more recipients.
+     *
+     * - Checks that a PGP key is available before allowing sending.
+     * - Prompts the user for one or more email addresses (comma-separated).
+     * - Starts email dispatch using `viewModel.sendPqcKeysByEmail()`.
+     */
     private fun initializePqcSendKeys() {
         val pref = findPreference<Preference>("pqc_send_keys") ?: return
         val account = getAccount()
@@ -731,6 +764,12 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
         }
     }
 
+    /**
+     * Adds an option to manually generate a local PGP key pair.
+     *
+     * - Will generate a 4096-bit RSA key if no key exists.
+     * - Uses the `SimpleKeyStoreFactory` to manage keys.
+     */
     private fun initializePgpKeyGeneration() {
         val pref = findPreference<Preference>("pqc_generate_pgp_key") ?: return
         val account = getAccount()
@@ -756,6 +795,14 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
             }
         }
     }
+
+
+    /**
+     * Adds a PQC benchmark runner to the settings.
+     *
+     * - Runs predefined PQC benchmarks (signing, encryption, key generation, etc.)
+     * - Shows result via Toast after completion.
+     */
     private fun initializePqcBenchmarkRunner() {
         findPreference<Preference>("run_pqc_benchmark")?.onClick {
             Toast.makeText(requireContext(), "Running PQC Benchmark...", Toast.LENGTH_SHORT).show()
@@ -766,7 +813,5 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
             Toast.makeText(requireContext(), result, Toast.LENGTH_LONG).show()
         }
     }
-
-
-    //--- ENDE ---
+    //--- End PQC Integration ---
 }

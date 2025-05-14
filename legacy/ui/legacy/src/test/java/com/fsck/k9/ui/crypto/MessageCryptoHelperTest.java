@@ -71,7 +71,7 @@ public class MessageCryptoHelperTest extends RobolectricTest {
                 .thenReturn(openPgpApi);
 
         messageCryptoHelper = new MessageCryptoHelper(RuntimeEnvironment.getApplication(), openPgpApiFactory,
-                autocryptOperations, "org.example.dummy",null); //--- PQC Erweiterung: null ---
+                autocryptOperations, "org.example.dummy",null);// --- PQC Integration: added null ---
         messageCryptoCallback = mock(MessageCryptoCallback.class);
     }
 

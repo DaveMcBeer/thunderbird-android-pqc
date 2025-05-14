@@ -101,7 +101,7 @@ public class MessageCryptoHelper {
 
 
     public MessageCryptoHelper(Context context, OpenPgpApiFactory openPgpApiFactory,
-            AutocryptOperations autocryptOperations, @Nullable  String openPgpProvider,Account account) { //Anpassung um pqc unabh. von pgp zu verwenden
+            AutocryptOperations autocryptOperations, @Nullable  String openPgpProvider,Account account) { //Edited to use PQC without PGP-Provider
         this.context = context.getApplicationContext();
 
         this.autocryptOperations = autocryptOperations;
@@ -351,7 +351,7 @@ public class MessageCryptoHelper {
                     callAsyncInlineOperation(apiIntent);
                     return;
                 }
-                // --- PQC Erweiterung ---
+                // --- PQC Integration ---
                 case PQC_SIGNED: {
                     if (VERSION.SDK_INT >= VERSION_CODES.TIRAMISU) {
                         callPqcVerify(currentCryptoPart.part);
@@ -364,7 +364,7 @@ public class MessageCryptoHelper {
                     }
                     return;
                 }
-                // --- ENDE ---
+                // --- End PQC Integration ---
                 case PLAIN_AUTOCRYPT:
                     throw new IllegalStateException("This part type must have been handled previously!");
 
@@ -486,7 +486,21 @@ public class MessageCryptoHelper {
     }
 
 
-    // -- PQC Erweiterung --
+    // --- PQC Integration ---
+
+    /**
+     * Verifies a hybrid-signed message (PGP + PQC) using the PQCVerifierHelper.
+     *
+     * This method is used to validate digital signatures that may include both classical (PGP)
+     * and post-quantum (PQC) cryptographic signatures. It:
+     * - Extracts the sender's email address.
+     * - Invokes PQCVerifierHelper.verifyAll(), which checks both signature types.
+     * - Creates and propagates a CryptoResultAnnotation based on the verification outcome.
+     *
+     * On failure, it falls back to an error annotation with a placeholder part to prevent crash propagation.
+     *
+     * @param part The signed message part (multipart/signed) to verify.
+     */
     @RequiresApi(api = VERSION_CODES.TIRAMISU)
     private void callPqcVerify(Part part) {
         try {
@@ -500,15 +514,26 @@ public class MessageCryptoHelper {
         }
     }
 
+
+    /**
+     * Attempts to decrypt a PQC-encrypted message using the PQCDecryptionHelper.
+     *
+     * This method supports post-quantum message decryption using a hybrid RSA + PQC scheme.
+     * It:
+     * - Determines the sender's address.
+     * - Calls PQCDecryptionHelper.decrypt(), which performs KEM-based hybrid decryption.
+     * - Passes the result to the crypto result handler for further processing in the UI or logic layer.
+     *
+     * On failure, a default CryptoResultAnnotation with an error is returned, and logged with Timber.
+     *
+     * @param part The encrypted message part (multipart/encrypted) to decrypt.
+     */
     @RequiresApi(api = VERSION_CODES.TIRAMISU)
     private void callPqcDecryption(Part part) {
         try {
-            // Absender-Email ermitteln
             String senderEmail = currentMessage.getFrom()[0].getAddress();
 
-            // PQC-Entschlüsselung durchführen
             CryptoResultAnnotation annotation = PqcDecryptionHelper.decrypt(context, part, senderEmail, account.getUuid());
-            // Erfolgreiche Operation behandeln
             onCryptoOperationSuccess(annotation);
         } catch (Exception e) {
             Timber.e(e, "Fehler bei PQC-Entschlüsselung");
@@ -518,7 +543,7 @@ public class MessageCryptoHelper {
             onCryptoOperationSuccess(annotation);
         }
     }
-    // -- END --
+    // --- End PQC Integration ---
     private OpenPgpDataSource getDataSourceForSignedData(final Part signedPart) {
         return new OpenPgpDataSource() {
             @Override

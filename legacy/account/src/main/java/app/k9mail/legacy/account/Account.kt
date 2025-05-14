@@ -306,7 +306,8 @@ class Account(
     var isOpenPgpEncryptAllDrafts = false
 
 
-    //----David B. PQC settings -----
+    // --- PQC Integration ---
+
     @get:Synchronized
     @set:Synchronized
     var isPqcSigningEnabled = false
@@ -338,7 +339,7 @@ class Account(
     @get:Synchronized
     @set:Synchronized
     var pqcKemAlgorithm: String? = null
-    // ----- End PQC Settings -----
+    // --- End PQC Integration ---
 
     @get:Synchronized
     @set:Synchronized

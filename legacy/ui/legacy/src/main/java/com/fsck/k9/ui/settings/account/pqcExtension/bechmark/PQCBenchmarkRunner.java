@@ -28,25 +28,33 @@ import java.util.*;
 public class PQCBenchmarkRunner {
 
     private static final int ITERATIONS = 1;
-    private static final byte[] SAMPLE_MESSAGE = new byte[2048];
+    private static final byte[] SAMPLE_MESSAGE = new byte[2048]; // Fixed-size message for benchmarking
     private static PGPPublicKeyRing pgpPubRing;
     private static PGPSecretKeyRing pgpSecRing;
 
+    /**
+     * Runs all benchmark categories: PQC signing, KEM, and hybrid operations.
+     * Writes CSV files with the performance metrics for each algorithm.
+     */
     public static String runAllBenchmarks(Context context) {
         try {
-            Common.loadNativeLibrary();
-            generateTemporaryPgpKeypair();
+            Common.loadNativeLibrary(); // Ensure OQS native library is loaded
+            generateTemporaryPgpKeypair(); // (Stub) setup for hybrid testing
             runPqcSignatureOnly(context);
             runPqcKemOnly(context);
             runHybridSignature(context);
             runHybridEncryption(context);
-            return "Alle Benchmarks abgeschlossen.";
+            return "All benchmarks completed.";
         } catch (Exception e) {
-            Log.e("PQCHybridBenchmark", "Fehler: ", e);
-            return "Fehler: " + e.getMessage();
+            Log.e("PQCHybridBenchmark", "Error: ", e);
+            return "Error: " + e.getMessage();
         }
     }
 
+    /**
+     * Benchmarks signature generation and verification for all PQC signature algorithms.
+     * Outputs per-algorithm timings and key sizes to CSV.
+     */
     private static void runPqcSignatureOnly(Context context) throws IOException {
         List<String> algorithms = Sigs.get_instance().get_supported_sigs();
         Writer writer = initCsv(context, "pqc_signature_only.csv", new String[]{
@@ -72,11 +80,11 @@ public class PQCBenchmarkRunner {
                 totalVerify += (t2 - t1);
             }
 
-            if (!valid) throw new RuntimeException("Ungültige Signatur bei " + alg);
+            if (!valid) throw new RuntimeException("Invalid signature for " + alg);
 
             writer.append(String.format("%s,%.3f,%.3f,%.3f,%d,%d,%d\n",
                 alg,
-                0.0,
+                0.0, // KeyGen timing omitted
                 toMillis(totalSign),
                 toMillis(totalVerify),
                 signer.export_public_key().length,
@@ -89,6 +97,10 @@ public class PQCBenchmarkRunner {
         writer.close();
     }
 
+    /**
+     * Benchmarks key encapsulation and decapsulation for PQC KEM algorithms.
+     * Measures AES encryption/decryption using the derived shared secrets.
+     */
     private static void runPqcKemOnly(Context context) throws Exception {
         List<String> algorithms = KEMs.get_instance().get_supported_KEMs();
         Writer writer = initCsv(context, "pqc_kem_only.csv", new String[]{
@@ -140,6 +152,10 @@ public class PQCBenchmarkRunner {
         writer.close();
     }
 
+    /**
+     * Simulates hybrid signature where PGP is fixed and PQC varies.
+     * Writes timings for both signature types.
+     */
     private static void runHybridSignature(Context context) throws Exception {
         List<String> algorithms = Sigs.get_instance().get_supported_sigs();
         Writer writer = initCsv(context, "hybrid_signature.csv", new String[]{
@@ -158,7 +174,7 @@ public class PQCBenchmarkRunner {
                 totalPqc += (t2 - t1);
             }
 
-            long pgpTime = 2_000_000 * ITERATIONS;
+            long pgpTime = 2_000_000 * ITERATIONS; // Simulated PGP timing (approx. 2ms)
 
             writer.append(String.format("%s,%.3f,%.3f\n",
                 alg,
@@ -171,6 +187,10 @@ public class PQCBenchmarkRunner {
         writer.close();
     }
 
+    /**
+     * Benchmarks hybrid encryption: PQC KEM + AES (authenticated).
+     * Useful for testing realistic post-quantum hybrid encryption.
+     */
     private static void runHybridEncryption(Context context) throws Exception {
         List<String> algorithms = KEMs.get_instance().get_supported_KEMs();
         Writer writer = initCsv(context, "hybrid_encryption.csv", new String[]{
@@ -221,11 +241,19 @@ public class PQCBenchmarkRunner {
         writer.close();
     }
 
+    // === Utility Methods ===
+
+    /**
+     * Derives an AES key from a shared secret using SHA-256.
+     */
     private static byte[] deriveAesKey(byte[] sharedSecret) throws Exception {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         return digest.digest(sharedSecret);
     }
 
+    /**
+     * Performs AES-GCM encryption with random IV.
+     */
     private static byte[] aesEncrypt(byte[] data, byte[] keyBytes) throws Exception {
         byte[] aesKey = deriveAesKey(keyBytes);
         byte[] iv = new byte[12];
@@ -241,6 +269,9 @@ public class PQCBenchmarkRunner {
         return buffer.array();
     }
 
+    /**
+     * Decrypts data encrypted by aesEncrypt().
+     */
     private static byte[] aesDecrypt(byte[] encrypted, byte[] keyBytes) throws Exception {
         byte[] aesKey = deriveAesKey(keyBytes);
         ByteBuffer buffer = ByteBuffer.wrap(encrypted);
@@ -255,6 +286,10 @@ public class PQCBenchmarkRunner {
         return cipher.doFinal(ciphertext);
     }
 
+    /**
+     * Creates or opens a CSV file for output.
+     * Supports Android 10+ scoped storage using MediaStore.
+     */
     private static Writer initCsv(Context context, String fileName, String[] headers) throws IOException {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ContentValues values = new ContentValues();
@@ -279,10 +314,17 @@ public class PQCBenchmarkRunner {
         }
     }
 
+    /**
+     * Converts nanoseconds to milliseconds (averaged over ITERATIONS).
+     */
     private static double toMillis(long nanos) {
         return nanos / 1_000_000.0 / ITERATIONS;
     }
 
+    /**
+     * Placeholder for PGP key generation for hybrid testing.
+     * In a full implementation, this would generate and assign RSA keys.
+     */
     private static void generateTemporaryPgpKeypair() throws Exception {
         pgpPubRing = null;
         pgpSecRing = null;

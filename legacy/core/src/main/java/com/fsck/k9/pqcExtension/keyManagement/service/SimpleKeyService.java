@@ -25,21 +25,21 @@ public class SimpleKeyService {
      * @param context   Android application context
      * @param accountId ID of the user/account
      */
-    public static void ClearAllUsersKeys(Context context, String accountId) {
+    public static void ClearAllUsersKeys(Context context, String accountId,Boolean deleteAll) {
         try {
-            pgpStore.clearAllKeys(context, accountId, true);
+            pgpStore.clearAllKeys(context, accountId, deleteAll);
         } catch (Exception e) {
             Timber.e(e, "Failed to clear PGP keys for user: %s", accountId);
         }
 
         try {
-            pqcSigStore.clearAllKeys(context, accountId, true);
+            pqcSigStore.clearAllKeys(context, accountId, deleteAll);
         } catch (Exception e) {
             Timber.e(e, "Failed to clear PQC-SIG keys for user: %s", accountId);
         }
 
         try {
-            pqcKemStore.clearAllKeys(context, accountId, true);
+            pqcKemStore.clearAllKeys(context, accountId, deleteAll);
         } catch (Exception e) {
             Timber.e(e, "Failed to clear PQC-KEM keys for user: %s", accountId);
         }

@@ -551,7 +551,24 @@ public class MessageLoaderHelper {
     }
 
 
-    //--- PQC Erweiterung ---
+    // --- PQC Integration ---
+    /**
+     * Initializes or resumes a combined cryptographic operation (OpenPGP + PQC).
+     *
+     * This method ensures that the MessageCryptoHelper is correctly set up and reused across configuration changes.
+     * It handles both OpenPGP and Post-Quantum Cryptography (PQC) message processing in a unified way.
+     *
+     * Key functionality:
+     * - Retrieves or creates a retained instance of MessageCryptoHelper.
+     * - Checks if the existing helper is configured for the correct OpenPGP provider; if not, reinitializes it.
+     * - Selects a preferred decryption result: prioritizing cached OpenPGP result, but falling back to PQC if needed.
+     * - Starts or resumes the asynchronous message processing including decryption and signature verification.
+     *
+     * This approach enables hybrid crypto processing (OpenPGP + PQC) in a seamless and user-transparent way.
+     *
+     * @param openPgpProvider The package name of the currently selected OpenPGP provider.
+     * @param isPqcEnabled    Indicates whether PQC support is enabled in the account settings.
+     */
     private void startOrResumeCombinedCryptoOperation(String openPgpProvider, boolean isPqcEnabled) {
         RetainFragment<MessageCryptoHelper> retainCryptoHelperFragment = getMessageCryptoHelperRetainFragment(true);
         if (retainCryptoHelperFragment.hasData()) {
@@ -570,7 +587,7 @@ public class MessageLoaderHelper {
             retainCryptoHelperFragment.setData(messageCryptoHelper);
         }
 
-        // übergibt PGP- und PQC-Dekryptionsdaten gleichzeitig
+        // Pass in either OpenPGP or PQC decryption result, preferring OpenPGP if available
         Parcelable preferredDecryptionResult = cachedDecryptionResult != null
             ? cachedDecryptionResult
             : cachedPqcDecryptionResult;
@@ -582,8 +599,5 @@ public class MessageLoaderHelper {
             !account.isOpenPgpHideSignOnly()
         );
     }
-
-
-
-    //--- ENDE ---
+    // --- End PQC Integration ---
 }

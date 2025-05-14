@@ -45,11 +45,11 @@ class AccountSettingsDataStore(
             "ignore_chat_messages" -> account.isIgnoreChatMessages
             "subscribed_folders_only" -> account.isSubscribedFoldersOnly
 
-            //--- PQC Erweiterung ---
+            // --- PQC Integration ---
             "pqc_enabled" -> account.isPqcSigningEnabled
             "pqc_kem_enabled" -> account.isPqcKemEnabled
             "pqc_hide_sign_only" -> account.isPqcHideSignOnly
-            //--- ENDE ---
+            // --- End PQC Integration ---
             else -> defValue
         }
     }
@@ -76,11 +76,11 @@ class AccountSettingsDataStore(
             "ignore_chat_messages" -> account.isIgnoreChatMessages = value
             "subscribed_folders_only" -> updateSubscribedFoldersOnly(value)
 
-            //--- PQC Erweiterung ---
+            // --- PQC Integration ---
             "pqc_enabled" -> account.isPqcSigningEnabled = value
             "pqc_kem_enabled" -> account.isPqcKemEnabled = value
             "pqc_hide_sign_only" -> account.isPqcHideSignOnly = value
-            //--- ENDE ---
+            // --- End PQC Integration ---
             else -> return
         }
 
@@ -146,10 +146,10 @@ class AccountSettingsDataStore(
             "account_remote_search_num_results" -> account.remoteSearchNumResults.toString()
             "account_ringtone" -> account.notificationSettings.ringtone
             "notification_light" -> account.notificationSettings.light.name
-            //--- PQC Erweiterung ---
+            // --- PQC Integration ---
             "pqc_signing_algorithm" -> account.pqcSigningAlgorithm
             "pqc_kem_algorithm" -> account.pqcKemAlgorithm
-            //--- END ---
+            // --- End PQC Integration ---
             else -> defValue
         }
     }
@@ -185,10 +185,10 @@ class AccountSettingsDataStore(
             "account_remote_search_num_results" -> account.remoteSearchNumResults = value.toInt()
             "account_ringtone" -> setNotificationSound(value)
             "notification_light" -> setNotificationLight(value)
-            //--- PQC Erweiterung ---
+            // --- PQC Integration ---
             "pqc_signing_algorithm" -> account.pqcSigningAlgorithm = value
             "pqc_kem_algorithm" -> account.pqcKemAlgorithm = value
-            //--- ENDE ---
+            // --- End PQC Integration ---
             else -> return
         }
 

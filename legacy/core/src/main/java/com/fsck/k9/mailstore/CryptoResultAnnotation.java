@@ -24,11 +24,11 @@ public final class CryptoResultAnnotation {
     private final boolean overrideCryptoWarning;
 
     private final CryptoResultAnnotation encapsulatedResult;
-//--- PQC Erweiterung ---
+    // --- PQC Integration ---
     private final PqcDecryptionResult pqcDecryptionResult;
     private final PqcSignatureResult pqcSignatureResult;
     private  final PqcError pqcError;
-//--- ENDE ---
+    // --- End PQC Integration ---
 
     private CryptoResultAnnotation(
         @NonNull CryptoError errorType,
@@ -39,9 +39,9 @@ public final class CryptoResultAnnotation {
         PendingIntent openPgpInsecureWarningPendingIntent,
         OpenPgpError openPgpError,
         boolean overrideCryptoWarning,
-        PqcDecryptionResult pqcDecryptionResult,    //--- PQC Erweiterung ---
+        PqcDecryptionResult pqcDecryptionResult, // --- PQC Integration ---
         PqcSignatureResult pqcSignatureResult,
-        PqcError pqcError//--- PQC Erweiterung ---
+        PqcError pqcError // --- PQC Integration ---
     ) {
         this.errorType = errorType;
         this.replacementData = replacementData;
@@ -55,11 +55,11 @@ public final class CryptoResultAnnotation {
 
         this.encapsulatedResult = null;
 
-        //--- PQC Erweiterung ---
+        // --- PQC Integration ---
         this.pqcDecryptionResult = pqcDecryptionResult;
         this.pqcSignatureResult = pqcSignatureResult;
         this.pqcError = pqcError;
-        //--- ENDE ---
+        // --- End PQC Integration ---
     }
 
     private CryptoResultAnnotation(CryptoResultAnnotation annotation, CryptoResultAnnotation encapsulatedResult) {
@@ -79,11 +79,11 @@ public final class CryptoResultAnnotation {
 
         this.encapsulatedResult = encapsulatedResult;
 
-        //--- PQC Erweiterung ---
+        // --- PQC Integration ---
         this.pqcDecryptionResult = annotation.pqcDecryptionResult;
         this.pqcSignatureResult = annotation.pqcSignatureResult;
         this.pqcError = annotation.pqcError;
-        //--- ENDE ---
+        // --- End PQC Integration ---
     }
 
     // OpenPGP Factories
@@ -93,29 +93,29 @@ public final class CryptoResultAnnotation {
             boolean overrideCryptoWarning) {
         return new CryptoResultAnnotation(CryptoError.OPENPGP_OK, replacementPart,
                 decryptionResult, signatureResult, pendingIntent, insecureWarningPendingIntent, null,
-                overrideCryptoWarning, null, null,null);  //--- PQC Erweiterung: null,null zusätzlich ---
+                overrideCryptoWarning, null, null,null); // --- PQC Integration added: null,null ---
     }
 
     public static CryptoResultAnnotation createErrorAnnotation(CryptoError error, MimeBodyPart replacementData) {
-        if (error == CryptoError.OPENPGP_OK || error == CryptoError.PQC_ENCRYPTED_OK || error == CryptoError.PQC_SIGNED_OK) { //--- PQC Erweiterung ---
+        if (error == CryptoError.OPENPGP_OK || error == CryptoError.PQC_ENCRYPTED_OK || error == CryptoError.PQC_SIGNED_OK) {// --- PQC Integration ---
             throw new AssertionError("CryptoError must be an actual error state!");
         }
         return new CryptoResultAnnotation(error, replacementData, null, null, null, null, null, false, null, null,null);
     }
 
     public static CryptoResultAnnotation createOpenPgpCanceledAnnotation() {
-        return new CryptoResultAnnotation(CryptoError.OPENPGP_UI_CANCELED, null, null, null, null, null, null, false, null, null,null);  //--- PQC Erweiterung: null,null zusätzlich ---
+        return new CryptoResultAnnotation(CryptoError.OPENPGP_UI_CANCELED, null, null, null, null, null, null, false, null, null,null);   // --- PQC Integration added: null,null ---
     }
 
     public static CryptoResultAnnotation createOpenPgpSignatureErrorAnnotation(
             OpenPgpError error, MimeBodyPart replacementData) {
         return new CryptoResultAnnotation(
-                CryptoError.OPENPGP_SIGNED_API_ERROR, replacementData, null, null, null, null, error, false, null, null,null);    //--- PQC Erweiterung: null,null zusätzlich ---
+                CryptoError.OPENPGP_SIGNED_API_ERROR, replacementData, null, null, null, null, error, false, null, null,null);     // --- PQC Integration added: null,null ---
     }
 
     public static CryptoResultAnnotation createOpenPgpEncryptionErrorAnnotation(OpenPgpError error) {
         return new CryptoResultAnnotation(
-                CryptoError.OPENPGP_ENCRYPTED_API_ERROR, null, null, null, null, null, error, false, null, null,null);   //--- PQC Erweiterung: null,null zusätzlich ---
+                CryptoError.OPENPGP_ENCRYPTED_API_ERROR, null, null, null, null, null, error, false, null, null,null);    // --- PQC Integration added: null,null ---
     }
 
     public boolean isOpenPgpResult() {
@@ -202,7 +202,7 @@ public final class CryptoResultAnnotation {
         return encapsulatedResult;
     }
 
-    //--- PQC Erweiterung ---
+    // --- PQC Integration ---
     public boolean isPqcResult() {
         return pqcDecryptionResult != null || pqcSignatureResult != null;
     }
@@ -221,8 +221,8 @@ public final class CryptoResultAnnotation {
         return pqcSignatureResult;
     }
 
-    public boolean isPqcEncrypted() {
-        return pqcDecryptionResult != null && pqcDecryptionResult.result == PqcDecryptionResult.RESULT_DECRYPTED; //--- PQC Erweiterung ---
+    public boolean isPqcDecrypted() {
+        return pqcDecryptionResult != null && pqcDecryptionResult.result == PqcDecryptionResult.RESULT_DECRYPTED; // --- PQC Integration ---
     }
 
     public static CryptoResultAnnotation createPqcSignatureSuccessAnnotation(
@@ -321,7 +321,7 @@ public final class CryptoResultAnnotation {
     }
 
 
-    //--- ENDE ---
+    // --- End PQC Integration ---
 
     public enum CryptoError {
         OPENPGP_OK,
@@ -334,13 +334,13 @@ public final class CryptoResultAnnotation {
         ENCRYPTED_BUT_UNSUPPORTED,
         OPENPGP_ENCRYPTED_NO_PROVIDER,
 
-        //--- PQC Erweiterung ---
+        // --- PQC Integration ---
         PQC_SIGNED_OK,
         PQC_SIGNATURE_ERROR,
         PQC_ENCRYPTED_OK,
         PQC_ENCRYPTED_ERROR,
         PQC_SIGNED_AND_ENCRYPT_OK,
 
-        //--- ENDE ---
+        // --- End PQC Integration ---
     }
 }

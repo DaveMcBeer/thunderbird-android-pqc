@@ -1084,7 +1084,7 @@ You can keep this message and use it as a backup for your secret key. If you wan
     <!-- Description of the "Usage and technical data" setting used in the "data collection" section of the general settings screen -->
     <string name="settings_ui_telemetry_description">Shares performance, usage, hardware and customization data about this app with Mozilla to help us make Thunderbird better</string>
 
-    <!-- PQC Erweiterung -->
+    // --- PQC Integration ---
     <string name="account_settings_pq_algorithms_dilithium2">Dilithium2</string>
     <string name="account_settings_pq_algorithms_dilithium3">Dilithium3</string>
     <string name="account_settings_pq_algorithms_dilithium5">Dilithium5</string>
@@ -1256,5 +1256,5 @@ You can keep this message and use it as a backup for your secret key. If you wan
     <string name="disable_pqc_encryption">Disable PQC/PGP Encryption</string>
     <string name="enable_sign_pqc_only">Enable PQC/PGP Sign-Only</string>
     <string name="disable_sign_pqc_only">Disable PQC/PGP Sign-Only</string>
-    <!-- ENDE -->
+    // --- End PQC Integration ---
 </resources>

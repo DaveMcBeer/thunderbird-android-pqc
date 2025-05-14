@@ -511,7 +511,7 @@ public abstract class MessageBuilder {
         return this;
     }
 
-    //--- PQC Erweiterung ----
+    // --- PQC Integration ---
     public MessageBuilder setEncryptPqcHybrid(boolean encryptPqcHybrid) {
         this.encryptPqcHybrid = encryptPqcHybrid;
         return this;
@@ -530,7 +530,7 @@ public abstract class MessageBuilder {
         return this.account;
 
     }
-    //--- ENDE ---
+    // --- End PQC Integration ---
     public boolean isDraft() {
         return isDraft;
     }

@@ -199,14 +199,13 @@ class AccountPreferenceSerializer(
 
             shouldMigrateToOAuth = storage.getBoolean("$accountUuid.migrateToOAuth", false)
 
-
-            //--- PQC Erweiterung ---
+            // --- PQC Integration ---
             isPqcSigningEnabled = storage.getBoolean("$accountUuid.pqcEnabled", false)
             isPqcKemEnabled = storage.getBoolean("$accountUuid.pqcKemEnabled",false)
             isPqcHideSignOnly = storage.getBoolean("$accountUuid.pqcHideSignOnly",false)
             pqcKemAlgorithm=storage.getString("$accountUuid.pqcKemAlgorithm",null)
             pqcSigningAlgorithm = storage.getString("$accountUuid.pqcSigningAlgorithm", null)
-            //--- ENDE ---
+            // --- End PQC Integration ---
 
             val isFinishedSetup = storage.getBoolean("$accountUuid.isFinishedSetup", true)
             if (isFinishedSetup) markSetupFinished()
@@ -371,13 +370,13 @@ class AccountPreferenceSerializer(
             editor.putBoolean("$accountUuid.sendClientInfo", isSendClientInfoEnabled)
             editor.putBoolean("$accountUuid.migrateToOAuth", shouldMigrateToOAuth)
 
-            // --- PQC Erweiterung ---
+            // --- PQC Integration ---
             editor.putBoolean("$accountUuid.pqcEnabled", isPqcSigningEnabled)
             editor.putBoolean("$accountUuid.pqcKemEnabled", isPqcKemEnabled)
             editor.putBoolean("$accountUuid.pqcHideSignOnly", isPqcHideSignOnly)
             editor.putString("$accountUuid.pqcSigningAlgorithm", pqcSigningAlgorithm)
             editor.putString("$accountUuid.pqcKemAlgorithm", pqcKemAlgorithm)
-            // --- ENDE ---
+            // --- End PQC Integration ---
         }
 
         saveIdentities(account, storage, editor)
@@ -497,14 +496,13 @@ class AccountPreferenceSerializer(
         editor.remove("$accountUuid.migrateToOAuth")
 
 
-        //--- PQC Erweiterung ---
+        // --- PQC Integration ---
         editor.remove("$accountUuid.pqcEnabled")
         editor.remove("$accountUuid.pqcKemEnabled")
         editor.remove("$accountUuid.pqcHideSignOnly")
         editor.remove("$accountUuid.pqcSigningAlgorithm")
         editor.remove("$accountUuid.pqcKemAlgorithm")
-        //--- ENDE ---
-
+        // --- End PQC Integration ---
         deleteIdentities(account, storage, editor)
         // TODO: Remove preference settings that may exist for individual folders in the account.
     }
