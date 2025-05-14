@@ -222,7 +222,7 @@ public final class CryptoResultAnnotation {
     }
 
     public boolean isPqcEncrypted() {
-        return pqcDecryptionResult != null && pqcDecryptionResult.result == PqcDecryptionResult.RESULT_ENCRYPTED; //--- PQC Erweiterung ---
+        return pqcDecryptionResult != null && pqcDecryptionResult.result == PqcDecryptionResult.RESULT_DECRYPTED; //--- PQC Erweiterung ---
     }
 
     public static CryptoResultAnnotation createPqcSignatureSuccessAnnotation(

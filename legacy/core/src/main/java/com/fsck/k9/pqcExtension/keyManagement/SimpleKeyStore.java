@@ -16,7 +16,7 @@ public interface SimpleKeyStore {
     JSONObject loadRemotePublicKey(Context context, String remoteEmail) throws Exception;
     default String loadRemotePublicKeyArmoredString(Context context,String remoteEmail) throws Exception{
         JSONObject obj = loadRemotePublicKey(context, remoteEmail);
-        return obj.getString("publicKey");  // Du kannst das gerne anpassen
+        return obj.getString("publicKey");
     }
     boolean hasOwnKeyPair(Context context, String userId);
     JSONObject loadLocalPrivateKey(Context context, String userId) throws Exception;

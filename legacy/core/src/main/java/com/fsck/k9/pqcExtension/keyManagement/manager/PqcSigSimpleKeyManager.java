@@ -17,6 +17,9 @@ public class PqcSigSimpleKeyManager {
     private static final String PREFS_NAME = "pqc_sig_keys_secure";
     private static final String REMOTE_PREFS = "pqc_sig_remote_keys";
 
+    /**
+     * Returns encrypted SharedPreferences to securely store local key data.
+     */
     private static SharedPreferences getEncryptedPrefs(Context context) throws Exception {
         MasterKey masterKey = new MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
@@ -31,9 +34,12 @@ public class PqcSigSimpleKeyManager {
         );
     }
 
+    /**
+     * Generates a new post-quantum signature key pair and stores it securely.
+     */
     public static void generateAndStoreKeyPair(Context context, String userId, String algorithm) {
         if (!Sigs.is_sig_enabled(algorithm)) {
-            throw new IllegalArgumentException("Algorithmus nicht unterstützt: " + algorithm);
+            throw new IllegalArgumentException("Signature algorithm not supported: " + algorithm);
         }
 
         Signature sig = new Signature(algorithm);
@@ -48,6 +54,9 @@ public class PqcSigSimpleKeyManager {
         }
     }
 
+    /**
+     * Saves a local key pair with metadata (algorithm, base64 public/private keys).
+     */
     public static void saveKeyPair(Context context, String userId, String algorithm, String publicKey, String privateKey) {
         try {
             JSONObject json = new JSONObject();
@@ -60,6 +69,9 @@ public class PqcSigSimpleKeyManager {
         }
     }
 
+    /**
+     * Loads a complete key pair (if available) as a JSONObject.
+     */
     public static JSONObject loadKeyPair(Context context, String userId) throws Exception {
         SharedPreferences prefs = getEncryptedPrefs(context);
         if (prefs.contains(userId)) {
@@ -71,18 +83,31 @@ public class PqcSigSimpleKeyManager {
         }
     }
 
+    /**
+     * Deletes a user's key pair from secure storage.
+     */
     public static void deleteKeyPair(Context context, String userId) throws Exception {
         getEncryptedPrefs(context).edit().remove(userId).apply();
     }
 
+
+    /**
+     * Clears all locally stored signature keys.
+     */
     public static void deleteAll(Context context) throws Exception {
         getEncryptedPrefs(context).edit().clear().apply();
     }
 
+    /**
+     * Checks if a key pair exists for a specific user.
+     */
     public static boolean hasKeyPair(Context context, String userId) throws Exception {
         return getEncryptedPrefs(context).contains(userId);
     }
 
+    /**
+     * Loads only the local private key and algorithm for signing operations.
+     */
     public static JSONObject loadLocalPrivateKey(Context context, String userId) throws Exception {
         JSONObject keyPair = loadKeyPair(context, userId);
         if (!keyPair.has("algorithm") || !keyPair.has("privateKey")) {
@@ -97,6 +122,9 @@ public class PqcSigSimpleKeyManager {
         return keyJson;
     }
 
+    /**
+     * Stores a remote contact's public signature key.
+     */
     public static void importRemotePublicKey(Context context, String remoteEmail, String algorithm, String publicKey) throws Exception {
         SharedPreferences prefs = context.getSharedPreferences(REMOTE_PREFS, Context.MODE_PRIVATE);
         JSONObject json = new JSONObject();
@@ -105,6 +133,9 @@ public class PqcSigSimpleKeyManager {
         prefs.edit().putString(remoteEmail.toLowerCase(), json.toString()).apply();
     }
 
+    /**
+     * Exports the public key of a local user (if available).
+     */
     public static String exportPublicKey(Context context, String userId) throws Exception {
         JSONObject json = loadKeyPair(context, userId);
         if (json.has("publicKey"))
@@ -113,6 +144,10 @@ public class PqcSigSimpleKeyManager {
             return "";
     }
 
+
+    /**
+     * Loads a public key for a given remote contact.
+     */
     public static JSONObject loadRemotePublicKey(Context context, String remoteEmail) throws Exception {
         SharedPreferences prefs = context.getSharedPreferences(REMOTE_PREFS, Context.MODE_PRIVATE);
         String json = prefs.getString(remoteEmail.toLowerCase(), null);

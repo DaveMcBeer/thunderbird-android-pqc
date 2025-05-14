@@ -1,7 +1,6 @@
 package com.fsck.k9.pqcExtension.keyManagement;
 
 import android.content.Context;
-
 import com.fsck.k9.pqcExtension.keyManagement.manager.PqcSigSimpleKeyManager;
 import org.json.JSONObject;
 
@@ -12,7 +11,7 @@ public class PqcSigSimpleKeyStore implements SimpleKeyStore {
         try {
             PqcSigSimpleKeyManager.generateAndStoreKeyPair(context, userId, algorithm);
         } catch (Exception e) {
-            throw new Exception("Fehler beim Generieren des PQC-Signatur-Schlüsselpaares", e);
+            throw new Exception("Failed to generate PQC signature key pair", e);
         }
     }
 
@@ -21,7 +20,7 @@ public class PqcSigSimpleKeyStore implements SimpleKeyStore {
         try {
             PqcSigSimpleKeyManager.saveKeyPair(context, userId, algorithm, publicKey, privateKey);
         } catch (Exception e) {
-            throw new Exception("Fehler beim Importieren des eigenen PQC-Signatur-Schlüsselpaares", e);
+            throw new Exception("Failed to import own PQC signature key pair", e);
         }
     }
 
@@ -30,7 +29,7 @@ public class PqcSigSimpleKeyStore implements SimpleKeyStore {
         try {
             PqcSigSimpleKeyManager.importRemotePublicKey(context, remoteEmail, algorithm, publicKey);
         } catch (Exception e) {
-            throw new Exception("Fehler beim Importieren des Remote-Signaturschlüssels", e);
+            throw new Exception("Failed to import remote PQC signature public key", e);
         }
     }
 
@@ -43,7 +42,7 @@ public class PqcSigSimpleKeyStore implements SimpleKeyStore {
                 PqcSigSimpleKeyManager.deleteKeyPair(context, userId);
             }
         } catch (Exception e) {
-            throw new Exception("Fehler beim Löschen der PQC-Signaturschlüssel", e);
+            throw new Exception("Failed to delete PQC signature keys", e);
         }
     }
 
@@ -52,7 +51,7 @@ public class PqcSigSimpleKeyStore implements SimpleKeyStore {
         try {
             return PqcSigSimpleKeyManager.exportPublicKey(context, userId);
         } catch (Exception e) {
-            throw new Exception("Fehler beim Exportieren des PQC-Signatur Public Keys", e);
+            throw new Exception("Failed to export PQC signature public key", e);
         }
     }
 
@@ -61,7 +60,7 @@ public class PqcSigSimpleKeyStore implements SimpleKeyStore {
         try {
             return PqcSigSimpleKeyManager.loadRemotePublicKey(context, remoteEmail);
         } catch (Exception e) {
-            throw new Exception("Fehler beim Laden des Remote-Signaturschlüssels", e);
+            throw new Exception("Failed to load remote PQC signature public key", e);
         }
     }
 
@@ -79,7 +78,7 @@ public class PqcSigSimpleKeyStore implements SimpleKeyStore {
         try {
             return PqcSigSimpleKeyManager.loadLocalPrivateKey(context, userId);
         } catch (Exception e) {
-            throw new Exception("Fehler beim Laden des lokalen PQC-Signatur Private Keys", e);
+            throw new Exception("Failed to load local PQC signature private key", e);
         }
     }
 }

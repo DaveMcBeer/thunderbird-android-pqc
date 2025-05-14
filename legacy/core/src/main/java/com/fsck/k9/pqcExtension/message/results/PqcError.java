@@ -1,13 +1,16 @@
-
 package com.fsck.k9.pqcExtension.message.results;
 
 import android.os.Parcel;
 import android.os.Parcelable;
 
+/**
+ * Represents an error that occurred during a PQC operation such as encryption, decryption, or signature validation.
+ * Implements Parcelable to allow easy transfer across Android components.
+ */
 public class PqcError implements Parcelable {
     public static final int PARCELABLE_VERSION = 1;
 
-    // Possible values for errorId
+    // Predefined error codes
     public static final int CLIENT_SIDE_ERROR = -1;
     public static final int GENERIC_ERROR = 0;
     public static final int INVALID_SIGNATURE = 1;
@@ -15,17 +18,27 @@ public class PqcError implements Parcelable {
     public static final int UNSUPPORTED_ALGORITHM = 3;
     public static final int DECRYPTION_FAILED = 4;
     public static final int MALFORMED_SIGNATURE = 5;
-    int errorId;
-    String message;
 
+    private int errorId;
+    private String message;
+
+    /**
+     * Default constructor (required for Parcelable).
+     */
     public PqcError() {
     }
 
+    /**
+     * Constructs a new PqcError with specified ID and message.
+     */
     public PqcError(int errorId, String message) {
         this.errorId = errorId;
         this.message = message;
     }
 
+    /**
+     * Copy constructor.
+     */
     public PqcError(PqcError other) {
         this.errorId = other.errorId;
         this.message = other.message;
@@ -57,6 +70,9 @@ public class PqcError implements Parcelable {
         return "PQC Error (" + errorId + "): " + message;
     }
 
+    /**
+     * Serializes this error into a Parcel.
+     */
     @Override
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeInt(PARCELABLE_VERSION);
@@ -73,6 +89,9 @@ public class PqcError implements Parcelable {
         dest.setDataPosition(startPosition + parcelableSize);
     }
 
+    /**
+     * Reconstructs a PqcError from a Parcel.
+     */
     public static final Creator<PqcError> CREATOR = new Creator<PqcError>() {
         @Override
         public PqcError createFromParcel(Parcel source) {

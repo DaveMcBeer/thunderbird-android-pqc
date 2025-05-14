@@ -1,7 +1,6 @@
 package com.fsck.k9.pqcExtension.keyManagement;
 
 import android.content.Context;
-
 import com.fsck.k9.pqcExtension.keyManagement.manager.PqcKemSimpleKeyManager;
 import org.json.JSONObject;
 
@@ -12,7 +11,7 @@ public class PqcKemSimpleKeyStore implements SimpleKeyStore {
         try {
             PqcKemSimpleKeyManager.generateAndStoreKeyPair(context, userId, algorithm);
         } catch (Exception e) {
-            throw new Exception("Fehler beim Generieren des PQC-KEM-Schlüsselpaares", e);
+            throw new Exception("Failed to generate PQC-KEM key pair", e);
         }
     }
 
@@ -21,7 +20,7 @@ public class PqcKemSimpleKeyStore implements SimpleKeyStore {
         try {
             PqcKemSimpleKeyManager.saveKeyPair(context, userId, algorithm, publicKey, privateKey);
         } catch (Exception e) {
-            throw new Exception("Fehler beim Importieren des eigenen PQC-KEM-Schlüsselpaares", e);
+            throw new Exception("Failed to import own PQC-KEM key pair", e);
         }
     }
 
@@ -30,7 +29,7 @@ public class PqcKemSimpleKeyStore implements SimpleKeyStore {
         try {
             PqcKemSimpleKeyManager.importRemotePublicKey(context, ownerUserId, remoteEmail, algorithm, publicKey);
         } catch (Exception e) {
-            throw new Exception("Fehler beim Importieren des Remote-KEM-Schlüssels", e);
+            throw new Exception("Failed to import remote KEM public key", e);
         }
     }
 
@@ -43,7 +42,7 @@ public class PqcKemSimpleKeyStore implements SimpleKeyStore {
                 PqcKemSimpleKeyManager.deleteKeyPair(context, userId);
             }
         } catch (Exception e) {
-            throw new Exception("Fehler beim Löschen der PQC-KEM-Schlüssel", e);
+            throw new Exception("Failed to delete PQC-KEM keys", e);
         }
     }
 
@@ -52,7 +51,7 @@ public class PqcKemSimpleKeyStore implements SimpleKeyStore {
         try {
             return PqcKemSimpleKeyManager.exportPublicKey(context, userId);
         } catch (Exception e) {
-            throw new Exception("Fehler beim Exportieren des PQC-KEM Public Keys", e);
+            throw new Exception("Failed to export PQC-KEM public key", e);
         }
     }
 
@@ -61,7 +60,7 @@ public class PqcKemSimpleKeyStore implements SimpleKeyStore {
         try {
             return PqcKemSimpleKeyManager.loadRemotePublicKey(context, remoteEmail);
         } catch (Exception e) {
-            throw new Exception("Fehler beim Laden des Remote-KEM-Schlüssels", e);
+            throw new Exception("Failed to load remote KEM public key", e);
         }
     }
 
@@ -79,7 +78,7 @@ public class PqcKemSimpleKeyStore implements SimpleKeyStore {
         try {
             return PqcKemSimpleKeyManager.loadLocalPrivateKey(context, userId);
         } catch (Exception e) {
-            throw new Exception("Fehler beim Laden des lokalen PQC-KEM Private Keys", e);
+            throw new Exception("Failed to load local PQC-KEM private key", e);
         }
     }
 }

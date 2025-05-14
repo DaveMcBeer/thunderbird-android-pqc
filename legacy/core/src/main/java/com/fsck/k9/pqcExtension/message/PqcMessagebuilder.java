@@ -5,7 +5,6 @@ import android.content.Intent;
 import android.os.Build;
 
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 
 import app.k9mail.legacy.di.DI;
@@ -14,9 +13,6 @@ import com.fsck.k9.K9;
 import com.fsck.k9.autocrypt.AutocryptDraftStateHeader;
 import com.fsck.k9.autocrypt.AutocryptOpenPgpApiInteractor;
 import com.fsck.k9.autocrypt.AutocryptOperations;
-import com.fsck.k9.logging.Timber;
-import com.fsck.k9.mail.Body;
-import com.fsck.k9.mail.BodyPart;
 import com.fsck.k9.mail.BoundaryGenerator;
 import com.fsck.k9.mail.MessagingException;
 import com.fsck.k9.mail.internet.MessageIdGenerator;
@@ -25,13 +21,12 @@ import com.fsck.k9.mail.internet.MimeHeader;
 import com.fsck.k9.mail.internet.MimeMessage;
 import com.fsck.k9.mail.internet.MimeMessageHelper;
 import com.fsck.k9.mail.internet.MimeMultipart;
-import com.fsck.k9.mail.internet.MimeUtility;
 import com.fsck.k9.mail.internet.TextBody;
 import com.fsck.k9.mailstore.BinaryMemoryBody;
 import com.fsck.k9.message.CryptoStatus;
 import com.fsck.k9.message.MessageBuilder;
-import com.fsck.k9.pqcExtension.helper.encryption.HybridEncryptionHelper;
-import com.fsck.k9.pqcExtension.helper.signature.CompositeSignatureHelper;
+import com.fsck.k9.pqcExtension.helper.encryption.PqcEncryptionHelper;
+import com.fsck.k9.pqcExtension.helper.signature.PqcSignatureHelper;
 import com.fsck.k9.pqcExtension.helper.PqcMessageHelper;
 import com.fsck.k9.pqcExtension.keyManagement.manager.PgpSimpleKeyManager;
 import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory;
@@ -45,44 +40,51 @@ import java.nio.charset.StandardCharsets;
 import java.security.Security;
 import java.util.Base64;
 import java.util.Date;
-import java.util.List;
 import java.util.Map;
 
-
+/**
+ * Custom message builder that supports hybrid PQC/PGP encryption and signing.
+ */
 public class PqcMessagebuilder extends MessageBuilder {
     private MimeMessage currentProcessedMimeMessage;
     private MimeBodyPart messageContentBodyPart;
     private CryptoStatus cryptoStatus;
     private final Context context;
     private final String recipientEmail;
-    public static PqcMessagebuilder newInstance(Context context,String recipientEmail) {
+
+    /**
+     * Creates a new instance of PqcMessagebuilder with required dependencies.
+     */
+    public static PqcMessagebuilder newInstance(Context context, String recipientEmail) {
         MessageIdGenerator messageIdGenerator = MessageIdGenerator.getInstance();
         BoundaryGenerator boundaryGenerator = BoundaryGenerator.getInstance();
         AutocryptOperations autocryptOperations = AutocryptOperations.getInstance();
         AutocryptOpenPgpApiInteractor autocryptOpenPgpApiInteractor = AutocryptOpenPgpApiInteractor.getInstance();
         CoreResourceProvider resourceProvider = DI.get(CoreResourceProvider.class);
+
         return new PqcMessagebuilder(messageIdGenerator, boundaryGenerator, autocryptOperations,
-            autocryptOpenPgpApiInteractor, resourceProvider, context,recipientEmail);
+            autocryptOpenPgpApiInteractor, resourceProvider, context, recipientEmail);
     }
 
     @VisibleForTesting
     PqcMessagebuilder(MessageIdGenerator messageIdGenerator, BoundaryGenerator boundaryGenerator,
         AutocryptOperations autocryptOperations, AutocryptOpenPgpApiInteractor autocryptOpenPgpApiInteractor,
-        CoreResourceProvider resourceProvider, Context context,String recipientEmail) {
+        CoreResourceProvider resourceProvider, Context context, String recipientEmail) {
         super(messageIdGenerator, boundaryGenerator, resourceProvider);
         this.context = context;
-        this.recipientEmail=recipientEmail;
+        this.recipientEmail = recipientEmail;
     }
 
     public void setCryptoStatus(CryptoStatus cryptoStatus) {
         this.cryptoStatus = cryptoStatus;
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.O)
+    /**
+     * Creates a multipart/signed MIME structure with attached PQC and PGP signatures.
+     */
     private MimeBodyPart mimeBuildSignedMessage(MimeBodyPart signedBodyPart, Map<String, byte[]> signatureMap) throws MessagingException {
         MimeMultipart multipartSigned = createMimeMultipart();
         multipartSigned.setSubType("signed");
-
         multipartSigned.addBodyPart(signedBodyPart);
 
         for (Map.Entry<String, byte[]> entry : signatureMap.entrySet()) {
@@ -90,27 +92,14 @@ public class PqcMessagebuilder extends MessageBuilder {
             byte[] sigData = entry.getValue();
 
             String armorLabel = algorithm.equals("pgp") ? "PGP SIGNATURE" : "PQC SIGNATURE";
-            String algorithmName = algorithm.toUpperCase();
-
-            String armored;
-            if (algorithm.equals("pgp")) {
-                // Signatur ist bereits ASCII-armiert erzeugt worden
-                armored = new String(sigData, StandardCharsets.US_ASCII);
-            } else {
-                // PQC-Signatur: manuell armieren mit Base64 + Header
-                armored = PqcMessageHelper.armor(
-                    Base64.getEncoder().encodeToString(sigData),
-                    armorLabel,
-                    getAccount().getPqcSigningAlgorithm()
-                );
-            }
+            String armored = algorithm.equals("pgp") ?
+                new String(sigData, StandardCharsets.US_ASCII) :
+                PqcMessageHelper.armor(Base64.getEncoder().encodeToString(sigData), armorLabel, getAccount().getPqcSigningAlgorithm());
 
             String filename = "signature-" + algorithm + ".asc";
-
             MimeBodyPart sigPart = MimeBodyPart.create(
                 new BinaryMemoryBody(armored.getBytes(StandardCharsets.US_ASCII), MimeUtil.ENC_7BIT),
-                "application/pgp-signature; name=\"" + filename + "\""
-            );
+                "application/pgp-signature; name=\"" + filename + "\"");
             sigPart.setHeader("Content-Disposition", "inline; filename=\"" + filename + "\"");
             multipartSigned.addBodyPart(sigPart);
         }
@@ -126,6 +115,9 @@ public class PqcMessagebuilder extends MessageBuilder {
         return currentProcessedMimeMessage.toBodyPart();
     }
 
+    /**
+     * Extracts the message body part from the current MIME message.
+     */
     private MimeBodyPart extractBodyPartFromCurrentMessage() throws MessagingException {
         MimeBodyPart bodyPart = currentProcessedMimeMessage.toBodyPart();
         String[] contentType = currentProcessedMimeMessage.getHeader(MimeHeader.HEADER_CONTENT_TYPE);
@@ -142,6 +134,9 @@ public class PqcMessagebuilder extends MessageBuilder {
         return bodyPart;
     }
 
+    /**
+     * Encrypts the message using Hybrid-KEM (RSA + PQC) and AES-GCM (RFC 4880-style structure).
+     */
     private void mimeBuildEncryptedMessageHybridRFC(MimeBodyPart signedBodyPart) throws MessagingException {
         try {
             byte[] canonicalData = PqcMessageHelper.canonicalize(signedBodyPart);
@@ -164,23 +159,17 @@ public class PqcMessagebuilder extends MessageBuilder {
                     break;
                 }
             }
-            if (rsaPubKey == null) throw new MessagingException("Kein gültiger RSA-Schlüssel gefunden");
+            if (rsaPubKey == null) throw new MessagingException("No valid RSA key found");
 
-            // 1. Verschlüsseln mit Hybrid-KEM (RSA + PQC) + AES
-            HybridEncryptionHelper.HybridKEMResult kemResult = HybridEncryptionHelper.encapsulateBoth(rsaPubKey, pqcPubKey, pqcAlg);
-            byte[] encryptedPayload = HybridEncryptionHelper.encryptWithAes(canonicalData, kemResult.sessionKey);
+            PqcEncryptionHelper.HybridKEMResult kemResult = PqcEncryptionHelper.encapsulateBoth(rsaPubKey, pqcPubKey, pqcAlg);
+            byte[] encryptedPayload = PqcEncryptionHelper.encryptWithAes(canonicalData, kemResult.sessionKey);
 
-            // 2. multipart/encrypted erstellen (RFC 4880)
             MimeMultipart multipartEncrypted = createMimeMultipart();
             multipartEncrypted.setSubType("encrypted");
 
-            // Part 1: "Version: 1"
-            MimeBodyPart versionPart = MimeBodyPart.create(
-                new TextBody("Version: 1"), "application/pgp-encrypted"
-            );
+            MimeBodyPart versionPart = MimeBodyPart.create(new TextBody("Version: 1"), "application/pgp-encrypted");
             multipartEncrypted.addBodyPart(versionPart);
 
-            // Part 2: verschlüsselter Body
             String base64Encoded = Base64.getMimeEncoder(76, "\r\n".getBytes()).encodeToString(encryptedPayload);
             BinaryMemoryBody body = new BinaryMemoryBody(base64Encoded.getBytes(StandardCharsets.US_ASCII), MimeUtil.ENC_7BIT);
             MimeBodyPart encryptedPart = new MimeBodyPart();
@@ -190,7 +179,6 @@ public class PqcMessagebuilder extends MessageBuilder {
             encryptedPart.setHeader("Content-Transfer-Encoding", "base64");
             multipartEncrypted.addBodyPart(encryptedPart);
 
-            // 3. Setze Body + Content-Type
             MimeMessageHelper.setBody(currentProcessedMimeMessage, multipartEncrypted);
             String contentType = String.format(
                 "multipart/encrypted; boundary=\"%s\";\r\n  protocol=\"application/pgp-encrypted\"",
@@ -198,46 +186,39 @@ public class PqcMessagebuilder extends MessageBuilder {
             );
             currentProcessedMimeMessage.setHeader(MimeHeader.HEADER_CONTENT_TYPE, contentType);
 
-            // 4. Optional: KEM-Info als Header (nicht als eigene MIME-Parts!)
-            String foldedRsa = HybridEncryptionHelper.foldHeaderValue(Base64.getEncoder().encodeToString(kemResult.rsaCiphertext));
-            String foldedPqc = HybridEncryptionHelper.foldHeaderValue(Base64.getEncoder().encodeToString(kemResult.pqcCiphertext));
-            currentProcessedMimeMessage.setHeader("X-Hybrid-RSA", foldedRsa);
-            currentProcessedMimeMessage.setHeader("X-Hybrid-PQC", foldedPqc);
-            currentProcessedMimeMessage.setHeader("X-Hybrid-KDF"," HKDF-SHA256");
-
-            // (Optional) besser lesbar:
+            currentProcessedMimeMessage.setHeader("X-Hybrid-RSA", PqcEncryptionHelper.foldHeaderValue(Base64.getEncoder().encodeToString(kemResult.rsaCiphertext)));
+            currentProcessedMimeMessage.setHeader("X-Hybrid-PQC", PqcEncryptionHelper.foldHeaderValue(Base64.getEncoder().encodeToString(kemResult.pqcCiphertext)));
             currentProcessedMimeMessage.setHeader("X-Pgp-Hybrid-Pqc", "true");
             currentProcessedMimeMessage.setHeader("MIME-Version", "1.0");
             currentProcessedMimeMessage.setHeader("Content-Transfer-Encoding", "7bit");
 
         } catch (Exception e) {
-            throw new MessagingException("Hybrid-RFC-Verschlüsselung fehlgeschlagen", e);
+            throw new MessagingException("Hybrid RFC encryption failed", e);
         }
     }
 
-
+    /**
+     * Builds the message and initiates processing.
+     */
     @Override
     protected void buildMessageInternal() {
         try {
             currentProcessedMimeMessage = build();
-
             if (messageContentBodyPart == null) {
                 messageContentBodyPart = extractBodyPartFromCurrentMessage();
             }
             startOrContinueBuildMessage(null);
         } catch (MessagingException me) {
             queueMessageBuildException(me);
-            return;
         }
     }
 
+    /**
+     * Executes message signing/encryption depending on user-selected crypto status.
+     */
     private void startOrContinueBuildMessage(@Nullable Intent intent) {
-        if (currentProcessedMimeMessage == null) {
-            throw new IllegalStateException("currentProcessedMimeMessage must be built before continuing!");
-        }
-
-        if (cryptoStatus == null || getAccount() == null) {
-            throw new IllegalStateException("PqcMessagebuilder must have cryptoStatus and account set before building!");
+        if (currentProcessedMimeMessage == null || cryptoStatus == null || getAccount() == null) {
+            throw new IllegalStateException("Message must be initialized and crypto status/account set");
         }
 
         try {
@@ -245,17 +226,13 @@ public class PqcMessagebuilder extends MessageBuilder {
             boolean shouldEncrypt = cryptoStatus.isEncryptPqcHybridEnabled();
 
             if (shouldSign && shouldEncrypt) {
-                // 1. Signieren
                 byte[] canonicalData = PqcMessageHelper.canonicalize(messageContentBodyPart);
-                CompositeSignatureHelper signatureHelper = new CompositeSignatureHelper(getAccount().getUuid(), context);
+                PqcSignatureHelper signatureHelper = new PqcSignatureHelper(getAccount().getUuid(), context);
                 Map<String, byte[]> signatureMap = signatureHelper.signAll(canonicalData);
-
                 mimeBuildEncryptedMessageHybridRFC(mimeBuildSignedMessage(messageContentBodyPart, signatureMap));
-
             } else if (shouldSign) {
                 byte[] canonicalData = PqcMessageHelper.canonicalize(messageContentBodyPart);
-                Timber.d("PQC: Canonicalized data (sign): %s", new String(canonicalData, StandardCharsets.UTF_8));
-                CompositeSignatureHelper signatureHelper = new CompositeSignatureHelper(getAccount().getUuid(), context);
+                PqcSignatureHelper signatureHelper = new PqcSignatureHelper(getAccount().getUuid(), context);
                 Map<String, byte[]> signatureMap = signatureHelper.signAll(canonicalData);
                 mimeBuildSignedMessage(messageContentBodyPart, signatureMap);
             } else if (shouldEncrypt) {
@@ -266,19 +243,16 @@ public class PqcMessagebuilder extends MessageBuilder {
 
             if (isDraft()) {
                 AutocryptDraftStateHeader draftStateHeader = AutocryptDraftStateHeader.fromCryptoStatus(cryptoStatus);
-                currentProcessedMimeMessage.setHeader(
-                    AutocryptDraftStateHeader.AUTOCRYPT_DRAFT_STATE_HEADER,
-                    draftStateHeader.toHeaderValue()
-                );
+                currentProcessedMimeMessage.setHeader(AutocryptDraftStateHeader.AUTOCRYPT_DRAFT_STATE_HEADER, draftStateHeader.toHeaderValue());
             }
 
             currentProcessedMimeMessage.setSentDate(new Date(), false);
             queueMessageBuildSuccess(currentProcessedMimeMessage);
-
         } catch (Exception e) {
-            queueMessageBuildException(new MessagingException("Fehler beim Signieren mit PQC", e));
+            queueMessageBuildException(new MessagingException("Failed to build PQC signed/encrypted message", e));
         }
     }
+
     @Override
     protected void buildMessageOnActivityResult(int requestCode, Intent data) {
         startOrContinueBuildMessage(data);

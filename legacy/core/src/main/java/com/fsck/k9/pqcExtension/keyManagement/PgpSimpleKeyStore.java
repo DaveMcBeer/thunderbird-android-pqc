@@ -3,6 +3,7 @@ package com.fsck.k9.pqcExtension.keyManagement;
 import android.content.Context;
 
 import com.fsck.k9.pqcExtension.keyManagement.manager.PgpSimpleKeyManager;
+import com.fsck.k9.pqcExtension.keyManagement.manager.PqcKemSimpleKeyManager;
 import org.bouncycastle.openpgp.PGPException;
 import org.json.JSONObject;
 
@@ -15,7 +16,7 @@ public class PgpSimpleKeyStore implements SimpleKeyStore {
         try {
             PgpSimpleKeyManager.generateAndStoreKeyPair(context, userId);
         } catch (Exception e) {
-            throw new Exception("Fehler beim Generieren des PGP-Schlüsselpaares", e);
+            throw new Exception("Failed to generate PGP key pair", e);
         }
     }
 
@@ -24,7 +25,7 @@ public class PgpSimpleKeyStore implements SimpleKeyStore {
         try {
             PgpSimpleKeyManager.importArmoredKeyPair(context, userId, publicKey, privateKey);
         } catch (Exception e) {
-            throw new Exception("Fehler beim Importieren des eigenen PGP-Schlüsselpaares", e);
+            throw new Exception("Failed to import own PGP key pair", e);
         }
     }
 
@@ -33,14 +34,18 @@ public class PgpSimpleKeyStore implements SimpleKeyStore {
         try {
             PgpSimpleKeyManager.saveRemotePublicKey(context, ownerUserId, remoteEmail, algorithm, publicKey);
         } catch (Exception e) {
-            throw new Exception("Fehler beim Importieren des Remote-PGP-Schlüssels", e);
+            throw new Exception("Failed to import remote PGP public key", e);
         }
     }
 
     @Override
-    public void clearAllKeys(Context context, String userId, Boolean deleteRemote) {
+    public void clearAllKeys(Context context, String userId, Boolean deleteAll) {
         try {
-            PgpSimpleKeyManager.deleteAll(context);
+            if (deleteAll) {
+                PgpSimpleKeyManager.deleteAll(context);
+            } else {
+                PgpSimpleKeyManager.deleteKeyPair(context, userId);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -51,7 +56,7 @@ public class PgpSimpleKeyStore implements SimpleKeyStore {
         try {
             return PgpSimpleKeyManager.exportArmoredPublicKey(context, userId);
         } catch (Exception e) {
-            throw new RuntimeException("Fehler beim Exportieren des PGP-Keys", e);
+            throw new RuntimeException("Failed to export PGP public key", e);
         }
     }
 
@@ -64,7 +69,7 @@ public class PgpSimpleKeyStore implements SimpleKeyStore {
             obj.put("publicKey", armored);
             return obj;
         } catch (Exception e) {
-            throw new Exception("Fehler beim Laden des Remote-PGP-Schlüssels", e);
+            throw new Exception("Failed to load remote PGP public key", e);
         }
     }
 
@@ -72,7 +77,7 @@ public class PgpSimpleKeyStore implements SimpleKeyStore {
         try {
             return PgpSimpleKeyManager.loadRemotePublicKey(context, remoteEmail);
         } catch (Exception e) {
-            throw new Exception("Fehler beim Laden des Remote-PGP-Keys (armored)", e);
+            throw new Exception("Failed to load remote PGP public key (armored)", e);
         }
     }
 
@@ -90,7 +95,8 @@ public class PgpSimpleKeyStore implements SimpleKeyStore {
         try {
             return PgpSimpleKeyManager.loadLocalPrivateKey(context, userId);
         } catch (Exception e) {
-            throw new Exception("Fehler beim Laden des lokalen privaten PGP-Schlüssels", e);
+            throw new Exception("Failed to load local PGP private key", e);
         }
     }
 }
+

@@ -30,11 +30,15 @@ public class PgpSimpleKeyManager {
     private static final String REMOTE_PREFS = "pgp_remote_keys";
 
     static {
+        // Ensure BouncyCastle is registered
         if (Security.getProvider("BC") == null) {
             Security.addProvider(new BouncyCastleProvider());
         }
     }
 
+    /**
+     * Returns an instance of encrypted SharedPreferences using AndroidX Security.
+     */
     private static SharedPreferences getEncryptedPrefs(Context context, String name) throws Exception {
         MasterKey masterKey = new MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
@@ -49,6 +53,9 @@ public class PgpSimpleKeyManager {
         );
     }
 
+    /**
+     * Generates a new RSA PGP key pair and stores it securely.
+     */
     public static void generateAndStoreKeyPair(Context context, String userId) throws Exception {
         char[] emptyPassphrase = new char[0];
         PGPKeyRingGenerator keyRingGen = generateKeyRing(userId, emptyPassphrase);
@@ -66,6 +73,9 @@ public class PgpSimpleKeyManager {
             .apply();
     }
 
+    /**
+     * Builds a new PGP RSA key ring generator.
+     */
     private static PGPKeyRingGenerator generateKeyRing(String identity, char[] passphrase) {
         try {
             KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA", new BouncyCastleProvider());
@@ -96,6 +106,9 @@ public class PgpSimpleKeyManager {
         }
     }
 
+    /**
+     * Converts a public key ring into ASCII-armored string.
+     */
     private static String armorKeyRing(PGPPublicKeyRing keyRing) throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (ArmoredOutputStream armoredOut = new ArmoredOutputStream(out)) {
@@ -104,6 +117,9 @@ public class PgpSimpleKeyManager {
         return out.toString("UTF-8");
     }
 
+    /**
+     * Converts a secret key ring into ASCII-armored string.
+     */
     private static String armorKeyRing(PGPSecretKeyRing keyRing) throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (ArmoredOutputStream armoredOut = new ArmoredOutputStream(out)) {
@@ -112,22 +128,31 @@ public class PgpSimpleKeyManager {
         return out.toString("UTF-8");
     }
 
+    /**
+     * Deletes the key pair for the specified user.
+     */
     public static void deleteKeyPair(Context context, String userId) throws Exception {
-        getEncryptedPrefs(context, PREFS_NAME).edit()
-            .remove(userId + "_pub")
-            .remove(userId + "_priv")
-            .apply();
+        getEncryptedPrefs(context, PREFS_NAME).edit().remove(userId).apply();
     }
 
+    /**
+     * Deletes all stored PGP keys.
+     */
     public static void deleteAll(Context context) throws Exception {
         getEncryptedPrefs(context, PREFS_NAME).edit().clear().apply();
     }
 
+    /**
+     * Checks if a key pair exists for the specified user.
+     */
     public static boolean hasKeyPair(Context context, String userId) throws Exception {
         SharedPreferences prefs = getEncryptedPrefs(context, PREFS_NAME);
         return prefs.contains(userId + "_pub") && prefs.contains(userId + "_priv");
     }
 
+    /**
+     * Imports a full PGP key pair (armored) and stores it securely.
+     */
     public static void importArmoredKeyPair(Context context, String userId, String armoredPublic, String armoredPrivate) throws Exception {
         SharedPreferences prefs = getEncryptedPrefs(context, PREFS_NAME);
         prefs.edit()
@@ -136,17 +161,24 @@ public class PgpSimpleKeyManager {
             .apply();
     }
 
+    /**
+     * Exports the user's public key in armored form.
+     */
     public static String exportArmoredPublicKey(Context context, String userId) throws Exception {
         SharedPreferences prefs = getEncryptedPrefs(context, PREFS_NAME);
         String pub = prefs.getString(userId + "_pub", null);
-        if (pub == null) throw new Exception("Kein öffentlicher Schlüssel gefunden");
+        if (pub == null) throw new Exception("No public key found");
         return pub;
     }
 
+
+    /**
+     * Returns the user's local private key as a JSON object.
+     */
     public static JSONObject loadLocalPrivateKey(Context context, String userId) throws Exception {
         SharedPreferences prefs = getEncryptedPrefs(context, PREFS_NAME);
         String privArmored = prefs.getString(userId + "_priv", null);
-        if (privArmored == null) throw new Exception("Kein privater Schlüssel gefunden");
+        if (privArmored == null) throw new Exception("No private key found");
 
         JSONObject keyJson = new JSONObject();
         keyJson.put("algorithm", "RSA");
@@ -154,22 +186,32 @@ public class PgpSimpleKeyManager {
         return keyJson;
     }
 
+
+    /**
+     * Parses an armored public key into a PGPPublicKeyRing instance.
+     */
     public static PGPPublicKeyRing parsePublicKeyRing(String armored) throws Exception {
         InputStream in = PGPUtil.getDecoderStream(new ByteArrayInputStream(armored.getBytes(StandardCharsets.UTF_8)));
         PGPPublicKeyRingCollection keyRings = new PGPPublicKeyRingCollection(in, new JcaKeyFingerprintCalculator());
         Iterator<PGPPublicKeyRing> ringIter = keyRings.getKeyRings();
         if (ringIter.hasNext()) return ringIter.next();
-        else throw new IllegalArgumentException("Kein gültiger PGPPublicKeyRing");
+        else throw new IllegalArgumentException("No valid PGPPublicKeyRing");
     }
 
+    /**
+     * Parses an armored secret key into a PGPSecretKeyRing instance.
+     */
     public static PGPSecretKeyRing parseSecretKeyRing(String armored) throws Exception {
         InputStream in = PGPUtil.getDecoderStream(new ByteArrayInputStream(armored.getBytes("UTF-8")));
         PGPObjectFactory factory = new PGPObjectFactory(in, new JcaKeyFingerprintCalculator());
         Object obj = factory.nextObject();
-        if (!(obj instanceof PGPSecretKeyRing)) throw new IllegalArgumentException("Kein gültiger SecretKeyRing");
+        if (!(obj instanceof PGPSecretKeyRing)) throw new IllegalArgumentException("No valid SecretKeyRing");
         return (PGPSecretKeyRing) obj;
     }
 
+    /**
+     * Stores a public key received from a remote user.
+     */
     public static void saveRemotePublicKey(Context context, String userId, String remoteEmail, String algorithm, String publicKey) {
         try {
             SharedPreferences prefs = context.getSharedPreferences(REMOTE_PREFS, Context.MODE_PRIVATE);
@@ -178,18 +220,21 @@ public class PgpSimpleKeyManager {
             json.put("publicKey", publicKey);
             prefs.edit().putString(remoteEmail.toLowerCase(), json.toString()).apply();
         } catch (Exception e) {
-            throw new RuntimeException("Fehler beim Speichern des Remote-Keys", e);
+            throw new RuntimeException("Error while saving Remote-Keys", e);
         }
     }
 
+    /**
+     * Loads a public key received from a remote contact.
+     */
     public static String loadRemotePublicKey(Context context, String remoteEmail) throws Exception {
         String key = context.getSharedPreferences(REMOTE_PREFS, Context.MODE_PRIVATE)
             .getString(remoteEmail.toLowerCase(), null);
-        if (key == null) throw new Exception("Kein Remote-Key vorhanden");
+        if (key == null) throw new Exception("No Remote-Key found");
 
         if (key.trim().startsWith("{")) {
             JSONObject json = new JSONObject(key);
-            if (!json.has("publicKey")) throw new Exception("JSON enthält keinen 'publicKey'");
+            if (!json.has("publicKey")) throw new Exception("JSON contains no 'publicKey'");
             return json.getString("publicKey");
         }
 

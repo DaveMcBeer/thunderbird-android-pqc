@@ -23,6 +23,10 @@ public class KeyReciever {
 
     private static final String TAG = "KeyReciever";
 
+    /**
+     * Scans a received message for public key attachments (PGP, PQC-KEM, PQC-SIG) and imports them
+     * into the local key stores.
+     */
     public static void importPublicKeysFromMessage(Context context, Message message, String accountId) {
         String senderEmail = message.getFrom()[0].getAddress();
 
@@ -38,6 +42,8 @@ public class KeyReciever {
             }
 
             Multipart multipart = (Multipart) message.getBody();
+
+            // Iterate over each part to find public key attachments
             for (Part part : multipart.getBodyParts()) {
                 if (!(part instanceof BodyPart)) continue;
                 BodyPart bodyPart = (BodyPart) part;
@@ -53,6 +59,7 @@ public class KeyReciever {
                 String armoredText = extractAsciiContent(bodyPart);
                 if (armoredText == null || !armoredText.contains("-----BEGIN")) continue;
 
+                // Identify and store keys by filename
                 if (filename.equalsIgnoreCase(KeyDistributor.KeyAttachment.PQC_SIG.filename)) {
                     pqcSigAlgorithm = PqcMessageHelper.extractAlgorithm(armoredText);
                     pqcSigKey = armoredText;
@@ -62,32 +69,41 @@ public class KeyReciever {
                     pqcKemKey = armoredText;
 
                 } else if (filename.equalsIgnoreCase(KeyDistributor.KeyAttachment.PGP.filename)) {
-                    // PGP ist direkt armierter ASCII Block – einfach speichern
+                    // PGP is assumed to be fully armored already
                     SimpleKeyStore pgpStore = SimpleKeyStoreFactory.getKeyStore(KeyType.PGP);
                     pgpStore.importRemotePublicKey(context, accountId, senderEmail, "PGP", armoredText);
-                    Log.i(TAG, "PGP-Key gespeichert für: " + senderEmail);
+                    Log.i(TAG, "PGP-Key saved for: " + senderEmail);
                 }
             }
 
+
+            // Save PQC signature key if found
             if (pqcSigKey != null && pqcSigAlgorithm != null) {
                 SimpleKeyStore sigStore = SimpleKeyStoreFactory.getKeyStore(KeyType.PQC_SIG);
                 sigStore.importRemotePublicKey(context, accountId, senderEmail, pqcSigAlgorithm,
                     PqcMessageHelper.extractContent(pqcSigKey, "PQC SIGNATURE PUBLIC KEY"));
-                Log.i(TAG, "PQC-SIG-Key gespeichert für: " + senderEmail);
+                Log.i(TAG, "PQC-SIG-Key saved for: " + senderEmail);
             }
 
+
+            // Save PQC KEM key if found
             if (pqcKemKey != null && pqcKemAlgorithm != null) {
                 SimpleKeyStore kemStore = SimpleKeyStoreFactory.getKeyStore(KeyType.PQC_KEM);
                 kemStore.importRemotePublicKey(context, accountId, senderEmail, pqcKemAlgorithm,
                     PqcMessageHelper.extractContent(pqcKemKey, "PQC KEM PUBLIC KEY"));
-                Log.i(TAG, "PQC-KEM-Key gespeichert für: " + senderEmail);
+                Log.i(TAG, "PQC-KEM-Key saved for: " + senderEmail);
             }
 
         } catch (Exception e) {
-            Log.e(TAG, "Fehler beim Importieren der Schlüssel: ", e);
+            Log.e(TAG, "Error while importing keys: ", e);
         }
     }
 
+
+    /**
+     * Extracts ASCII content from a body part. If content appears to be Base64-encoded,
+     * decodes it first before interpreting it as ASCII-armored text.
+     */
     private static String extractAsciiContent(BodyPart part) {
         try {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -100,7 +116,7 @@ public class KeyReciever {
 
             String result = outputStream.toString(StandardCharsets.US_ASCII.name());
 
-            // Falls kein BEGIN-Block sichtbar ist, versuche zu dekodieren
+            // If no armor headers are detected, attempt to decode base64
             if (!result.contains("-----BEGIN")) {
                 byte[] decoded = Base64.getMimeDecoder().decode(result.replaceAll("\\s+", ""));
                 result = new String(decoded, StandardCharsets.US_ASCII);
@@ -108,7 +124,7 @@ public class KeyReciever {
 
             return result;
         } catch (Exception e) {
-            Log.e(TAG, "Fehler beim Lesen des Attachment-Inhalts", e);
+            Log.e(TAG, "Error while reading attachment content", e);
             return null;
         }
     }

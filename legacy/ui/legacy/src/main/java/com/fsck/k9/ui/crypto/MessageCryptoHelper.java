@@ -45,7 +45,7 @@ import com.fsck.k9.mailstore.MessageCryptoAnnotations;
 import com.fsck.k9.mailstore.MessageHelper;
 import com.fsck.k9.mailstore.MimePartStreamParser;
 import com.fsck.k9.pqcExtension.helper.encryption.PqcDecryptionHelper;
-import com.fsck.k9.pqcExtension.helper.signature.PqcSignatureVerifierHelper;
+import com.fsck.k9.pqcExtension.helper.signature.PqcVerifierHelper;
 import com.fsck.k9.pqcExtension.message.results.PqcDecryptionResult;
 import com.fsck.k9.mailstore.util.FileFactory;
 import com.fsck.k9.provider.DecryptedFileProvider;
@@ -491,7 +491,7 @@ public class MessageCryptoHelper {
     private void callPqcVerify(Part part) {
         try {
             String senderEmail = currentMessage.getFrom()[0].getAddress();
-            CryptoResultAnnotation annotation = PqcSignatureVerifierHelper.verifyAll(context, part, senderEmail, account.getUuid(),null);
+            CryptoResultAnnotation annotation = PqcVerifierHelper.verifyAll(context, part, senderEmail, account.getUuid(),null);
             onCryptoOperationSuccess(annotation);
         } catch (Exception e) {
             MimeBodyPart replacement = getMultipartSignedContentPartIfAvailable(part);

@@ -40,6 +40,10 @@ import java.util.List;
 
 
 public class KeyDistributor {
+
+    /**
+     * Enum representing the different types of keys that can be attached to a message.
+     */
     public enum KeyAttachment {
         PQC_SIG("pqc-sig-pk.asc", "X-Key-Sig-Algorithm", "application/octet-stream"),
         PQC_KEM("pqc-kem-pk.asc", "X-Key-Kem-Algorithm", "application/octet-stream"),
@@ -56,6 +60,10 @@ public class KeyDistributor {
         }
     }
 
+    /**
+     * Creates and sends an email message that contains public key attachments for key distribution.
+     * Supports PGP, PQC signature, and PQC KEM keys.
+     */
     public static void createAndSendKeyDistributionMessage(
         Context context,
         MessagingController messagingController,
@@ -77,16 +85,19 @@ public class KeyDistributor {
         Identity identity = account.getIdentity(0);
         List<Attachment> attachments = new ArrayList<>();
 
+        // Add PQC signature key if available
         if (sigKey != null && sigAlg != null) {
             String armored = PqcMessageHelper.armor(sigKey, "PQC SIGNATURE PUBLIC KEY", sigAlg);
             attachments.add(createTempAttachment(context, armored, KeyAttachment.PQC_SIG.filename, KeyAttachment.PQC_SIG.mimeType));
         }
 
+        // Add PQC KEM key if available
         if (kemKey != null && kemAlg != null) {
             String armored = PqcMessageHelper.armor(kemKey, "PQC KEM PUBLIC KEY", kemAlg);
             attachments.add(createTempAttachment(context, armored, KeyAttachment.PQC_KEM.filename, KeyAttachment.PQC_KEM.mimeType));
         }
 
+        // Add PGP key (assumed to be already armored)
         if (pgpKey != null && !pgpKey.trim().isEmpty()) {
             // Der Key muss bereits korrekt armoured sein (z.B. via exportArmoredPublicKey)
             attachments.add(createTempAttachment(
@@ -96,11 +107,14 @@ public class KeyDistributor {
                 KeyAttachment.PGP.mimeType
             ));
         }
+
+        // Convert recipients to Address objects
         List<Address> addressList = new ArrayList<>();
         for (String email : to) {
             addressList.add(new Address(email));
         }
 
+        // Build the message with the attachments and standard fields
         SimpleMessageBuilder builder = (SimpleMessageBuilder) SimpleMessageBuilder.newInstance()
             .setAccount(account)
             .setIdentity(identity)
@@ -113,6 +127,8 @@ public class KeyDistributor {
             .setHideTimeZone(false)
             .setAttachments(attachments);
 
+
+        // Asynchronously build and send the message
         builder.buildAsync(new MessageBuilder.Callback() {
             @Override
             public void onMessageBuildSuccess(MimeMessage message, boolean isDraft) {
@@ -149,6 +165,9 @@ public class KeyDistributor {
         });
     }
 
+    /**
+     * Creates a temporary file for the given content to be used as an email attachment.
+     */
     private static Attachment createTempAttachment(Context context, String content, String filename, String mimeType) throws IOException {
         File tempFile = File.createTempFile("key-attachment-", ".asc", context.getCacheDir());
         try (FileOutputStream fos = new FileOutputStream(tempFile)) {
@@ -193,6 +212,9 @@ public class KeyDistributor {
         };
     }
 
+    /**
+     * AsyncTask to send the message and optionally clean up the original draft.
+     */
     static class KeySendTask extends AsyncTask<Void, Void, Void> {
         final MessagingController messagingController;
         final Preferences preferences;

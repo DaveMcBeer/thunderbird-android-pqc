@@ -17,6 +17,9 @@ public class PqcKemSimpleKeyManager {
     private static final String PREFS_NAME = "pqc_kem_keys_secure";
     private static final String REMOTE_PREFS = "pqc_kem_remote_keys";
 
+    /**
+     * Returns encrypted SharedPreferences using AndroidX Security library.
+     */
     private static SharedPreferences getEncryptedPrefs(Context context) throws Exception {
         MasterKey masterKey = new MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
@@ -31,9 +34,12 @@ public class PqcKemSimpleKeyManager {
         );
     }
 
+    /**
+     * Generates and stores a PQC KEM key pair securely for a given algorithm and user.
+     */
     public static void generateAndStoreKeyPair(Context context, String userId, String algorithm) {
         if (!KEMs.is_KEM_enabled(algorithm)) {
-            throw new IllegalArgumentException("KEM-Algorithmus nicht unterstützt: " + algorithm);
+            throw new IllegalArgumentException("KEM algorithm not supported: " + algorithm);
         }
 
         KeyEncapsulation kem = new KeyEncapsulation(algorithm);
@@ -48,6 +54,9 @@ public class PqcKemSimpleKeyManager {
         }
     }
 
+    /**
+     * Saves a KEM key pair (public/private) with associated algorithm in encrypted storage.
+     */
     public static void saveKeyPair(Context context, String userId, String algorithm, String publicKey, String privateKey) {
         try {
             JSONObject json = new JSONObject();
@@ -61,6 +70,9 @@ public class PqcKemSimpleKeyManager {
         }
     }
 
+    /**
+     * Loads a locally stored KEM key pair for the user.
+     */
     public static JSONObject loadKeyPair(Context context, String userId) throws Exception {
         SharedPreferences prefs = getEncryptedPrefs(context);
         if (prefs.contains(userId)) {
@@ -72,18 +84,30 @@ public class PqcKemSimpleKeyManager {
         }
     }
 
+    /**
+     * Deletes the key pair for the specified user.
+     */
     public static void deleteKeyPair(Context context, String userId) throws Exception {
         getEncryptedPrefs(context).edit().remove(userId).apply();
     }
 
+    /**
+     * Deletes all stored PQC KEM keys.
+     */
     public static void deleteAll(Context context) throws Exception {
         getEncryptedPrefs(context).edit().clear().apply();
     }
 
+    /**
+     * Checks if a key pair exists for the specified user.
+     */
     public static boolean hasKeyPair(Context context, String userId) throws Exception {
         return getEncryptedPrefs(context).contains(userId);
     }
 
+    /**
+     * Loads only the private part of the key pair in JSON format.
+     */
     public static JSONObject loadLocalPrivateKey(Context context, String userId) throws Exception {
         JSONObject keyPair = loadKeyPair(context, userId);
         if (!keyPair.has("algorithm") || !keyPair.has("privateKey")) {
@@ -98,6 +122,9 @@ public class PqcKemSimpleKeyManager {
         return keyJson;
     }
 
+    /**
+     * Loads a public key previously imported from a remote contact.
+     */
     public static JSONObject loadRemotePublicKey(Context context, String remoteEmail) throws Exception {
         SharedPreferences prefs = context.getSharedPreferences(REMOTE_PREFS, Context.MODE_PRIVATE);
         String json = prefs.getString(remoteEmail.toLowerCase(), null);
@@ -105,6 +132,9 @@ public class PqcKemSimpleKeyManager {
         return new JSONObject(json);
     }
 
+    /**
+     * Exports the locally stored public key for the given user.
+     */
     public static String exportPublicKey(Context context, String userId) throws Exception {
         JSONObject json = loadKeyPair(context, userId);
         if (json.has("publicKey"))
@@ -113,6 +143,9 @@ public class PqcKemSimpleKeyManager {
             return "";
     }
 
+    /**
+     * Stores a public key received from a remote user.
+     */
     public static void importRemotePublicKey(Context context, String ownerUserId, String remoteEmail, String algorithm, String publicKey) throws Exception {
         SharedPreferences prefs = context.getSharedPreferences(REMOTE_PREFS, Context.MODE_PRIVATE);
         JSONObject json = new JSONObject();

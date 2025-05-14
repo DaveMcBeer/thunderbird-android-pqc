@@ -37,8 +37,12 @@ import java.security.Security;
 import java.util.ArrayList;
 import java.util.Base64;
 
-public class PqcSignatureVerifierHelper {
+public class PqcVerifierHelper {
 
+    /**
+     * Verifies both PQC and PGP signatures of a multipart-signed MIME message.
+     * Returns appropriate CryptoResultAnnotation depending on validity of signatures and decryption result.
+     */
     @RequiresApi(api = VERSION_CODES.TIRAMISU)
     public static CryptoResultAnnotation verifyAll(Context context, Part part, String senderEmail, String accountId, @Nullable PqcDecryptionResult decryptionResult) {
         try {
@@ -47,9 +51,12 @@ public class PqcSignatureVerifierHelper {
                 throw new MessagingException("Expected at least 2 parts for signed PQC message");
             }
 
+            // Extract the content and prepare it for signature verification
             BodyPart signedContentPart = multipart.getBodyPart(0);
             byte[] signedData = PqcMessageHelper.canonicalize(signedContentPart);
 
+
+            // Load PQC public key and algorithm from remote key store
             JSONObject keyData = SimpleKeyStoreFactory.getKeyStore(KeyType.PQC_SIG).loadRemotePublicKey(context, senderEmail);
             String declaredSigAlgorithm = keyData.optString("algorithm", "DEFAULT_ALGO");
             String pqcSigPk = keyData.optString("publicKey", "");
@@ -63,6 +70,7 @@ public class PqcSignatureVerifierHelper {
 
             byte[] pqcPubKey = Base64.getDecoder().decode(pqcSigPk);
 
+            // Load PGP public key
             String pgpPublicKeyArmored = SimpleKeyStoreFactory.getKeyStore(KeyType.PGP)
                 .loadRemotePublicKeyArmoredString(context, senderEmail);
 
@@ -83,6 +91,8 @@ public class PqcSignatureVerifierHelper {
             boolean edValid = false;
             boolean pqcValid = false;
 
+
+            // Loop through signature parts to verify each one
             for (int i = 1; i < multipart.getCount(); i++) {
                 BodyPart signaturePart = multipart.getBodyPart(i);
                 String asciiSig = new String(PqcMessageHelper.canonicalize(signaturePart), StandardCharsets.US_ASCII);
@@ -108,6 +118,8 @@ public class PqcSignatureVerifierHelper {
 
             MimeBodyPart replacementData = (MimeBodyPart) signedContentPart;
 
+
+            // If both signatures are valid, return success result
             if (edValid && pqcValid) {
                 PqcSignatureResult signatureResult = PqcSignatureResult.createWithValidSignature(
                     PqcSignatureResult.RESULT_VALID_KEY_CONFIRMED,
@@ -115,7 +127,7 @@ public class PqcSignatureVerifierHelper {
                     SenderStatusResult.USER_ID_CONFIRMED
                 );
 
-                if (decryptionResult != null && decryptionResult.getResult() == PqcDecryptionResult.RESULT_ENCRYPTED) {
+                if (decryptionResult != null && decryptionResult.getResult() == PqcDecryptionResult.RESULT_DECRYPTED) {
                     return CryptoResultAnnotation.createPqcEncryptionSignatureSuccessAnnotation(
                         decryptionResult,
                         signatureResult,
@@ -130,9 +142,10 @@ public class PqcSignatureVerifierHelper {
                 );
             }
 
-            // Wenn Signatur ungültig
+
+            // If signature verification failed
             return CryptoResultAnnotation.createPqcEncryptionErrorAnnotation(
-                decryptionResult != null ? decryptionResult : new PqcDecryptionResult(PqcDecryptionResult.RESULT_ENCRYPTED),
+                decryptionResult != null ? decryptionResult : new PqcDecryptionResult(PqcDecryptionResult.RESULT_DECRYPTED),
                 (MimeBodyPart) signedContentPart,
                 new PqcError(PqcError.INVALID_SIGNATURE, "Invalid signature(s) in PQC or PGP")
             );
@@ -145,7 +158,9 @@ public class PqcSignatureVerifierHelper {
         }
     }
 
-
+    /**
+     * Verifies a classic PGP signature using the given public key.
+     */
     private static boolean verifyPgpSignature(byte[] data, byte[] sigBytes, PGPPublicKey pubKey) {
         try {
             InputStream sigIn = PGPUtil.getDecoderStream(new ByteArrayInputStream(sigBytes));
@@ -170,6 +185,10 @@ public class PqcSignatureVerifierHelper {
         }
     }
 
+
+    /**
+     * Verifies a post-quantum signature using OpenQuantumSafe API.
+     */
     private static boolean verifyPqcSignature(byte[] data, byte[] signature, byte[] pubKeyBytes, String algorithm) {
         try {
             Signature pqcVerifier = new Signature(algorithm);

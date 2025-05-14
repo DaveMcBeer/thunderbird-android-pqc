@@ -8,16 +8,16 @@ import androidx.annotation.RequiresApi;
 import com.fsck.k9.crypto.MessageCryptoStructureDetector;
 import com.fsck.k9.mail.Part;
 import com.fsck.k9.mail.internet.MimeBodyPart;
-import com.fsck.k9.mail.internet.MimeMessage;
 import com.fsck.k9.mailstore.CryptoResultAnnotation;
 import com.fsck.k9.mailstore.MimePartStreamParser;
 import com.fsck.k9.mailstore.util.FileFactory;
 import com.fsck.k9.pqcExtension.helper.PqcMessageHelper;
-import com.fsck.k9.pqcExtension.helper.signature.PqcSignatureVerifierHelper;
+import com.fsck.k9.pqcExtension.helper.signature.PqcVerifierHelper;
 import com.fsck.k9.pqcExtension.keyManagement.SimpleKeyStoreFactory;
 import com.fsck.k9.pqcExtension.keyManagement.manager.PgpSimpleKeyManager;
 import com.fsck.k9.pqcExtension.message.results.PqcDecryptionResult;
 
+import com.fsck.k9.pqcExtension.message.results.PqcError;
 import com.fsck.k9.provider.DecryptedFileProvider;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPPrivateKey;
@@ -38,58 +38,71 @@ import javax.crypto.spec.SecretKeySpec;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
 import java.security.Security;
 import java.util.Base64;
 
 public class PqcDecryptionHelper {
 
-
+    /**
+     * Decrypts a MIME part using hybrid (RSA + PQC) encryption scheme.
+     * This method is the main entry point for decrypting an incoming message.
+     */
     @RequiresApi(api = VERSION_CODES.TIRAMISU)
     public static CryptoResultAnnotation decrypt(Context context, Part part, String senderEmail, String userId) throws Exception {
         try {
+            // Retrieve and decode Base64-encoded ciphertexts from headers
             String rsaCiphertextBase64 = part.getHeader("X-Hybrid-RSA")[0];
             String pqcCiphertextBase64 = part.getHeader("X-Hybrid-PQC")[0];
 
             byte[] rsaCiphertext = Base64.getDecoder().decode(rsaCiphertextBase64.replaceAll("\\s", ""));
             byte[] pqcCiphertext = Base64.getDecoder().decode(pqcCiphertextBase64.replaceAll("\\s", ""));
 
+            // Load PQC private key for this user from secure local keystore
             JSONObject keyData = SimpleKeyStoreFactory.getKeyStore(SimpleKeyStoreFactory.KeyType.PQC_KEM)
                 .loadLocalPrivateKey(context, userId);
 
             String pqcAlgorithm = keyData.getString("algorithm");
             byte[] pqcPrivateKey = Base64.getDecoder().decode(keyData.getString("privateKey"));
 
+            // Extract the actual encrypted payload
             byte[] encryptedPayload = PqcMessageHelper.extractEncryptedPayload(part);
+
+            // Fully decrypt the payload using both RSA and PQC shared secrets
             byte[] plaintext = decryptHybridMessage(
                 context, userId,
                 encryptedPayload, rsaCiphertext, pqcCiphertext,
                 pqcPrivateKey, pqcAlgorithm
             );
 
-            // ➕ Parsen der entschlüsselten Nachricht
+            // Parse decrypted content back into a MIME structure
             InputStream plaintextStream = new ByteArrayInputStream(plaintext);
             FileFactory fileFactory = DecryptedFileProvider.getFileFactory(context);
             MimeBodyPart replacementData = MimePartStreamParser.parse(fileFactory, plaintextStream);
 
-            // 🔁 Falls keine Signatur vorhanden
-            PqcDecryptionResult pqcResult = new PqcDecryptionResult(PqcDecryptionResult.RESULT_ENCRYPTED);
+            // Default result for encrypted message (no signature verification yet)
+            PqcDecryptionResult pqcResult = new PqcDecryptionResult(PqcDecryptionResult.RESULT_DECRYPTED);
 
-            // 🔍 Prüfen auf Signaturstruktur
+
+            // If the message is signed, attempt signature verification
             if (MessageCryptoStructureDetector.isMultipartSignedWithMultipleSignatures(replacementData)) {
-                return PqcSignatureVerifierHelper.verifyAll(context, replacementData, senderEmail, userId,pqcResult);
+                return PqcVerifierHelper.verifyAll(context, replacementData, senderEmail, userId,pqcResult);
             }
-
 
             return CryptoResultAnnotation.createPqcEncryptionSuccessAnnotation(pqcResult, replacementData);
 
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            // Default result for encrypted message (no signature verification yet)
+            PqcDecryptionResult pqcResult = new PqcDecryptionResult(PqcDecryptionResult.RESULT_NOT_DECRYPTED);
+            PqcError pqcError = new PqcError(PqcError.CLIENT_SIDE_ERROR,"Error while decryption");
+            return CryptoResultAnnotation.createPqcEncryptionErrorAnnotation(pqcResult, null,pqcError);
         }
     }
 
-
+    /**
+     * Decrypts AES-GCM encrypted data using the session key.
+     * Extracts IV and performs authenticated decryption.
+     */
     public static byte[] decryptWithAes(byte[] encrypted, byte[] sessionKey) throws Exception {
         ByteBuffer buffer = ByteBuffer.wrap(encrypted);
         if (buffer.remaining() < 4) {
@@ -116,6 +129,9 @@ public class PqcDecryptionHelper {
         return cipher.doFinal(ciphertext);
     }
 
+    /**
+     * Combines RSA and PQC shared secrets using HMAC to derive a session key.
+     */
     public static byte[] deriveSessionKey(byte[] s1, byte[] s2) throws Exception {
         byte[] input = ByteBuffer.allocate(s1.length + s2.length).put(s1).put(s2).array();
         SecretKeySpec keySpec = new SecretKeySpec("hybrid-key-ctx".getBytes(), "HmacSHA256");
@@ -124,6 +140,9 @@ public class PqcDecryptionHelper {
         return mac.doFinal(input);
     }
 
+    /**
+     * Decrypts RSA-encrypted shared secret using private key from local keyring.
+     */
     public static byte[] deriveRsaSharedSecretFromPrivateKey(Context context, String userId, byte[] encryptedSessionKey) throws Exception {
         if (Security.getProvider("BC") == null) {
             Security.addProvider(new BouncyCastleProvider());
@@ -155,6 +174,10 @@ public class PqcDecryptionHelper {
         return cipher.doFinal(encryptedSessionKey);
     }
 
+
+    /**
+     * Fully decrypts a hybrid-encrypted message (AES layer) using the RSA + PQC secrets.
+     */
     public static byte[] decryptHybridMessage(Context context, String userId, byte[] encryptedAesData, byte[] rsaKemCiphertext, byte[] pqcKemCiphertext, byte[] pqcPrivateKey, String pqcAlgorithm) throws Exception {
         byte[] rsaSharedSecret = deriveRsaSharedSecretFromPrivateKey(context, userId, rsaKemCiphertext);
         byte[] pqcSharedSecret = derivePqcSharedSecret(pqcKemCiphertext, pqcPrivateKey, pqcAlgorithm);
@@ -162,6 +185,9 @@ public class PqcDecryptionHelper {
         return decryptWithAes(encryptedAesData, sessionKey);
     }
 
+    /**
+     * Uses PQC KEM private key to decapsulate and recover shared secret.
+     */
     public static byte[] derivePqcSharedSecret(byte[] pqcCiphertext, byte[] pqcPrivateKey, String pqcAlgorithm) {
         KeyEncapsulation kem = new KeyEncapsulation(pqcAlgorithm, pqcPrivateKey);
         byte[] pqcSharedSecret = kem.decap_secret(pqcCiphertext);
