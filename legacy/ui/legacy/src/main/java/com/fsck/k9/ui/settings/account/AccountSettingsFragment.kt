@@ -2,6 +2,7 @@ package com.fsck.k9.ui.settings.account
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.app.ProgressDialog
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -39,13 +40,17 @@ import com.fsck.k9.ui.base.extensions.withArguments
 import com.fsck.k9.ui.endtoend.AutocryptKeyTransferActivity
 import com.fsck.k9.ui.settings.account.pqcExtension.PqcKemKeyManagementFragment
 import com.fsck.k9.ui.settings.account.pqcExtension.PqcSigningKeyManagementFragment
-import com.fsck.k9.ui.settings.account.pqcExtension.bechmark.PQCBenchmarkRunner
+import com.fsck.k9.ui.settings.account.pqcExtension.benchmark.PQCBenchmarkRunner
 import com.fsck.k9.ui.settings.onClick
 import com.fsck.k9.ui.settings.oneTimeClickListener
 import com.fsck.k9.ui.settings.remove
 import com.fsck.k9.ui.settings.removeEntry
 import com.google.android.material.snackbar.Snackbar
 import com.takisoft.preferencex.PreferenceFragmentCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.activityViewModel
 import org.koin.core.parameter.parametersOf
@@ -805,13 +810,44 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
      */
     private fun initializePqcBenchmarkRunner() {
         findPreference<Preference>("run_pqc_benchmark")?.onClick {
-            Toast.makeText(requireContext(), "Running PQC Benchmark...", Toast.LENGTH_SHORT).show()
-
-            // Benchmark starten
-            val result = PQCBenchmarkRunner.runAllBenchmarks(requireContext())
-
-            Toast.makeText(requireContext(), result, Toast.LENGTH_LONG).show()
+            showBenchmarkOptions()
         }
     }
+
+    private fun showBenchmarkOptions() {
+        val input = EditText(requireContext()).apply {
+            hint = "Anzahl Iterationen (z. B. 1000)"
+            inputType = InputType.TYPE_CLASS_NUMBER
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Benchmark konfigurieren")
+            .setView(input)
+            .setPositiveButton("Starten") { _, _ ->
+                val iterations = input.text.toString().toIntOrNull() ?: 1000
+                PQCBenchmarkRunner.setIterations(iterations)
+                runBenchmark()
+            }
+            .setNegativeButton("Abbrechen", null)
+            .show()
+    }
+    private fun runBenchmark() {
+        val context = requireContext()
+        val progressDialog = ProgressDialog(context).apply {
+            setMessage("Benchmark läuft – bitte nicht schließen...")
+            setCancelable(false)
+            show()
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            val result = PQCBenchmarkRunner.runAllBenchmarks(context)
+            withContext(Dispatchers.Main) {
+                progressDialog.dismiss()
+                Toast.makeText(context, result, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+
     //--- End PQC Integration ---
 }
