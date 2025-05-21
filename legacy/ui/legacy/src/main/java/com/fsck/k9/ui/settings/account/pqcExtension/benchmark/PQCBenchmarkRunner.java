@@ -40,13 +40,19 @@ public class PQCBenchmarkRunner {
     public static void setIterations(int iters) {
         ITERATIONS = iters;
     }
-    private static byte[] SAMPLE_MESSAGE = new byte[1024];
+    private static byte[] SAMPLE_MESSAGE;
+
+    private static void regenerateSampleMessage() {
+        SAMPLE_MESSAGE = new byte[SAMPLE_MESSAGE_SIZE];
+        new SecureRandom().nextBytes(SAMPLE_MESSAGE);
+    }
     private static int SAMPLE_MESSAGE_SIZE = 1024;
 
     public static void setSampleMessageSize(int sizeInBytes) {
-        Arrays.fill(SAMPLE_MESSAGE, (byte) 0);  // reset existing content
         SAMPLE_MESSAGE_SIZE = sizeInBytes;
+        regenerateSampleMessage();
     }
+
 
     /**
      * Führt alle verfügbaren Benchmark-Tests in einem Durchlauf aus.
@@ -90,13 +96,16 @@ public class PQCBenchmarkRunner {
             if (blacklist.contains(alg)) continue;
             Signature signer = new Signature(alg);
             Timber.d("Aktueller algorithmus:" + alg);
-            long beforeMem = rt.totalMemory() - rt.freeMemory();
-            long t0 = System.nanoTime();
-            signer.generate_keypair();
-            long t1 = System.nanoTime();
-            long afterMem = rt.totalMemory() - rt.freeMemory();
-            long kgMem = afterMem - beforeMem;
+
             for (int i = 0; i < ITERATIONS; i++) {
+
+                long beforeMem = rt.totalMemory() - rt.freeMemory();
+                long t0 = System.nanoTime();
+                signer.generate_keypair();
+                long t1 = System.nanoTime();
+                long afterMem = rt.totalMemory() - rt.freeMemory();
+                long kgMem = afterMem - beforeMem;
+
                 byte[] pub = signer.export_public_key();
                 byte[] priv = signer.export_secret_key();
                 int pubSz = pub.length;
@@ -126,8 +135,8 @@ public class PQCBenchmarkRunner {
                     pubSz, privSz,
                     valid
                 ));
-                signer.dispose_sig();
             }
+            signer.dispose_sig();
         }
         writer.flush(); writer.close();
     }
@@ -213,15 +222,15 @@ public class PQCBenchmarkRunner {
             if (blacklist.contains(alg)) continue;
             Timber.d("Aktueller KEM algorithmus:" + alg);
             KeyEncapsulation kem = new KeyEncapsulation(alg);
-            long beforeMem = rt.totalMemory() - rt.freeMemory();
-            long t0 = System.nanoTime();
-            kem.generate_keypair();
-            long t1 = System.nanoTime();
-            long afterMem = rt.totalMemory() - rt.freeMemory();
-            long kgMem = afterMem - beforeMem;
+
 
             for (int i = 0; i < ITERATIONS; i++) {
-
+                long beforeMem = rt.totalMemory() - rt.freeMemory();
+                long t0 = System.nanoTime();
+                kem.generate_keypair();
+                long t1 = System.nanoTime();
+                long afterMem = rt.totalMemory() - rt.freeMemory();
+                long kgMem = afterMem - beforeMem;
 
                 byte[] pub = kem.export_public_key();
 
@@ -251,8 +260,9 @@ public class PQCBenchmarkRunner {
                     t3 - t2, encMem, ctSz, ssSz,
                     t5 - t4, decMem, match
                 ));
-                kem.dispose_KEM();
+
             }
+            kem.dispose_KEM();
         }
         writer.flush(); writer.close();
     }
