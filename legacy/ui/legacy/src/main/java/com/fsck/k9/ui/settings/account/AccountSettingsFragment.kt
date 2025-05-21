@@ -11,6 +11,7 @@ import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.core.net.toUri
 import androidx.preference.ListPreference
@@ -815,22 +816,38 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), ConfirmationDialogFr
     }
 
     private fun showBenchmarkOptions() {
-        val input = EditText(requireContext()).apply {
+        val layout = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(50, 40, 50, 10)
+        }
+
+        val iterationsInput = EditText(requireContext()).apply {
             hint = "Anzahl Iterationen (z. B. 1000)"
             inputType = InputType.TYPE_CLASS_NUMBER
         }
 
+        val msgSizeInput = EditText(requireContext()).apply {
+            hint = "Nachrichtengröße in Byte (z. B. 1024)"
+            inputType = InputType.TYPE_CLASS_NUMBER
+        }
+
+        layout.addView(iterationsInput)
+        layout.addView(msgSizeInput)
+
         AlertDialog.Builder(requireContext())
             .setTitle("Benchmark konfigurieren")
-            .setView(input)
+            .setView(layout)
             .setPositiveButton("Starten") { _, _ ->
-                val iterations = input.text.toString().toIntOrNull() ?: 1000
+                val iterations = iterationsInput.text.toString().toIntOrNull() ?: 1000
+                val msgSize = msgSizeInput.text.toString().toIntOrNull() ?: 1024
                 PQCBenchmarkRunner.setIterations(iterations)
+                PQCBenchmarkRunner.setSampleMessageSize(msgSize)
                 runBenchmark()
             }
             .setNegativeButton("Abbrechen", null)
             .show()
     }
+
     private fun runBenchmark() {
         val context = requireContext()
         val progressDialog = ProgressDialog(context).apply {

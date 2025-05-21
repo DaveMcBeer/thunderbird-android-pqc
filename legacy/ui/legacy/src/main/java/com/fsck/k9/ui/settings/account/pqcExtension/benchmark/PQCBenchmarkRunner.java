@@ -8,6 +8,7 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
 
+import com.fsck.k9.logging.Timber;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.bcpg.HashAlgorithmTags;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -33,12 +34,19 @@ import java.security.*;
 import java.util.*;
 
 public class PQCBenchmarkRunner {
+
     private static int ITERATIONS = 1000;
 
     public static void setIterations(int iters) {
         ITERATIONS = iters;
     }
-    private static final byte[] SAMPLE_MESSAGE = new byte[1024];
+    private static byte[] SAMPLE_MESSAGE = new byte[1024];
+    private static int SAMPLE_MESSAGE_SIZE = 1024;
+
+    public static void setSampleMessageSize(int sizeInBytes) {
+        Arrays.fill(SAMPLE_MESSAGE, (byte) 0);  // reset existing content
+        SAMPLE_MESSAGE_SIZE = sizeInBytes;
+    }
 
     /**
      * Führt alle verfügbaren Benchmark-Tests in einem Durchlauf aus.
@@ -50,10 +58,9 @@ public class PQCBenchmarkRunner {
      */
     public static String runAllBenchmarks(Context context) {
         try {
-            Common.loadNativeLibrary();
             runPqcSignatureOnly(context);
-            runClassicPgpSignatureOnly(context);
             runPqcKemOnly(context);
+            runClassicPgpSignatureOnly(context);
             runHybridSignature(context);
             runHybridEncryptionWithAesVariants(context);
             return "All benchmarks completed.";
@@ -70,25 +77,26 @@ public class PQCBenchmarkRunner {
      *
      * Ergebnisse werden in `sig_benchmark.csv` geschrieben.
      */
+
     private static void runPqcSignatureOnly(Context context) throws IOException {
-        List<String> algorithms = Sigs.get_instance().get_supported_sigs();
+        List<String> algorithms = Sigs.get_supported_sigs();
         Writer writer = initCsv(context, "sig_benchmark.csv", new String[]{
             "Algorithm","Iter", "KG_ns","KG_mem", "Sign_ns","Sign_mem","Sig_bytes",
             "Ver_ns","Ver_mem", "PubKey_bytes","PrivKey_bytes","Valid"
         });
-
+        Set<String> blacklist = new HashSet<>(Arrays.asList("cross-rsdp-256-small"));
         Runtime rt = Runtime.getRuntime();
         for (String alg : algorithms) {
+            if (blacklist.contains(alg)) continue;
+            Signature signer = new Signature(alg);
+            Timber.d("Aktueller algorithmus:" + alg);
+            long beforeMem = rt.totalMemory() - rt.freeMemory();
+            long t0 = System.nanoTime();
+            signer.generate_keypair();
+            long t1 = System.nanoTime();
+            long afterMem = rt.totalMemory() - rt.freeMemory();
+            long kgMem = afterMem - beforeMem;
             for (int i = 0; i < ITERATIONS; i++) {
-                Signature signer = new Signature(alg);
-
-                long beforeMem = rt.totalMemory() - rt.freeMemory();
-                long t0 = System.nanoTime();
-                signer.generate_keypair();
-                long t1 = System.nanoTime();
-                long afterMem = rt.totalMemory() - rt.freeMemory();
-                long kgMem = afterMem - beforeMem;
-
                 byte[] pub = signer.export_public_key();
                 byte[] priv = signer.export_secret_key();
                 int pubSz = pub.length;
@@ -141,7 +149,7 @@ public class PQCBenchmarkRunner {
         for (int i = 0; i < ITERATIONS; i++) {
             long memBefore = rt.totalMemory() - rt.freeMemory();
             long t0 = System.nanoTime();
-            KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA", "BC");
+            KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
             kpg.initialize(2048);
             KeyPair rsaKp = kpg.generateKeyPair();
             JcaPGPKeyPair pgpKeyPair = new JcaPGPKeyPair(PGPPublicKey.RSA_SIGN, rsaKp, new Date());
@@ -155,7 +163,7 @@ public class PQCBenchmarkRunner {
             long signMemBefore = rt.totalMemory() - rt.freeMemory();
             long signT0 = System.nanoTime();
             PGPSignatureGenerator pgpGen = new PGPSignatureGenerator(
-                new JcaPGPContentSignerBuilder(pgpPub.getAlgorithm(), HashAlgorithmTags.SHA512).setProvider("BC")
+                new JcaPGPContentSignerBuilder(pgpPub.getAlgorithm(), HashAlgorithmTags.SHA512).setProvider( new BouncyCastleProvider())
             );
             pgpGen.init(PGPSignature.BINARY_DOCUMENT, pgpPriv);
             pgpGen.update(SAMPLE_MESSAGE);
@@ -194,22 +202,26 @@ public class PQCBenchmarkRunner {
      * Ergebnisse werden in `kem_benchmark.csv` geschrieben.
      */
     private static void runPqcKemOnly(Context context) throws Exception {
-        List<String> algorithms = KEMs.get_instance().get_supported_KEMs();
+        List<String> algorithms = KEMs.get_supported_KEMs();
         Writer writer = initCsv(context, "kem_benchmark.csv", new String[]{
             "Algorithm","Iter", "KG_ns","KG_mem", "Enc_ns","Enc_mem","CT_bytes","SS_bytes",
             "Dec_ns","Dec_mem","Match"
         });
-
+        Set<String> blacklist = new HashSet<>(Arrays.asList("Classic-McEliece-6688128","Classic-McEliece-6688128f","Classic-McEliece-6960119","Classic-McEliece-6960119f","Classic-McEliece-8192128","Classic-McEliece-8192128f"));
         Runtime rt = Runtime.getRuntime();
         for (String alg : algorithms) {
+            if (blacklist.contains(alg)) continue;
+            Timber.d("Aktueller KEM algorithmus:" + alg);
+            KeyEncapsulation kem = new KeyEncapsulation(alg);
+            long beforeMem = rt.totalMemory() - rt.freeMemory();
+            long t0 = System.nanoTime();
+            kem.generate_keypair();
+            long t1 = System.nanoTime();
+            long afterMem = rt.totalMemory() - rt.freeMemory();
+            long kgMem = afterMem - beforeMem;
+
             for (int i = 0; i < ITERATIONS; i++) {
-                KeyEncapsulation kem = new KeyEncapsulation(alg);
-                long beforeMem = rt.totalMemory() - rt.freeMemory();
-                long t0 = System.nanoTime();
-                kem.generate_keypair();
-                long t1 = System.nanoTime();
-                long afterMem = rt.totalMemory() - rt.freeMemory();
-                long kgMem = afterMem - beforeMem;
+
 
                 byte[] pub = kem.export_public_key();
 
@@ -254,7 +266,7 @@ public class PQCBenchmarkRunner {
      */
     private static void runHybridSignature(Context context) throws Exception {
         Security.addProvider(new BouncyCastleProvider());
-        List<String> algorithms = Sigs.get_instance().get_supported_sigs();
+        List<String> algorithms = Sigs.get_supported_sigs();
         Writer writer = initCsv(context, "hybrid_signature.csv", new String[]{
             "Algorithm","Iter",
             "PGP_KG_ns","PGP_KG_mem","PGP_Pub_bytes","PGP_Sec_bytes",
@@ -262,9 +274,9 @@ public class PQCBenchmarkRunner {
             "PGP_Sign_ns","PGP_Sign_mem","PGP_Sig_bytes",
             "PQC_Sign_ns","PQC_Sign_mem","PQC_Sig_bytes"
         });
-
+        Set<String> blacklist = new HashSet<>(Arrays.asList("cross-rsdp-256-small"));
         // Generate and wrap PGP keypair once, measuring both operations together
-        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA", "BC");
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA", new BouncyCastleProvider());
         kpg.initialize(2048);
         Runtime rt = Runtime.getRuntime();
         long pgpMemBefore = rt.totalMemory() - rt.freeMemory();
@@ -285,6 +297,7 @@ public class PQCBenchmarkRunner {
         int pgpPubSz = pgpPub.getEncoded().length;
 
         for (String alg : algorithms) {
+            if (blacklist.contains(alg)) continue;
             // Generate PQC keypair, measuring together
             long pqcMemBefore = rt.totalMemory() - rt.freeMemory();
             long pqcT0 = System.nanoTime();
@@ -306,7 +319,7 @@ public class PQCBenchmarkRunner {
                 PGPSignatureGenerator pgpGen = new PGPSignatureGenerator(
                     new JcaPGPContentSignerBuilder(
                         pgpPub.getAlgorithm(), HashAlgorithmTags.SHA512
-                    ).setProvider("BC")
+                    ).setProvider( new BouncyCastleProvider())
                 );
                 pgpGen.init(PGPSignature.BINARY_DOCUMENT, pgpPriv);
                 pgpGen.update(SAMPLE_MESSAGE);
@@ -349,7 +362,7 @@ public class PQCBenchmarkRunner {
      * Ergebnisse werden in `hybrid_encryption_aes_variants.csv` geschrieben.
      */
     private static void runHybridEncryptionWithAesVariants(Context context) throws Exception {
-        List<String> algorithms = KEMs.get_instance().get_supported_KEMs();
+        List<String> algorithms = KEMs.get_supported_KEMs();
         Writer writer = initCsv(context, "hybrid_encryption_aes_variants.csv", new String[]{
             "Algorithm", "Iter", "AES_KeyBits",
             "KEM_KG_ns", "KEM_KG_mem", "KEM_Pub_bytes", "KEM_Sec_bytes",
@@ -358,9 +371,14 @@ public class PQCBenchmarkRunner {
             "AES_Enc_ns", "AES_Enc_mem", "AES_CT_bytes",
             "AES_Dec_ns", "AES_Dec_mem"
         });
-
+        Set<String> blacklist = new HashSet<>(Arrays.asList(
+            "Classic-McEliece-6688128", "Classic-McEliece-6688128f",
+            "Classic-McEliece-6960119", "Classic-McEliece-6960119f",
+            "Classic-McEliece-8192128", "Classic-McEliece-8192128f"
+        ));
         Runtime rt = Runtime.getRuntime();
         for (String alg : algorithms) {
+            if (blacklist.contains(alg)) continue;
             long beforeMem = rt.totalMemory() - rt.freeMemory();
             long k0 = System.nanoTime();
             KeyEncapsulation kem = new KeyEncapsulation(alg);
@@ -400,7 +418,7 @@ public class PQCBenchmarkRunner {
                     long aesDecMem = rt.totalMemory() - rt.freeMemory() - aesDecBefore;
 
                     writer.append(String.format(Locale.US,
-                        "%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%b,%d,%d,%d,%d,%d,%d\n",
+                        "%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%b,%d,%d,%d,%d,%d\n",
                         alg, i, keyBits,
                         k1 - k0, kemKgMem, kemPubSz, kemSecSz,
                         e1 - e0, encMem, ct.length,
@@ -408,6 +426,7 @@ public class PQCBenchmarkRunner {
                         a1 - a0, aesEncMem, aesCtSz,
                         b1 - b0, aesDecMem
                     ));
+
                 }
             }
             kem.dispose_KEM();
@@ -470,7 +489,7 @@ public class PQCBenchmarkRunner {
         }
 
         public boolean verify(byte[] message) throws Exception {
-            signature.init(new JcaPGPContentVerifierBuilderProvider().setProvider("BC"), publicKey);
+            signature.init(new JcaPGPContentVerifierBuilderProvider().setProvider( new BouncyCastleProvider()), publicKey);
             signature.update(message);
             return signature.verify();
         }

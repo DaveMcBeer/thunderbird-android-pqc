@@ -1128,7 +1128,6 @@ You can keep this message and use it as a backup for your secret key. If you wan
     <string name="account_settings_pq_algorithms_cross_rsdpg_192_small">cross-rsdpg-192-small</string>
     <string name="account_settings_pq_algorithms_cross_rsdpg_256_balanced">cross-rsdpg-256-balanced</string>
     <string name="account_settings_pq_algorithms_cross_rsdpg_256_fast">cross-rsdpg-256-fast</string>
-    <string name="account_settings_pq_algorithms_cross_rsdpg_256_small">cross-rsdpg-256-small</string>
     <string name="account_settings_pq_signing_algorithms_none">None</string>
 
     <string name="account_settings_pq_kem_bike_l1">BIKE-L1</string>
@@ -1138,12 +1137,6 @@ You can keep this message and use it as a backup for your secret key. If you wan
     <string name="account_settings_pq_kem_classic_mceliece_348864f">Classic-McEliece-348864f</string>
     <string name="account_settings_pq_kem_classic_mceliece_460896">Classic-McEliece-460896</string>
     <string name="account_settings_pq_kem_classic_mceliece_460896f">Classic-McEliece-460896f</string>
-    <string name="account_settings_pq_kem_classic_mceliece_6688128">Classic-McEliece-6688128</string>
-    <string name="account_settings_pq_kem_classic_mceliece_6688128f">Classic-McEliece-6688128f</string>
-    <string name="account_settings_pq_kem_classic_mceliece_6960119">Classic-McEliece-6960119</string>
-    <string name="account_settings_pq_kem_classic_mceliece_6960119f">Classic-McEliece-6960119f</string>
-    <string name="account_settings_pq_kem_classic_mceliece_8192128">Classic-McEliece-8192128</string>
-    <string name="account_settings_pq_kem_classic_mceliece_8192128f">Classic-McEliece-8192128f</string>
     <string name="account_settings_pq_kem_hqc_128">HQC-128</string>
     <string name="account_settings_pq_kem_hqc_192">HQC-192</string>
     <string name="account_settings_pq_kem_hqc_256">HQC-256</string>
