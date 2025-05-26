@@ -30,7 +30,8 @@ import com.fsck.k9.mailstore.LocalMessage;
 import com.fsck.k9.mailstore.MessageCryptoAnnotations;
 import com.fsck.k9.mailstore.MessageViewInfo;
 import com.fsck.k9.mailstore.MessageViewInfoExtractor;
-import com.fsck.k9.mailstore.pqc.PqcDecapsulationResult;
+import com.fsck.k9.pqcExtension.message.results.PqcDecryptionResult;
+import com.fsck.k9.pqcExtension.KeyDistribution.KeyReciever;
 import com.fsck.k9.ui.crypto.MessageCryptoCallback;
 import com.fsck.k9.ui.crypto.MessageCryptoHelper;
 import com.fsck.k9.ui.crypto.OpenPgpApiFactory;
@@ -99,7 +100,7 @@ public class MessageLoaderHelper {
 
     private MessageCryptoHelper messageCryptoHelper;
 
-    private PqcDecapsulationResult cachedPqcDecapsulationResult;
+    private PqcDecryptionResult cachedPqcDecryptionResult;
 
     public MessageLoaderHelper(Context context, LoaderManager loaderManager, FragmentManager fragmentManager,
             @NonNull MessageLoaderCallbacks callback, MessageViewInfoExtractor messageViewInfoExtractor) {
@@ -121,8 +122,8 @@ public class MessageLoaderHelper {
 
         if (cachedDecryptionResult instanceof OpenPgpDecryptionResult) {
             this.cachedDecryptionResult = (OpenPgpDecryptionResult) cachedDecryptionResult;
-        } else if (cachedDecryptionResult instanceof PqcDecapsulationResult) {
-            this.cachedPqcDecapsulationResult = (PqcDecapsulationResult) cachedDecryptionResult;
+        } else if (cachedDecryptionResult instanceof PqcDecryptionResult) {
+            this.cachedPqcDecryptionResult = (PqcDecryptionResult) cachedDecryptionResult;
         } else {
             Timber.e("Got decryption result of unknown type - ignoring");
         }
@@ -234,6 +235,11 @@ public class MessageLoaderHelper {
 
         callback.onMessageDataLoadFinished(localMessage);
 
+        String[] header = localMessage.getHeader("X-Key-Distribution");
+        if (header != null && header.length > 0 && "true".equalsIgnoreCase(header[0])) {
+            KeyReciever.importPublicKeysFromMessage(context, localMessage, account.getUuid());
+        }
+
         boolean downloadedCompletely = localMessage.isSet(Flag.X_DOWNLOADED_FULL);
         boolean downloadedPartially = localMessage.isSet(Flag.X_DOWNLOADED_PARTIAL);
         boolean messageIncomplete = !downloadedCompletely && !downloadedPartially;
@@ -320,7 +326,7 @@ public class MessageLoaderHelper {
         if (retainCryptoHelperFragment.hasData()) {
             messageCryptoHelper = retainCryptoHelperFragment.getData();
         }
-        if (messageCryptoHelper == null || !messageCryptoHelper.isConfiguredForOpenPgpProvider(openPgpProvider)) {
+        if (messageCryptoHelper == null || !messageCryptoHelper.isConfiguredForOpenPgpProvider(openPgpProvider) ||isPqcHybridAktiv() ) {
             messageCryptoHelper = new MessageCryptoHelper(
                     context, new OpenPgpApiFactory(), AutocryptOperations.getInstance(), openPgpProvider,account);
             retainCryptoHelperFragment.setData(messageCryptoHelper);
@@ -329,6 +335,9 @@ public class MessageLoaderHelper {
                 localMessage, messageCryptoCallback, cachedDecryptionResult, !account.isOpenPgpHideSignOnly());
     }
 
+    private boolean isPqcHybridAktiv(){
+        return account.isPqcSigningEnabled() || account.isPqcKemEnabled();
+    }
     private void cancelAndClearCryptoOperation() {
         RetainFragment<MessageCryptoHelper> retainCryptoHelperFragment = getMessageCryptoHelperRetainFragment(false);
         if (retainCryptoHelperFragment != null) {
@@ -542,7 +551,24 @@ public class MessageLoaderHelper {
     }
 
 
-    //--- PQC Erweiterung ---
+    // --- PQC Integration ---
+    /**
+     * Initializes or resumes a combined cryptographic operation (OpenPGP + PQC).
+     *
+     * This method ensures that the MessageCryptoHelper is correctly set up and reused across configuration changes.
+     * It handles both OpenPGP and Post-Quantum Cryptography (PQC) message processing in a unified way.
+     *
+     * Key functionality:
+     * - Retrieves or creates a retained instance of MessageCryptoHelper.
+     * - Checks if the existing helper is configured for the correct OpenPGP provider; if not, reinitializes it.
+     * - Selects a preferred decryption result: prioritizing cached OpenPGP result, but falling back to PQC if needed.
+     * - Starts or resumes the asynchronous message processing including decryption and signature verification.
+     *
+     * This approach enables hybrid crypto processing (OpenPGP + PQC) in a seamless and user-transparent way.
+     *
+     * @param openPgpProvider The package name of the currently selected OpenPGP provider.
+     * @param isPqcEnabled    Indicates whether PQC support is enabled in the account settings.
+     */
     private void startOrResumeCombinedCryptoOperation(String openPgpProvider, boolean isPqcEnabled) {
         RetainFragment<MessageCryptoHelper> retainCryptoHelperFragment = getMessageCryptoHelperRetainFragment(true);
         if (retainCryptoHelperFragment.hasData()) {
@@ -561,10 +587,10 @@ public class MessageLoaderHelper {
             retainCryptoHelperFragment.setData(messageCryptoHelper);
         }
 
-        // übergibt PGP- und PQC-Dekryptionsdaten gleichzeitig
+        // Pass in either OpenPGP or PQC decryption result, preferring OpenPGP if available
         Parcelable preferredDecryptionResult = cachedDecryptionResult != null
             ? cachedDecryptionResult
-            : cachedPqcDecapsulationResult;
+            : cachedPqcDecryptionResult;
 
         messageCryptoHelper.asyncStartOrResumeProcessingMessage(
             localMessage,
@@ -573,8 +599,5 @@ public class MessageLoaderHelper {
             !account.isOpenPgpHideSignOnly()
         );
     }
-
-
-
-    //--- ENDE ---
+    // --- End PQC Integration ---
 }

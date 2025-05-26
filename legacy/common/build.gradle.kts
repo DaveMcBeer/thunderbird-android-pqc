@@ -28,7 +28,7 @@ dependencies {
     implementation(libs.timber)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.appauth)
-
+    implementation(libs.bouncycastle.core)
     implementation(libs.glide)
     annotationProcessor(libs.glide.compiler)
 

@@ -10,6 +10,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
 import com.fsck.k9.helper.StringHelper;
+import com.fsck.k9.logging.Timber;
 import com.fsck.k9.mail.Body;
 import com.fsck.k9.mail.BodyPart;
 import com.fsck.k9.mail.MessagingException;
@@ -32,7 +33,6 @@ public class MessageCryptoStructureDetector {
     private static final String APPLICATION_PGP_ENCRYPTED = "application/pgp-encrypted";
     private static final String APPLICATION_PGP_SIGNATURE = "application/pgp-signature";
     private static final String APPLICATION_PQC_ENCRYPTED = "application/pqc-encrypted";
-    private static final String APPLICATION_PQC_SIGNATURE = "application/pqc-signature";
     private static final String TEXT_PLAIN = "text/plain";
     private static final String APPLICATION_PGP = "application/pgp";
     private static final String PGP_INLINE_START_MARKER = "-----BEGIN PGP MESSAGE-----";
@@ -137,7 +137,7 @@ public class MessageCryptoStructureDetector {
 
             Body body = part.getBody();
 
-            if (isPartMixedWithPqcSignature(part) || isPartMultipartSigned(part)) {
+            if (isMultipartSignedWithMultipleSignatures(part) || isPartMultipartSigned(part)) {
                 signedParts.add(part);
                 continue;
             }
@@ -214,7 +214,7 @@ public class MessageCryptoStructureDetector {
     }
 
     private static boolean isPartEncryptedOrSigned(Part part) {
-        return isPartMixedWithPqcSignature(part) || isPartMultipartPqcEncrypted(part)
+        return isMultipartSignedWithMultipleSignatures(part) || isPartMultipartPqcEncrypted(part)
             || isPartMultipartEncrypted(part) || isPartMultipartSigned(part)
             || isPartPgpInlineEncryptedOrSigned(part);
     }
@@ -235,14 +235,32 @@ public class MessageCryptoStructureDetector {
 
         String protocolParameter = MimeUtility.getHeaderParameter(part.getContentType(), PROTOCOL_PARAMETER);
 
-        if (APPLICATION_PQC_SIGNATURE.equalsIgnoreCase(protocolParameter)) {
-            return false;
-        }
-
         boolean dataUnavailable = protocolParameter == null && mimeMultipart.getBodyPart(0).getBody() == null;
         boolean protocolMatches = isSameMimeType(protocolParameter, mimeMultipart.getBodyPart(1).getMimeType());
 
-        return dataUnavailable || protocolMatches;
+
+
+        int pgpSigCount = 0;
+        int compositeCount = 0;
+
+        for (int i = 1; i < mimeMultipart.getCount(); i++) {
+            BodyPart bp;
+            bp = mimeMultipart.getBodyPart(i);
+
+            if (bp.isMimeType("application/pgp-signature")) {
+                pgpSigCount++;
+                String filename = MimeUtility.getHeaderParameter(bp.getContentType(), "name");
+                if (filename != null && filename.toLowerCase().startsWith("signature-")) {
+                    compositeCount++;
+                }
+            }
+        }
+
+        boolean pqcPgpCombination =
+            "application/pgp-signature".equalsIgnoreCase(protocolParameter) &&
+                pgpSigCount >= 2 && compositeCount > 0;
+
+        return dataUnavailable || protocolMatches||pqcPgpCombination;
     }
 
     public static boolean isPartMultipartEncrypted(Part part) {
@@ -270,7 +288,11 @@ public class MessageCryptoStructureDetector {
         String protocolParameter = MimeUtility.getHeaderParameter(part.getContentType(), PROTOCOL_PARAMETER);
         return APPLICATION_PGP_ENCRYPTED.equalsIgnoreCase(protocolParameter);
     }
+    public static boolean isHybridPqcEncrypted(Part part) {
+        String[] headers = part.getHeader("X-Pgp-Hybrid-Pqc");
+        return headers != null && headers.length > 0 && "true".equalsIgnoreCase(headers[0]);
 
+    }
     public static boolean isMultipartSignedOpenPgpProtocol(Part part) {
         String protocolParameter = MimeUtility.getHeaderParameter(part.getContentType(), PROTOCOL_PARAMETER);
         return APPLICATION_PGP_SIGNATURE.equalsIgnoreCase(protocolParameter);
@@ -306,9 +328,8 @@ public class MessageCryptoStructureDetector {
         return text.trim().startsWith(PGP_INLINE_START_MARKER);
     }
 
-    // --- PQC Erweiterung ---
-    public static boolean isPartMixedWithPqcSignature(Part part) {
-        if (!isSameMimeType(part.getMimeType(), "multipart/mixed")) {
+    public static boolean isMultipartSignedWithMultipleSignatures(Part part) {
+        if (!isSameMimeType(part.getMimeType(), "multipart/signed")) {
             return false;
         }
 
@@ -317,31 +338,26 @@ public class MessageCryptoStructureDetector {
         }
 
         MimeMultipart multipart = (MimeMultipart) part.getBody();
-        boolean hasMultipartSigned = false;
-        boolean hasPqcSig = false;
-        boolean hasPqcPubKey = false;
 
-        for (int i = 0; i < multipart.getCount(); i++) {
-            BodyPart bp;
-            bp = multipart.getBodyPart(i);
+        // multipart/signed benötigt mindestens 3 Teile:
+        if (multipart.getCount() < 3) {
+            return false;
+        }
 
+        int signatureCount = 0;
 
-            if (bp.isMimeType("multipart/signed")) {
-                hasMultipartSigned = true;
-            }
-            if (bp.isMimeType("application/pqc-signature")) {
-                String contentType = bp.getContentType();
-                String filename = MimeUtility.getHeaderParameter(contentType, "name");
+        for (int i = 1; i < multipart.getCount(); i++) {
+            BodyPart bodyPart = multipart.getBodyPart(i);
 
-                if ("pqc_signature.asc".equalsIgnoreCase(filename)) {
-                    hasPqcSig = true;
-                } else if ("pqc_public_key.asc".equalsIgnoreCase(filename)) {
-                    hasPqcPubKey = true;
+            if (bodyPart.isMimeType("application/pgp-signature")) {
+                String filename = MimeUtility.getHeaderParameter(bodyPart.getContentType(), "name");
+                if (filename != null && filename.toLowerCase().startsWith("signature-") && filename.endsWith(".asc")) {
+                    signatureCount++;
                 }
             }
         }
 
-        return hasMultipartSigned && hasPqcSig && hasPqcPubKey;
+        return signatureCount >= 2;
     }
 
     public static boolean isPartMultipartPqcEncrypted(Part part) {

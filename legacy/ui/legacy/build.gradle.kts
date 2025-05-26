@@ -24,6 +24,7 @@ dependencies {
     implementation(projects.feature.telemetry.api)
     implementation(project(":library:liboqs-module"))
 
+
     compileOnly(projects.mail.protocols.imap)
 
     implementation(projects.plugins.openpgpApiLib.openpgpApi)
@@ -59,7 +60,8 @@ dependencies {
     implementation(libs.mime4j.core)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
-
+    implementation(libs.bouncycastle.core)
+    implementation(libs.bouncycastle.pgp)
     implementation(libs.glide)
     annotationProcessor(libs.glide.compiler)
 

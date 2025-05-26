@@ -65,8 +65,20 @@
         app:showAsAction="never"
         />
     <item
-        android:id="@+id/send_pqc_kem_public_key"
-        android:title="Send PQC KEM Public Key"
-        android:checkable="true"
+        android:id="@+id/openpgp_sign_pqc_hybrid_enabled"
+        android:title="@string/enable_sign_pqc_only"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/openpgp_sign_pqc_hybrid_disabled"
+        android:title="@string/disable_sign_pqc_only"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/openpgp_encrypt_pqc_hybrid_enabled"
+        android:title="@string/enable_pqc_encryption"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/openpgp_encrypt_pqc_hybrid_disabled"
+        android:title="@string/disable_pqc_encryption"
         app:showAsAction="never" />
 </menu>

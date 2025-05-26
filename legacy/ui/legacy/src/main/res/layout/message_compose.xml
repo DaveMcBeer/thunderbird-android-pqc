@@ -1,22 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="fill_parent"
-    android:layout_height="fill_parent"
-    android:orientation="vertical"
-    tools:context="com.fsck.k9.activity.MessageCompose"
-    >
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="com.fsck.k9.activity.MessageCompose">
+    <LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:orientation="vertical"
+        tools:context="com.fsck.k9.activity.MessageCompose"
+        >
 
-    <include layout="@layout/toolbar" />
+        <include layout="@layout/toolbar" />
 
-    <ViewStub
-        android:id="@+id/message_compose_content"
-        android:layout="@layout/message_compose_content"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        tools:visibility="visible"
-        />
+        <ViewStub
+            android:id="@+id/message_compose_content"
+            android:layout="@layout/message_compose_content"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            tools:visibility="visible"
+            />
 
-</LinearLayout>
+
+    </LinearLayout>
+        <FrameLayout
+            android:id="@+id/progress_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#88000000"
+            android:visibility="gone"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ProgressBar
+                android:id="@+id/message_compose_progressbar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:indeterminate="true" />
+        </FrameLayout>
+</FrameLayout>

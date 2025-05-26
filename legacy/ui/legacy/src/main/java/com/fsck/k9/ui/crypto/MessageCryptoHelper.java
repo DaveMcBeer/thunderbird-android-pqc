@@ -6,8 +6,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Deque;
 import java.util.List;
 
@@ -15,10 +13,13 @@ import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build.VERSION;
+import android.os.Build.VERSION_CODES;
 import android.os.Parcelable;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.annotation.WorkerThread;
 import androidx.core.content.IntentCompat;
 import app.k9mail.legacy.account.Account;
@@ -34,7 +35,6 @@ import com.fsck.k9.mail.Multipart;
 import com.fsck.k9.mail.Part;
 import com.fsck.k9.mail.internet.MessageExtractor;
 import com.fsck.k9.mail.internet.MimeBodyPart;
-import com.fsck.k9.mail.internet.MimeHeader;
 import com.fsck.k9.mail.internet.MimeMessage;
 import com.fsck.k9.mail.internet.MimeMultipart;
 import com.fsck.k9.mail.internet.SizeAware;
@@ -44,11 +44,10 @@ import com.fsck.k9.mailstore.CryptoResultAnnotation.CryptoError;
 import com.fsck.k9.mailstore.MessageCryptoAnnotations;
 import com.fsck.k9.mailstore.MessageHelper;
 import com.fsck.k9.mailstore.MimePartStreamParser;
-import com.fsck.k9.mailstore.pqc.PqcDecapsulationResult;
-import com.fsck.k9.mailstore.pqc.PqcSignatureResult;
+import com.fsck.k9.pqcExtension.helper.encryption.PqcDecryptionHelper;
+import com.fsck.k9.pqcExtension.helper.signature.PqcVerifierHelper;
+import com.fsck.k9.pqcExtension.message.results.PqcDecryptionResult;
 import com.fsck.k9.mailstore.util.FileFactory;
-import com.fsck.k9.message.pqc.PqcContactStore;
-import com.fsck.k9.message.pqc.PqcMessageHelper;
 import com.fsck.k9.provider.DecryptedFileProvider;
 import org.apache.commons.io.IOUtils;
 import org.openintents.openpgp.IOpenPgpService2;
@@ -63,7 +62,6 @@ import org.openintents.openpgp.util.OpenPgpApi.OpenPgpDataSink;
 import org.openintents.openpgp.util.OpenPgpApi.OpenPgpDataSource;
 import org.openintents.openpgp.util.OpenPgpServiceConnection;
 import org.openintents.openpgp.util.OpenPgpServiceConnection.OnBound;
-import org.openquantumsafe.Signature;
 import timber.log.Timber;
 
 
@@ -83,7 +81,7 @@ public class MessageCryptoHelper {
     private Message currentMessage;
     private OpenPgpDecryptionResult cachedDecryptionResult;
 
-    private PqcDecapsulationResult cachedPqcDecapsulationResult;
+    private PqcDecryptionResult cachedPqcDecryptionResult;
     private MessageCryptoAnnotations queuedResult;
     private PendingIntent queuedPendingIntent;
 
@@ -103,7 +101,7 @@ public class MessageCryptoHelper {
 
 
     public MessageCryptoHelper(Context context, OpenPgpApiFactory openPgpApiFactory,
-            AutocryptOperations autocryptOperations, @Nullable  String openPgpProvider,Account account) { //Anpassung um pqc unabh. von pgp zu verwenden
+            AutocryptOperations autocryptOperations, @Nullable  String openPgpProvider,Account account) { //Edited to use PQC without PGP-Provider
         this.context = context.getApplicationContext();
 
         this.autocryptOperations = autocryptOperations;
@@ -124,8 +122,8 @@ public class MessageCryptoHelper {
         }
         if (cachedDecryptionResult instanceof OpenPgpDecryptionResult) {
             this.cachedDecryptionResult = (OpenPgpDecryptionResult) cachedDecryptionResult;
-        } else if (cachedDecryptionResult instanceof PqcDecapsulationResult) {
-            this.cachedPqcDecapsulationResult = (PqcDecapsulationResult) cachedDecryptionResult;
+        } else if (cachedDecryptionResult instanceof PqcDecryptionResult) {
+            this.cachedPqcDecryptionResult = (PqcDecryptionResult) cachedDecryptionResult;
         } else if (cachedDecryptionResult != null) {
             Timber.e("Unknown decryption result type: %s", cachedDecryptionResult.getClass().getName());
         }
@@ -154,9 +152,19 @@ public class MessageCryptoHelper {
                 continue;
             }
             if (MessageCryptoStructureDetector.isMultipartEncryptedOpenPgpProtocol(part)) {
-                CryptoPart cryptoPart = new CryptoPart(CryptoPartType.PGP_ENCRYPTED, part);
-                partsToProcess.add(cryptoPart);
-                continue;
+
+                //--- PQC Extension ---
+                if(MessageCryptoStructureDetector.isHybridPqcEncrypted(part)){
+                    CryptoPart cryptoPart = new CryptoPart(CryptoPartType.PQC_ENCRYPTED, part);
+                    partsToProcess.add(cryptoPart);
+                    continue;
+                }
+                //--- END --
+                else{
+                    CryptoPart cryptoPart = new CryptoPart(CryptoPartType.PGP_ENCRYPTED, part);
+                    partsToProcess.add(cryptoPart);
+                    continue;
+                }
             }
             addErrorAnnotation(part, CryptoError.ENCRYPTED_BUT_UNSUPPORTED, MessageHelper.createEmptyPart());
         }
@@ -169,9 +177,10 @@ public class MessageCryptoHelper {
         for (Part part : signedParts) {
 
             // -- PQC Addition --
-            if (MessageCryptoStructureDetector.isPartMixedWithPqcSignature(part)) {
+            if (MessageCryptoStructureDetector.isMultipartSignedWithMultipleSignatures(part)) {
                 CryptoPart cryptoPart = new CryptoPart(CryptoPartType.PQC_SIGNED, part);
                 partsToProcess.add(cryptoPart);
+                continue;
             }
             // -- END --
 
@@ -252,6 +261,17 @@ public class MessageCryptoHelper {
         }
 
         if (!isBoundToCryptoProviderService()) {
+            boolean hasOnlyPqcParts = !partsToProcess.isEmpty() &&
+                partsToProcess.stream().allMatch(part ->
+                    part.type == CryptoPartType.PQC_SIGNED ||
+                     part.type == CryptoPartType.PQC_ENCRYPTED);
+
+            if (hasOnlyPqcParts) {
+                currentCryptoPart = partsToProcess.peekFirst();
+                decryptOrVerifyCurrentPart();
+                return;
+            }
+
             connectToCryptoProviderService();
             return;
         }
@@ -331,12 +351,20 @@ public class MessageCryptoHelper {
                     callAsyncInlineOperation(apiIntent);
                     return;
                 }
-                // --- PQC Erweiterung ---
+                // --- PQC Integration ---
                 case PQC_SIGNED: {
-                    callPqcVerify(currentCryptoPart.part);
+                    if (VERSION.SDK_INT >= VERSION_CODES.TIRAMISU) {
+                        callPqcVerify(currentCryptoPart.part);
+                    }
                     return;
                 }
-                // --- ENDE ---
+                case PQC_ENCRYPTED:{
+                    if (VERSION.SDK_INT >= VERSION_CODES.TIRAMISU) {
+                        callPqcDecryption(currentCryptoPart.part);
+                    }
+                    return;
+                }
+                // --- End PQC Integration ---
                 case PLAIN_AUTOCRYPT:
                     throw new IllegalStateException("This part type must have been handled previously!");
 
@@ -458,157 +486,64 @@ public class MessageCryptoHelper {
     }
 
 
-    // -- PQC Erweiterung --
+    // --- PQC Integration ---
+
+    /**
+     * Verifies a hybrid-signed message (PGP + PQC) using the PQCVerifierHelper.
+     *
+     * This method is used to validate digital signatures that may include both classical (PGP)
+     * and post-quantum (PQC) cryptographic signatures. It:
+     * - Extracts the sender's email address.
+     * - Invokes PQCVerifierHelper.verifyAll(), which checks both signature types.
+     * - Creates and propagates a CryptoResultAnnotation based on the verification outcome.
+     *
+     * On failure, it falls back to an error annotation with a placeholder part to prevent crash propagation.
+     *
+     * @param part The signed message part (multipart/signed) to verify.
+     */
+    @RequiresApi(api = VERSION_CODES.TIRAMISU)
     private void callPqcVerify(Part part) {
         try {
-            Multipart multipart = (Multipart) part.getBody();
-
-            if (multipart.getCount() < 3) {
-                throw new IllegalStateException("Expected 3-part multipart/mixed for PQC message");
-            }
-
-            BodyPart signedContentPart = multipart.getBodyPart(0); // multipart/signed
-            BodyPart pqcSignaturePart = multipart.getBodyPart(1); // application/pqc-signature
-            BodyPart pqcPublicKeyPart = multipart.getBodyPart(2); // application/pqc-signature (key)
-
-            String sigArmor = PqcMessageHelper.extractAsciiContent(pqcSignaturePart);
-            String keyArmor = PqcMessageHelper.extractAsciiContent(pqcPublicKeyPart);
-
-            byte[] pqcSignatureBytes = PqcMessageHelper.fromAsciiArmor(sigArmor, "PQC SIGNATURE");
-            byte[] pqcPublicKeyBytes = PqcMessageHelper.fromAsciiArmor(keyArmor, "PQC PUBLIC KEY");
-
-            // Jetzt noch: Signed Content extrahieren
-            Multipart signedMultipart = (Multipart) signedContentPart.getBody();
-            BodyPart actualSignedBodyPart = signedMultipart.getBodyPart(0); // Das echte, zu signierende Part
-
-            byte[] signedData = PqcMessageHelper.canonicalize(actualSignedBodyPart);
-
-            // Algorithmus holen
-            String[] algorithmHeaders = part.getHeader("X-PQC-Signature-Algorithm");
-            if (algorithmHeaders == null || algorithmHeaders.length == 0) {
-                throw new MessagingException("Missing PQC algorithm header!");
-            }
-            String algorithm = algorithmHeaders[0];
-
-            // Signature prüfen
-            Signature pqcVerifier = new Signature(algorithm);
-            boolean valid = pqcVerifier.verify(signedData, pqcSignatureBytes, pqcPublicKeyBytes);
-            pqcVerifier.dispose_sig();
-
-            PqcSignatureResult result = new PqcSignatureResult(
-                valid ? PqcSignatureResult.RESULT_VALID_KEY_CONFIRMED : PqcSignatureResult.RESULT_INVALID_SIGNATURE,
-                null, 0L, new ArrayList<>(), new ArrayList<>(), PqcSignatureResult.SenderStatusResult.UNKNOWN
-            );
-
-            CryptoResultAnnotation annotation = valid
-                ? CryptoResultAnnotation.createPqcSignatureSuccessAnnotation(null, result, (MimeBodyPart) actualSignedBodyPart)
-                : CryptoResultAnnotation.createPqcSignatureErrorAnnotation(null, result, (MimeBodyPart) actualSignedBodyPart);
-
+            String senderEmail = currentMessage.getFrom()[0].getAddress();
+            CryptoResultAnnotation annotation = PqcVerifierHelper.verifyAll(context, part, senderEmail, account.getUuid(),null);
             onCryptoOperationSuccess(annotation);
-
         } catch (Exception e) {
-            Timber.e(e, "Failed to verify PQC signature");
             MimeBodyPart replacement = getMultipartSignedContentPartIfAvailable(part);
             CryptoResultAnnotation annotation = CryptoResultAnnotation.createErrorAnnotation(CryptoError.PQC_SIGNATURE_ERROR, replacement);
             onCryptoOperationSuccess(annotation);
         }
     }
 
-    private void checkAndStorePqcKemPublicKey(MimeMessage message) {
+
+    /**
+     * Attempts to decrypt a PQC-encrypted message using the PQCDecryptionHelper.
+     *
+     * This method supports post-quantum message decryption using a hybrid RSA + PQC scheme.
+     * It:
+     * - Determines the sender's address.
+     * - Calls PQCDecryptionHelper.decrypt(), which performs KEM-based hybrid decryption.
+     * - Passes the result to the crypto result handler for further processing in the UI or logic layer.
+     *
+     * On failure, a default CryptoResultAnnotation with an error is returned, and logged with Timber.
+     *
+     * @param part The encrypted message part (multipart/encrypted) to decrypt.
+     */
+    @RequiresApi(api = VERSION_CODES.TIRAMISU)
+    private void callPqcDecryption(Part part) {
         try {
-            if (!(message.getBody() instanceof MimeMultipart)) {
-                return;
-            }
+            String senderEmail = currentMessage.getFrom()[0].getAddress();
 
-            MimeMultipart multipart = (MimeMultipart) message.getBody();
-            for (int i = 0; i < multipart.getCount(); i++) {
-                BodyPart part = multipart.getBodyPart(i);
-                String[] contentTypeHeader = part.getHeader(MimeHeader.HEADER_CONTENT_TYPE);
-
-                if (contentTypeHeader != null && contentTypeHeader.length > 0 &&
-                    contentTypeHeader[0].toLowerCase().startsWith("application/pqc-kem-public-key")) {
-
-                    // Algorithm aus Content-Type extrahieren
-                    String contentType = contentTypeHeader[0];
-                    String algorithm = parseAlgorithmFromContentType(contentType);
-
-                    if (algorithm == null) {
-                        Timber.e("PQC KEM Public Key without algorithm information.");
-                        continue;
-                    }
-                    // Public Key dekodieren
-                    String armoredKey = PqcMessageHelper.extractAsciiContent(part);
-                    byte[] decodedKey = PqcMessageHelper.fromAsciiArmor(armoredKey, "PQC KEM PUBLIC KEY");
-
-                    // Speichern oder Aktualisieren
-                    String senderAddress = getSenderAddress(message);
-                    if (senderAddress != null) {
-                        PqcContactStore.INSTANCE.saveContact(senderAddress, algorithm, decodedKey);
-                        Timber.w("Saved/Updated PQC KEM public key for " + senderAddress);
-                    }
-                }
-            }
+            CryptoResultAnnotation annotation = PqcDecryptionHelper.decrypt(context, part, senderEmail, account.getUuid());
+            onCryptoOperationSuccess(annotation);
         } catch (Exception e) {
-            Timber.e(e, "Error processing PQC KEM Public Key");
+            Timber.e(e, "Fehler bei PQC-Entschlüsselung");
+            // Fehlerannotation erstellen
+            CryptoResultAnnotation annotation = CryptoResultAnnotation.createErrorAnnotation(CryptoError.PQC_ENCRYPTED_ERROR, MessageHelper.createEmptyPart());
+            // Fehlerbehandlung durchführen
+            onCryptoOperationSuccess(annotation);
         }
     }
-
-    private String getSenderAddress(MimeMessage message) throws MessagingException {
-        Address[] fromAddresses = message.getFrom();
-        if (fromAddresses != null && fromAddresses.length > 0) {
-            return fromAddresses[0].getAddress();
-        }
-        return null;
-    }
-
-    private String parseAlgorithmFromContentType(String contentType) {
-        int index = contentType.indexOf("algorithm=");
-        if (index == -1) return null;
-        String algorithm = contentType.substring(index + "algorithm=".length()).trim();
-        // Falls Semikolon, Anführungszeichen etc. dran hängen:
-        int endIndex = algorithm.indexOf(';');
-        if (endIndex != -1) {
-            algorithm = algorithm.substring(0, endIndex).trim();
-        }
-        algorithm = algorithm.replace("\"", "");
-        return algorithm;
-    }
-
-    private void performPqcKemDecapsulation(MimeMessage message) {
-        try {
-            String ownEmail = getSenderAddress(message); // oder eigene Account-Adresse holen
-            if (ownEmail == null) {
-                Timber.w("No sender address found for PQC Decapsulation");
-                return;
-            }
-
-            byte[] pqcSecretKey = Base64.getMimeDecoder().decode(account.getPqcKemSecretKey());
-            String kemAlgorithm = account.getPqcKemAlgorithm();
-
-            if (pqcSecretKey == null || kemAlgorithm == null) {
-                Timber.w("No PQC KEM SecretKey or Algorithm configured for account");
-                return;
-            }
-
-            byte[] sessionKey = PqcKemReceiver.tryExtractAndDecapsulatePqcKem(
-                message,
-                pqcSecretKey,
-                kemAlgorithm
-            );
-
-            if (sessionKey != null) {
-                String sessionKeyString = Base64.getEncoder().encodeToString(sessionKey);
-                Timber.w("Successfully decapsulated PQC KEM session key for %s\nPQC KEM session Key: %s", ownEmail,sessionKeyString);
-                // TODO: Save or use sessionKey as needed (e.g., store temporarily for symmetric decryption)
-            } else {
-                Timber.w("No matching PQC KEM ciphertext found for %s", ownEmail);
-            }
-        } catch (Exception e) {
-            Timber.e(e, "Failed PQC KEM decapsulation");
-        }
-    }
-
-    // -- END --
+    // --- End PQC Integration ---
     private OpenPgpDataSource getDataSourceForSignedData(final Part signedPart) {
         return new OpenPgpDataSource() {
             @Override
@@ -824,6 +759,8 @@ public class MessageCryptoHelper {
         onCryptoFinished();
     }
 
+
+
     private void propagateEncapsulatedSignedPart(CryptoResultAnnotation resultAnnotation, Part part) {
         Part encapsulatingPart = messageAnnotations.findKeyForAnnotationWithReplacementPart(part);
         CryptoResultAnnotation encapsulatingPartAnnotation = messageAnnotations.get(encapsulatingPart);
@@ -958,9 +895,9 @@ public class MessageCryptoHelper {
             cleanupAfterProcessingFinished();
 
             if(currentMessage instanceof MimeMessage){
-                checkAndStorePqcKemPublicKey((MimeMessage) currentMessage);
+                //checkAndStorePqcKemPublicKey((MimeMessage) currentMessage);
 
-                performPqcKemDecapsulation((MimeMessage) currentMessage);
+               // performPqcKemDecapsulation((MimeMessage) currentMessage);
             }
 
             queuedResult = messageAnnotations;
@@ -1017,7 +954,8 @@ public class MessageCryptoHelper {
         PGP_ENCRYPTED,
         PGP_SIGNED,
         PLAIN_AUTOCRYPT,
-        PQC_SIGNED
+        PQC_SIGNED,
+        PQC_ENCRYPTED
     }
 
     @Nullable

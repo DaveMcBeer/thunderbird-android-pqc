@@ -199,20 +199,13 @@ class AccountPreferenceSerializer(
 
             shouldMigrateToOAuth = storage.getBoolean("$accountUuid.migrateToOAuth", false)
 
-
-            //--- PQC Erweiterung ---
+            // --- PQC Integration ---
             isPqcSigningEnabled = storage.getBoolean("$accountUuid.pqcEnabled", false)
-            isPqcShowSignature = storage.getBoolean("$accountUuid.pqcHideSignOnly", false)
-            pqcSigningAlgorithm = storage.getString("$accountUuid.pqcSigningAlgorithm", null)
-            pqcPublicSigngingKey = storage.getString("$accountUuid.pqcPublicKey", null)
-            pqcSecretSigningKey = storage.getString("$accountUuid.pqcSecretKey", null)
-            pqcKeysetExists = storage.getBoolean("$accountUuid.pqcKeysetExists", false)
             isPqcKemEnabled = storage.getBoolean("$accountUuid.pqcKemEnabled",false)
+            isPqcHideSignOnly = storage.getBoolean("$accountUuid.pqcHideSignOnly",false)
             pqcKemAlgorithm=storage.getString("$accountUuid.pqcKemAlgorithm",null)
-            pqcKemPublicKey=storage.getString("$accountUuid.pqcKemPublicKey",null)
-            pqcKemSecretKey=storage.getString("$accountUuid.pqcKemSecretKey",null)
-            pqcKemKeysetExists = storage.getBoolean("$accountUuid.pqcKemKeysetExists",false)
-            //--- ENDE ---
+            pqcSigningAlgorithm = storage.getString("$accountUuid.pqcSigningAlgorithm", null)
+            // --- End PQC Integration ---
 
             val isFinishedSetup = storage.getBoolean("$accountUuid.isFinishedSetup", true)
             if (isFinishedSetup) markSetupFinished()
@@ -377,21 +370,13 @@ class AccountPreferenceSerializer(
             editor.putBoolean("$accountUuid.sendClientInfo", isSendClientInfoEnabled)
             editor.putBoolean("$accountUuid.migrateToOAuth", shouldMigrateToOAuth)
 
-            // --- PQC Erweiterung ---
+            // --- PQC Integration ---
             editor.putBoolean("$accountUuid.pqcEnabled", isPqcSigningEnabled)
-            editor.putBoolean("$accountUuid.pqcHideSignOnly", isPqcShowSignature)
-            editor.putString("$accountUuid.pqcSigningAlgorithm", pqcSigningAlgorithm)
-            editor.putString("$accountUuid.pqcPublicKey", pqcPublicSigngingKey)
-            editor.putString("$accountUuid.pqcSecretKey", pqcSecretSigningKey)
-            editor.putBoolean("$accountUuid.pqcKeysetExists", pqcKeysetExists == true)
-
             editor.putBoolean("$accountUuid.pqcKemEnabled", isPqcKemEnabled)
+            editor.putBoolean("$accountUuid.pqcHideSignOnly", isPqcHideSignOnly)
+            editor.putString("$accountUuid.pqcSigningAlgorithm", pqcSigningAlgorithm)
             editor.putString("$accountUuid.pqcKemAlgorithm", pqcKemAlgorithm)
-            editor.putString("$accountUuid.pqcKemPublicKey", pqcKemPublicKey)
-            editor.putString("$accountUuid.pqcKemSecretKey", pqcKemSecretKey)
-            editor.putBoolean("$accountUuid.pqcKemKeysetExists", pqcKemKeysetExists == true)
-
-            // --- ENDE ---
+            // --- End PQC Integration ---
         }
 
         saveIdentities(account, storage, editor)
@@ -511,21 +496,13 @@ class AccountPreferenceSerializer(
         editor.remove("$accountUuid.migrateToOAuth")
 
 
-        //--- PQC Erweiterung ---
+        // --- PQC Integration ---
         editor.remove("$accountUuid.pqcEnabled")
+        editor.remove("$accountUuid.pqcKemEnabled")
         editor.remove("$accountUuid.pqcHideSignOnly")
         editor.remove("$accountUuid.pqcSigningAlgorithm")
-        editor.remove("$accountUuid.pqcPublicKey")
-        editor.remove("$accountUuid.pqcSecretKey")
-        editor.remove("$accountUuid.pqcKeysetExists")
-
-        editor.remove("$accountUuid.pqcKemEnabled")
         editor.remove("$accountUuid.pqcKemAlgorithm")
-        editor.remove("$accountUuid.pqcKemPublicKey")
-        editor.remove("$accountUuid.pqcKemSecretKey")
-        editor.remove("$accountUuid.pqcKemKeysetExists")
-        //--- ENDE ---
-
+        // --- End PQC Integration ---
         deleteIdentities(account, storage, editor)
         // TODO: Remove preference settings that may exist for individual folders in the account.
     }

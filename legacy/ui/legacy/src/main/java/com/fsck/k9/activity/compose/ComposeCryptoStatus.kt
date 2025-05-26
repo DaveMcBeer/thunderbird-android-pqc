@@ -23,7 +23,8 @@ data class ComposeCryptoStatus(
     override val isEncryptAllDrafts: Boolean,
     override val isEncryptSubject: Boolean,
     private val cryptoMode: CryptoMode,
-    val sendPqcKemPublicKey: Boolean,
+    val isEncryptPqcHybrid: Boolean,
+    val isSignPqcHybrid: Boolean,
     private val recipientAutocryptStatus: RecipientAutocryptStatus? = null
 ) : CryptoStatus {
 
@@ -37,7 +38,8 @@ data class ComposeCryptoStatus(
         isEncryptAllDrafts: Boolean,
         isEncryptSubject: Boolean,
         cryptoMode: CryptoMode,
-        sendPqcKemPublicKey: Boolean
+        isEncryptPqcHybrid: Boolean,
+        isSignPqcHybrid:Boolean
     ) : this(
         openPgpProviderState,
         openPgpKeyId,
@@ -48,7 +50,8 @@ data class ComposeCryptoStatus(
         isEncryptAllDrafts,
         isEncryptSubject,
         cryptoMode,
-        sendPqcKemPublicKey
+        isEncryptPqcHybrid,
+        isSignPqcHybrid
     )
 
     private val recipientAutocryptStatusType = recipientAutocryptStatus?.type
@@ -71,7 +74,7 @@ data class ComposeCryptoStatus(
         else -> false
     }
 
-    override fun isProviderStateOk() = openPgpProviderState == OpenPgpProviderState.OK
+    override fun isProviderStateOk() = openPgpProviderState == OpenPgpProviderState.OK|| cryptoMode.isPqcMode()
 
     override fun isUserChoice() = cryptoMode != CryptoMode.NO_CHOICE
     override fun isSigningEnabled() = cryptoMode == CryptoMode.SIGN_ONLY || isEncryptionEnabled
@@ -116,6 +119,9 @@ data class ComposeCryptoStatus(
             ?: CryptoStatusDisplayType.UNAVAILABLE
 
     val specialModeDisplayType = when {
+        cryptoMode == CryptoMode.PQC_SIGN_ONLY -> CryptoSpecialModeDisplayType.PQC_SIGN_ONLY
+        cryptoMode == CryptoMode.PQC_ENCRYPT_ONLY -> CryptoSpecialModeDisplayType.PQC_ENCRYPT_ONLY
+        cryptoMode == CryptoMode.PQC_SIGN_AND_ENCRYPT -> CryptoSpecialModeDisplayType.PQC_HYBRID
         openPgpProviderState != OpenPgpProviderState.OK -> CryptoSpecialModeDisplayType.NONE
         isSignOnly && isPgpInlineModeEnabled -> CryptoSpecialModeDisplayType.SIGN_ONLY_PGP_INLINE
         isSignOnly -> CryptoSpecialModeDisplayType.SIGN_ONLY
@@ -149,6 +155,10 @@ data class ComposeCryptoStatus(
 
     override fun getRecipientAddresses() = recipientAddresses.toTypedArray()
 
+    override fun isEncryptPqcHybridEnabled() = isEncryptPqcHybrid
+
+    override fun isSignPqcHybridEnabled() = isSignPqcHybrid
+
     fun withRecipientAutocryptStatus(recipientAutocryptStatusType: RecipientAutocryptStatus) = ComposeCryptoStatus(
         openPgpProviderState = openPgpProviderState,
         cryptoMode = cryptoMode,
@@ -160,9 +170,12 @@ data class ComposeCryptoStatus(
         isEncryptSubject = isEncryptSubject,
         recipientAddresses = recipientAddresses,
         recipientAutocryptStatus = recipientAutocryptStatusType,
-        sendPqcKemPublicKey = sendPqcKemPublicKey
+        isEncryptPqcHybrid = isEncryptPqcHybrid,
+        isSignPqcHybrid = isSignPqcHybrid
     )
-
+    fun CryptoMode.isPqcMode(): Boolean {
+        return cryptoMode == CryptoMode.PQC_SIGN_ONLY || cryptoMode == CryptoMode.PQC_SIGN_ONLY  || cryptoMode == CryptoMode.PQC_SIGN_ONLY
+    }
     enum class SendErrorState {
         PROVIDER_ERROR,
         KEY_CONFIG_ERROR,

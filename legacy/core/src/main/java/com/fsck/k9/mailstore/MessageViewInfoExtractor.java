@@ -73,11 +73,11 @@ public class MessageViewInfoExtractor {
             MessageViewInfo messageViewInfo = extractSimpleMessageForView(message, message);
             return messageViewInfo.withSubject(message.getSubject(), false);
         }
-
+        boolean isHybridPqcEncrypted = MessageCryptoStructureDetector.isHybridPqcEncrypted(cryptoContentPart);
         boolean isOpenPgpEncrypted = (MessageCryptoStructureDetector.isPartMultipartEncrypted(cryptoContentPart) &&
                         MessageCryptoStructureDetector.isMultipartEncryptedOpenPgpProtocol(cryptoContentPart)) ||
                         MessageCryptoStructureDetector.isPartPgpInlineEncrypted(cryptoContentPart);
-        if (!openPgpProviderConfigured && isOpenPgpEncrypted) {
+        if (!openPgpProviderConfigured && isOpenPgpEncrypted && !isHybridPqcEncrypted) {
             CryptoResultAnnotation noProviderAnnotation = CryptoResultAnnotation.createErrorAnnotation(
                     CryptoError.OPENPGP_ENCRYPTED_NO_PROVIDER, null);
             return MessageViewInfo.createWithErrorState(message, false)

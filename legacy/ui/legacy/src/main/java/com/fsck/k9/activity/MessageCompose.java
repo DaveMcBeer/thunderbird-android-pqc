@@ -2,9 +2,9 @@ package com.fsck.k9.activity;
 
 
 import java.io.File;
-import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -35,8 +35,10 @@ import android.view.View.OnFocusChangeListener;
 import android.view.ViewStub;
 import android.view.Window;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -65,6 +67,9 @@ import com.fsck.k9.activity.compose.IdentityAdapter.IdentityContainer;
 import com.fsck.k9.activity.compose.PgpEnabledErrorDialog.OnOpenPgpDisableListener;
 import com.fsck.k9.activity.compose.PgpInlineDialog.OnOpenPgpInlineChangeListener;
 import com.fsck.k9.activity.compose.PgpSignOnlyDialog.OnOpenPgpSignOnlyChangeListener;
+import com.fsck.k9.activity.compose.PqcEncryptionDescriptionDialog.OnPqcEncryptOnlyChangeListener;
+import com.fsck.k9.activity.compose.PqcSigEncrytpDescriptionDialog.OnPqcSigEncryptOnlyChangeListener;
+import com.fsck.k9.activity.compose.PqcSignOnlyDialog.OnPqcSignOnlyChangeListener;
 import com.fsck.k9.activity.compose.RecipientMvpView;
 import com.fsck.k9.activity.compose.RecipientPresenter;
 import com.fsck.k9.activity.compose.ReplyToPresenter;
@@ -88,16 +93,12 @@ import com.fsck.k9.helper.MailTo;
 import com.fsck.k9.helper.ReplyToParser;
 import com.fsck.k9.helper.SimpleTextWatcher;
 import com.fsck.k9.helper.Utility;
+import com.fsck.k9.mail.Address;
 import com.fsck.k9.mail.Flag;
 import com.fsck.k9.mail.Message;
 import com.fsck.k9.mail.Message.RecipientType;
 import com.fsck.k9.mail.MessagingException;
-import com.fsck.k9.mail.internet.MimeBodyPart;
-import com.fsck.k9.mail.internet.MimeHeader;
 import com.fsck.k9.mail.internet.MimeMessage;
-import com.fsck.k9.mail.internet.MimeMessageHelper;
-import com.fsck.k9.mail.internet.MimeMultipart;
-import com.fsck.k9.mail.internet.TextBody;
 import com.fsck.k9.mailstore.LocalMessage;
 import com.fsck.k9.mailstore.MessageViewInfo;
 import com.fsck.k9.message.AutocryptStatusInteractor;
@@ -111,7 +112,7 @@ import com.fsck.k9.message.QuotedTextMode;
 import com.fsck.k9.message.SimpleMessageBuilder;
 import com.fsck.k9.message.SimpleMessageFormat;
 import app.k9mail.legacy.search.LocalSearch;
-import com.fsck.k9.message.pqc.PqcMessageHelper;
+import com.fsck.k9.pqcExtension.message.PqcMessagebuilder;
 import com.fsck.k9.ui.R;
 import com.fsck.k9.ui.base.K9Activity;
 import app.k9mail.legacy.ui.theme.ThemeManager;
@@ -133,7 +134,8 @@ import timber.log.Timber;
 public class MessageCompose extends K9Activity implements OnClickListener,
     CancelListener, AttachmentDownloadCancelListener, OnFocusChangeListener,
     OnOpenPgpInlineChangeListener, OnOpenPgpSignOnlyChangeListener, MessageBuilder.Callback,
-    AttachmentPresenter.AttachmentsChangedListener, OnOpenPgpDisableListener {
+    AttachmentPresenter.AttachmentsChangedListener, OnOpenPgpDisableListener, OnPqcSignOnlyChangeListener,
+    OnPqcEncryptOnlyChangeListener, OnPqcSigEncryptOnlyChangeListener {
 
     private static final int DIALOG_SAVE_OR_DISCARD_DRAFT_MESSAGE = 1;
     private static final int DIALOG_CONFIRM_DISCARD_ON_BACK = 2;
@@ -249,7 +251,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
     private boolean navigateUp;
 
     private boolean sendMessageHasBeenTriggered = false;
-
+    private View  progressBar;
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -262,7 +264,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
 
         setLayout(R.layout.message_compose);
         ViewStub contentContainer = findViewById(R.id.message_compose_content);
-
+        setupProgressBar();
         sizeFormatter = new SizeFormatter(getResources());
 
         ThemeManager themeManager = getThemeManager();
@@ -277,7 +279,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
 
         // on api level 15, setContentView() shows the progress bar for some reason...
         setProgressBarIndeterminateVisibility(false);
-
+        showProgressBar(false);
         final Intent intent = getIntent();
 
         String messageReferenceString = intent.getStringExtra(EXTRA_MESSAGE_REFERENCE);
@@ -508,6 +510,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         currentMessageBuilder = (MessageBuilder) getLastCustomNonConfigurationInstance();
         if (currentMessageBuilder != null) {
             setProgressBarIndeterminateVisibility(true);
+            showProgressBar(true);
             currentMessageBuilder.reattachCallback(this);
         }
 
@@ -618,23 +621,38 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         }
 
         boolean shouldUsePgpMessageBuilder = cryptoStatus.isOpenPgpConfigured();
-
-        if(shouldUsePgpMessageBuilder) {
+        String receptionAdress = recipientPresenter.getToAddresses().get(0).getAddress();
+        if (cryptoStatus.isSignPqcHybrid()) {
+            PqcMessagebuilder pqcBuilder = PqcMessagebuilder.newInstance(getApplicationContext(),receptionAdress);
+            recipientPresenter.builderSetProperties(pqcBuilder, cryptoStatus , account);
+            if (pqcBuilder == null) {
+                Timber.w("PqcMessagebuilder returned null – PQC config missing?");
+                return null;
+            }
+            builder=pqcBuilder;
+        }
+        else if(cryptoStatus.isEncryptPqcHybrid()){
+            PqcMessagebuilder pqcBuilder = PqcMessagebuilder.newInstance(getApplicationContext(),receptionAdress);
+            recipientPresenter.builderSetProperties(pqcBuilder, cryptoStatus , account);
+            if (pqcBuilder == null) {
+                Timber.w("PqcMessagebuilder returned null – PQC config missing?");
+                return null;
+            }
+            builder=pqcBuilder;
+        }
+        else if(shouldUsePgpMessageBuilder) {
             SendErrorState maybeSendErrorState = cryptoStatus.getSendErrorStateOrNull();
             if (maybeSendErrorState != null) {
                 recipientPresenter.showPgpSendError(maybeSendErrorState);
                 return null;
             }
-
             PgpMessageBuilder pgpBuilder = PgpMessageBuilder.newInstance();
-            pgpBuilder.setAccount(account);
             recipientPresenter.builderSetProperties(pgpBuilder, cryptoStatus);
             builder = pgpBuilder;
         } else {
             builder = SimpleMessageBuilder.newInstance();
             recipientPresenter.builderSetProperties(builder);
         }
-
 
         builder.setSubject(Utility.stripNewLines(subjectView.getText().toString()))
                 .setSentDate(new Date())
@@ -656,8 +674,8 @@ public class MessageCompose extends K9Activity implements OnClickListener,
                 .setMessageReference(relatedMessageReference)
                 .setDraft(isDraft)
                 .setIsPgpInlineEnabled(cryptoStatus.isPgpInlineModeEnabled())
-                .setAccount(account)
-                .setSendPqcKemPublicKey(cryptoStatus.getSendPqcKemPublicKey());
+                .setEncryptPqcHybrid(cryptoStatus.isEncryptPqcHybrid())
+                .setSignPqcHybrid(cryptoStatus.isSignPqcHybrid());
 
         quotedMessagePresenter.builderSetProperties(builder);
 
@@ -717,6 +735,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         currentMessageBuilder = createMessageBuilder(true);
         if (currentMessageBuilder != null) {
             setProgressBarIndeterminateVisibility(true);
+            showProgressBar(true);
             currentMessageBuilder.buildAsync(this);
         }
     }
@@ -731,6 +750,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
             sendMessageHasBeenTriggered = true;
             changesMadeSinceLastSave = false;
             setProgressBarIndeterminateVisibility(true);
+            showProgressBar(true);
             currentMessageBuilder.buildAsync(this);
         }
     }
@@ -968,8 +988,18 @@ public class MessageCompose extends K9Activity implements OnClickListener,
             attachmentPresenter.onClickAddAttachment(recipientPresenter);
         } else if (id == R.id.read_receipt) {
             onReadReceipt();
-        } else if(id == R.id.send_pqc_kem_public_key){
-            recipientPresenter.onClickSendPqcKemPublicKey();
+        }else if (id == R.id.openpgp_sign_pqc_hybrid_enabled) {
+                recipientPresenter.onClickSignPqcHybrid();
+                invalidateOptionsMenu();
+        } else if (id == R.id.openpgp_sign_pqc_hybrid_disabled) {
+                recipientPresenter.onClickSignPqcHybrid();
+                invalidateOptionsMenu();
+        } else if (id == R.id.openpgp_encrypt_pqc_hybrid_enabled) {
+            recipientPresenter.onClickEncryptPqcHybrid();
+            invalidateOptionsMenu();
+        } else if (id == R.id.openpgp_encrypt_pqc_hybrid_disabled) {
+            recipientPresenter.onClickEncryptPqcHybrid();
+            invalidateOptionsMenu();
         }
         else {
             return super.onOptionsItemSelected(item);
@@ -1388,6 +1418,20 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         quotedMessagePresenter.processDraftMessage(messageViewInfo, k9identity);
     }
 
+    @Override
+    public void onPqcSignOnlyChange(boolean enabled) {
+        recipientPresenter.onCryptoPqcSignOnlyDisabled();
+    }
+
+    @Override
+    public void onEncryptSignOnlyChange(boolean enabled) {
+        recipientPresenter.onCryptoPqcEncryptOnlyDisabled();
+    }
+
+    @Override
+    public void onSigEncryptSignOnlyChange(boolean enabled) {
+        recipientPresenter.onCryptoPqcSignEncryptOnlyDisabled();
+    }
 
     static class SendMessageTask extends AsyncTask<Void, Void, Void> {
         final MessagingController messagingController;
@@ -1521,7 +1565,8 @@ public class MessageCompose extends K9Activity implements OnClickListener,
     public void onMessageBuildSuccess(MimeMessage message, boolean isDraft) {
         String plaintextSubject =
                 (currentMessageBuilder instanceof PgpMessageBuilder) ? currentMessageBuilder.getSubject() : null;
-
+        setProgressBarIndeterminateVisibility(false);
+        showProgressBar(false);
         if (isDraft) {
             changesMadeSinceLastSave = false;
             currentMessageBuilder = null;
@@ -1532,6 +1577,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
                 finish();
             } else {
                 setProgressBarIndeterminateVisibility(false);
+                showProgressBar(false);
             }
         } else {
             currentMessageBuilder = null;
@@ -1546,6 +1592,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         sendMessageHasBeenTriggered = false;
         currentMessageBuilder = null;
         setProgressBarIndeterminateVisibility(false);
+        showProgressBar(false);
     }
 
     @Override
@@ -1556,6 +1603,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         sendMessageHasBeenTriggered = false;
         currentMessageBuilder = null;
         setProgressBarIndeterminateVisibility(false);
+        showProgressBar(false);
     }
 
     @Override
@@ -1854,9 +1902,11 @@ public class MessageCompose extends K9Activity implements OnClickListener,
             switch (msg.what) {
                 case MSG_PROGRESS_ON:
                     setProgressBarIndeterminateVisibility(true);
+                    showProgressBar(true);
                     break;
                 case MSG_PROGRESS_OFF:
                     setProgressBarIndeterminateVisibility(false);
+                    showProgressBar(false);
                     break;
                 case MSG_SAVED_DRAFT:
                     draftMessageId = (Long) msg.obj;
@@ -1897,31 +1947,12 @@ public class MessageCompose extends K9Activity implements OnClickListener,
             return titleResource;
         }
     }
-
-    //--- PQC Erweiterung ---
-    private void attachOwnPqcKemPublicKeyIfNeeded() {
-        ComposeCryptoStatus cryptoStatus = recipientPresenter.getCurrentCachedCryptoStatus();
-        if (cryptoStatus == null || !cryptoStatus.getSendPqcKemPublicKey()) {
-            return;
-        }
-
-        if (account == null || account.getPqcKemPublicKey() == null || account.getPqcKemAlgorithm() == null) {
-            return;
-        }
-
-        try {
-            byte[] kemPublicKey = Base64.getMimeDecoder().decode(account.getPqcKemPublicKey());
-            String armoredKey = com.fsck.k9.message.pqc.PqcMessageHelper.toAsciiArmor(kemPublicKey, "PQC KEM PUBLIC KEY");
-
-            MimeBodyPart kemPart = new MimeBodyPart(new TextBody(armoredKey));
-            kemPart.setHeader(MimeHeader.HEADER_CONTENT_TYPE, "application/pqc-kem-public-key");
-            kemPart.setHeader(MimeHeader.HEADER_CONTENT_DISPOSITION, "attachment; filename=\"pqc_kem_public_key.asc\"");
-            kemPart.setHeader("X-PQC-KEM-Algorithm", account.getPqcKemAlgorithm());
-
-        } catch (Exception e) {
-            Timber.e(e, "Failed to attach PQC KEM Public Key");
+    private void setupProgressBar() {
+        progressBar = findViewById(R.id.progress_overlay);
+    }
+    public void showProgressBar(boolean visible) {
+        if (progressBar != null) {
+            progressBar.setVisibility(visible ? View.VISIBLE : View.GONE);
         }
     }
-
-    //--- ENDE ---
 }

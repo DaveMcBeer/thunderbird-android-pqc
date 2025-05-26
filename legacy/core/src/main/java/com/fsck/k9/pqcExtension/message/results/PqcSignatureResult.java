@@ -1,4 +1,4 @@
-package com.fsck.k9.mailstore.pqc;
+package com.fsck.k9.pqcExtension.message.results;
 
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -8,22 +8,21 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Repräsentiert das Ergebnis einer PQC-Signaturprüfung.
+ * Represents the result of a PQC signature verification.
  *
- * Diese Klasse enthält:
- * - Signaturstatus (gültig, ungültig, Schlüssel fehlt etc.)
- * - Informationen über verwendete Schlüssel (Key-ID, User IDs)
- * - Status des Absenders (bestätigt, unbestätigt)
+ * Includes:
+ * - Signature status (valid, invalid, missing key, etc.)
+ * - Key information (Key ID, User IDs)
+ * - Sender verification status (confirmed, unconfirmed, etc.)
  *
- * Unterstützt das Parcelable-Interface für IPC oder Speicherung.
+ * Implements Parcelable for inter-process communication or persistence.
  */
-
 @SuppressWarnings("unused")
 public class PqcSignatureResult implements Parcelable {
 
     private static final int PARCELABLE_VERSION = 1;
 
-    // Mögliche Ergebnis-Codes für Signaturprüfung
+    // Possible result codes
     public static final int RESULT_NO_SIGNATURE = -1;
     public static final int RESULT_INVALID_SIGNATURE = 0;
     public static final int RESULT_VALID_KEY_CONFIRMED = 1;
@@ -33,7 +32,7 @@ public class PqcSignatureResult implements Parcelable {
     public static final int RESULT_INVALID_KEY_EXPIRED = 5;
     public static final int RESULT_INVALID_KEY_INSECURE = 6;
 
-    // Felder des Ergebnisses
+    // Fields representing signature verification result
     private final int result;
     private final long keyId;
     private final String primaryUserId;
@@ -42,7 +41,7 @@ public class PqcSignatureResult implements Parcelable {
     private final SenderStatusResult senderStatusResult;
 
     /**
-     * Konstruktor für ein vollständiges Ergebnisobjekt.
+     * Main constructor for full result data.
      */
     public PqcSignatureResult(int result, String primaryUserId, long keyId,
         ArrayList<String> userIds, ArrayList<String> confirmedUserIds,
@@ -56,7 +55,7 @@ public class PqcSignatureResult implements Parcelable {
     }
 
     /**
-     * Konstruktor für Deserialisierung aus einem Parcel.
+     * Constructor used during deserialization from a Parcel.
      */
     private PqcSignatureResult(Parcel source, int version) {
         this.result = source.readInt();
@@ -67,7 +66,7 @@ public class PqcSignatureResult implements Parcelable {
         this.confirmedUserIds = source.createStringArrayList();
     }
 
-    // Getter
+    // Getters
     public int getResult() {
         return result;
     }
@@ -98,13 +97,13 @@ public class PqcSignatureResult implements Parcelable {
     }
 
     /**
-     * Serialisiert dieses Objekt in ein Parcel.
+     * Serializes this result into a Parcel.
      */
     @Override
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeInt(PARCELABLE_VERSION);
         int sizePosition = dest.dataPosition();
-        dest.writeInt(0); // Placeholder für Größe
+        dest.writeInt(0); // Placeholder for size
         int startPosition = dest.dataPosition();
 
         dest.writeInt(result);
@@ -121,7 +120,7 @@ public class PqcSignatureResult implements Parcelable {
     }
 
     /**
-     * Parcelable-Creator zur Erstellung von Instanzen aus einem Parcel.
+     * Parcelable creator for deserialization.
      */
     public static final Creator<PqcSignatureResult> CREATOR = new Creator<PqcSignatureResult>() {
         public PqcSignatureResult createFromParcel(final Parcel source) {
@@ -149,7 +148,7 @@ public class PqcSignatureResult implements Parcelable {
     }
 
     /**
-     * Fabrikmethode für gültige Signaturen mit vollständigen Daten.
+     * Factory method for valid signature results.
      */
     public static PqcSignatureResult createWithValidSignature(int signatureStatus, String primaryUserId,
         long keyId, ArrayList<String> userIds,
@@ -163,28 +162,28 @@ public class PqcSignatureResult implements Parcelable {
     }
 
     /**
-     * Fabrikmethode für "keine Signatur vorhanden".
+     * Factory method for a missing signature result.
      */
     public static PqcSignatureResult createWithNoSignature() {
         return new PqcSignatureResult(RESULT_NO_SIGNATURE, null, 0L, null, null, null);
     }
 
     /**
-     * Fabrikmethode für "Schlüssel fehlt".
+     * Factory method for missing key result.
      */
     public static PqcSignatureResult createWithKeyMissing(long keyId) {
         return new PqcSignatureResult(RESULT_KEY_MISSING, null, keyId, null, null, null);
     }
 
     /**
-     * Fabrikmethode für "ungültige Signatur".
+     * Factory method for an invalid signature result.
      */
     public static PqcSignatureResult createWithInvalidSignature() {
         return new PqcSignatureResult(RESULT_INVALID_SIGNATURE, null, 0L, null, null, null);
     }
 
     /**
-     * Hilfsmethode zur sicheren Enum-Deserialisierung.
+     * Helper to safely deserialize enums from Parcel.
      */
     private static <T extends Enum<T>> T readEnumWithNullAndFallback(Parcel source, T[] enumValues, T fallback) {
         int valueOrdinal = source.readInt();
@@ -198,7 +197,7 @@ public class PqcSignatureResult implements Parcelable {
     }
 
     /**
-     * Hilfsmethode zur Enum-Serialisierung.
+     * Helper to serialize enums with null support.
      */
     private static void writeEnumWithNull(Parcel dest, Enum<?> enumValue) {
         if (enumValue == null) {
@@ -209,7 +208,7 @@ public class PqcSignatureResult implements Parcelable {
     }
 
     /**
-     * Enum zur Darstellung des Status des Senders in Bezug auf die Signatur.
+     * Enum representing the confirmation status of the sender.
      */
     public enum SenderStatusResult {
         UNKNOWN,

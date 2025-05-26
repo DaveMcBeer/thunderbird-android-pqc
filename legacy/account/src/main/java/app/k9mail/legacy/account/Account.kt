@@ -6,6 +6,7 @@ import com.fsck.k9.mail.Address
 import com.fsck.k9.mail.ServerSettings
 import java.util.Calendar
 import java.util.Date
+import org.openquantumsafe.KEMs
 import org.openquantumsafe.Sigs
 
 // This needs to be in sync with K9.DEFAULT_VISIBLE_LIMIT
@@ -305,62 +306,40 @@ class Account(
     var isOpenPgpEncryptAllDrafts = false
 
 
-    //----David B. PQC settings -----
+    // --- PQC Integration ---
+
     @get:Synchronized
     @set:Synchronized
     var isPqcSigningEnabled = false
 
     @get:Synchronized
     @set:Synchronized
-    var isPqcShowSignature = false
+    var pqcSupportedSigningAlgorithms: ArrayList<String> = Sigs.get_supported_sigs();
+
 
     @get:Synchronized
     @set:Synchronized
-    var pqcSupportedAlgorithms: ArrayList<String> = Sigs.get_supported_sigs();
+    var isPqcKemEnabled = false
 
-    // Used to save the public key (if existent)
     @get:Synchronized
     @set:Synchronized
-    var pqcPublicSigngingKey: String? = null
+    var pqcSupportedKEMAlgorithms: ArrayList<String> = KEMs.get_supported_KEMs();
 
-    // Used to save the secret key (if existent)
+
     @get:Synchronized
     @set:Synchronized
-    var pqcSecretSigningKey: String? = null
+    var isPqcHideSignOnly = false
+
 
     // Used to save the chosen algorithm
     @get:Synchronized
     @set:Synchronized
     var pqcSigningAlgorithm: String? = null
 
-    // Used to save if the keys have been generated
-    @get:Synchronized
-    @set:Synchronized
-    var pqcKeysetExists: Boolean? = false
-
-    // --- PQC KEM Settings ---
-    @get:Synchronized
-    @set:Synchronized
-    var isPqcKemEnabled: Boolean = false
-
     @get:Synchronized
     @set:Synchronized
     var pqcKemAlgorithm: String? = null
-
-    @get:Synchronized
-    @set:Synchronized
-    var pqcKemPublicKey: String? = null
-
-    @get:Synchronized
-    @set:Synchronized
-    var pqcKemSecretKey: String? = null
-
-    @get:Synchronized
-    @set:Synchronized
-    var pqcKemKeysetExists: Boolean? = false
-// --- Ende PQC KEM Settings ---
-
-    // ----- End PQC Settings -----
+    // --- End PQC Integration ---
 
     @get:Synchronized
     @set:Synchronized

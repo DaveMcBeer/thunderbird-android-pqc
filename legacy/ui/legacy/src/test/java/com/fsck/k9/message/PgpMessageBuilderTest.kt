@@ -82,7 +82,7 @@ class PgpMessageBuilderTest : K9RobolectricTest() {
         false,
         true,
         true,
-        CryptoMode.NO_CHOICE,
+        CryptoMode.NO_CHOICE,false,false
     )
     private val resourceProvider: CoreResourceProvider by inject()
     private val openPgpApi = mock(OpenPgpApi::class.java)

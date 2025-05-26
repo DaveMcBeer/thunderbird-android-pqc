@@ -188,7 +188,6 @@
         <item>@string/account_settings_pq_algorithms_cross_rsdpg_192_small</item>
         <item>@string/account_settings_pq_algorithms_cross_rsdpg_256_balanced</item>
         <item>@string/account_settings_pq_algorithms_cross_rsdpg_256_fast</item>
-        <item>@string/account_settings_pq_algorithms_cross_rsdpg_256_small</item>
         <item>@string/account_settings_pq_signing_algorithms_none</item>
     </string-array>
 
@@ -236,7 +235,6 @@
         <item>@string/account_settings_pq_algorithms_cross_rsdpg_192_small</item>
         <item>@string/account_settings_pq_algorithms_cross_rsdpg_256_balanced</item>
         <item>@string/account_settings_pq_algorithms_cross_rsdpg_256_fast</item>
-        <item>@string/account_settings_pq_algorithms_cross_rsdpg_256_small</item>
         <item>@string/account_settings_pq_signing_algorithms_none</item>
     </string-array>
 
@@ -248,12 +246,6 @@
         <item>@string/account_settings_pq_kem_classic_mceliece_348864f</item>
         <item>@string/account_settings_pq_kem_classic_mceliece_460896</item>
         <item>@string/account_settings_pq_kem_classic_mceliece_460896f</item>
-        <item>@string/account_settings_pq_kem_classic_mceliece_6688128</item>
-        <item>@string/account_settings_pq_kem_classic_mceliece_6688128f</item>
-        <item>@string/account_settings_pq_kem_classic_mceliece_6960119</item>
-        <item>@string/account_settings_pq_kem_classic_mceliece_6960119f</item>
-        <item>@string/account_settings_pq_kem_classic_mceliece_8192128</item>
-        <item>@string/account_settings_pq_kem_classic_mceliece_8192128f</item>
         <item>@string/account_settings_pq_kem_hqc_128</item>
         <item>@string/account_settings_pq_kem_hqc_192</item>
         <item>@string/account_settings_pq_kem_hqc_256</item>
@@ -281,12 +273,6 @@
         <item>@string/account_settings_pq_kem_classic_mceliece_348864f</item>
         <item>@string/account_settings_pq_kem_classic_mceliece_460896</item>
         <item>@string/account_settings_pq_kem_classic_mceliece_460896f</item>
-        <item>@string/account_settings_pq_kem_classic_mceliece_6688128</item>
-        <item>@string/account_settings_pq_kem_classic_mceliece_6688128f</item>
-        <item>@string/account_settings_pq_kem_classic_mceliece_6960119</item>
-        <item>@string/account_settings_pq_kem_classic_mceliece_6960119f</item>
-        <item>@string/account_settings_pq_kem_classic_mceliece_8192128</item>
-        <item>@string/account_settings_pq_kem_classic_mceliece_8192128f</item>
         <item>@string/account_settings_pq_kem_hqc_128</item>
         <item>@string/account_settings_pq_kem_hqc_192</item>
         <item>@string/account_settings_pq_kem_hqc_256</item>

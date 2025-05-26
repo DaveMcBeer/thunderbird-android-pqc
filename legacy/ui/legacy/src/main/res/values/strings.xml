@@ -1084,7 +1084,7 @@ You can keep this message and use it as a backup for your secret key. If you wan
     <!-- Description of the "Usage and technical data" setting used in the "data collection" section of the general settings screen -->
     <string name="settings_ui_telemetry_description">Shares performance, usage, hardware and customization data about this app with Mozilla to help us make Thunderbird better</string>
 
-    <!-- PQC Erweiterung -->
+    // --- PQC Integration ---
     <string name="account_settings_pq_algorithms_dilithium2">Dilithium2</string>
     <string name="account_settings_pq_algorithms_dilithium3">Dilithium3</string>
     <string name="account_settings_pq_algorithms_dilithium5">Dilithium5</string>
@@ -1128,7 +1128,6 @@ You can keep this message and use it as a backup for your secret key. If you wan
     <string name="account_settings_pq_algorithms_cross_rsdpg_192_small">cross-rsdpg-192-small</string>
     <string name="account_settings_pq_algorithms_cross_rsdpg_256_balanced">cross-rsdpg-256-balanced</string>
     <string name="account_settings_pq_algorithms_cross_rsdpg_256_fast">cross-rsdpg-256-fast</string>
-    <string name="account_settings_pq_algorithms_cross_rsdpg_256_small">cross-rsdpg-256-small</string>
     <string name="account_settings_pq_signing_algorithms_none">None</string>
 
     <string name="account_settings_pq_kem_bike_l1">BIKE-L1</string>
@@ -1138,12 +1137,6 @@ You can keep this message and use it as a backup for your secret key. If you wan
     <string name="account_settings_pq_kem_classic_mceliece_348864f">Classic-McEliece-348864f</string>
     <string name="account_settings_pq_kem_classic_mceliece_460896">Classic-McEliece-460896</string>
     <string name="account_settings_pq_kem_classic_mceliece_460896f">Classic-McEliece-460896f</string>
-    <string name="account_settings_pq_kem_classic_mceliece_6688128">Classic-McEliece-6688128</string>
-    <string name="account_settings_pq_kem_classic_mceliece_6688128f">Classic-McEliece-6688128f</string>
-    <string name="account_settings_pq_kem_classic_mceliece_6960119">Classic-McEliece-6960119</string>
-    <string name="account_settings_pq_kem_classic_mceliece_6960119f">Classic-McEliece-6960119f</string>
-    <string name="account_settings_pq_kem_classic_mceliece_8192128">Classic-McEliece-8192128</string>
-    <string name="account_settings_pq_kem_classic_mceliece_8192128f">Classic-McEliece-8192128f</string>
     <string name="account_settings_pq_kem_hqc_128">HQC-128</string>
     <string name="account_settings_pq_kem_hqc_192">HQC-192</string>
     <string name="account_settings_pq_kem_hqc_256">HQC-256</string>
@@ -1162,16 +1155,99 @@ You can keep this message and use it as a backup for your secret key. If you wan
     <string name="account_settings_pq_kem_frodokem_1344_shake">FrodoKEM-1344-SHAKE</string>
     <string name="account_settings_pq_kem_algorithms_none">None</string>
 
-    <string name="crypto_msg_title_mixed_signed">Signed plaintext with additional pqc signing</string>
-    <string name="crypto_msg_mixed_sign_verified">from verified signer</string>
-
-    <string name="crypto_msg_title_mixed_signed_error">Failed to verifie message</string>
-    <string name="crypto_msg_mixed_sign_pqc_failed">message could not be verified</string>
-
-
     <string name="account_settings_pqc_kem_enabled">Enable PQC KEMs</string>
     <string name="account_settings_pqc_kem_algorithm">PQC KEM Algorithm</string>
     <string name="account_settings_pqc_kem_management">Manage PQC KEM Keys</string>
+    <!-- PQC Sign-Only Dialog Strings -->
+    <string name="pqc_dialog_sign_only_ok">Got it!</string>
+    <string name="pqc_dialog_sign_only_disable">Disable</string>
+    <string name="pqc_dialog_sign_only_keep_enabled">Keep Enabled</string>
+    <string name="pqc_dialog_sign_only_title">Hybrid PQC Sign-Only Mode</string>
+    <string name="pqc_dialog_sign_only_text">In this mode, your email will be signed using both traditional PGP and a post-quantum secure signature algorithm.</string>
+    <string name="pqc_dialog_sign_only_plus_verified">This verifies that the message was sent by you and adds quantum-safe authenticity.</string>
+    <string name="pqc_dialog_sign_only_minus_break">Signatures may not survive mailing list modifications.</string>
+    <string name="pqc_dialog_sign_only_minus_attach">Some clients may display the signature as a separate attachment (e.g. \'signature.asc\').</string>
+    <string name="pqc_dialog_sign_only_neutral_encsigned">Encrypted messages automatically include both signature types.</string>
 
-    <!-- ENDE -->
+    <string name="pqc_hybrid_description">Hybrid post-quantum mode: Combines PGP with quantum-safe signing and encryption.</string>
+
+
+    <string name="_pqc_section_title">Post-Quantum-Cryptography</string>
+    <string name="_pqc_enable_signing">Enable PQC Signing</string>
+    <string name="_pqc_hide_sign_only_title">Hide unencrypted PQC signatures</string>
+    <string name="_pqc_show_all_signatures">All PQC signatures will be displayed</string>
+    <string name="_pqc_hide_unencrypted_signatures">Only PQC encrypted signatures will be displayed</string>
+    <string name="_pqc_signing_algorithm">PQC Signing Algorithm</string>
+    <string name="_pqc_key_management_title">PQC Signing Key Management</string>
+    <string name="_pqc_key_management_summary">Manage PQC signing keys</string>
+    <string name="_pqc_enable_kem">Enable PQC KEM</string>
+    <string name="_pqc_kem_algorithm">PQC KEM Algorithm</string>
+    <string name="_pqc_kem_algorithm_dialog">Choose PQC KEM Algorithm</string>
+    <string name="_pqc_kem_key_management_title">PQC KEM Key Management</string>
+    <string name="_pqc_kem_key_management_summary">Manage PQC KEM keys</string>
+    <string name="_pqc_misc_category">Miscellaneous</string>
+    <string name="_pqc_delete_all_keys_title">Delete all keys</string>
+    <string name="_pqc_delete_all_keys_summary">Permanently deletes PGP and PQC keys for this account</string>
+    <string name="_pqc_send_keys_title">Send public keys</string>
+    <string name="_pqc_send_keys_summary">Send PQC+PGP public keys via email</string>
+    <string name="_pqc_signing_category_title">PQC Signing</string>
+    <string name="_pqc_kem_category_title">PQC KEM</string>
+    <string name="_pqc_tools_category_title">Utilities</string>
+    <string name="_pqc_generate_pgp_title">Generate PGP Key Pair</string>
+    <string name="_pqc_generate_pgp_summary">Create and store a PGP key pair for this account</string>
+    <string name="_pqc_generate_pgp_success">PGP key pair generated successfully ✅</string>
+    <string name="_pqc_generate_pgp_exists">PGP key pair already exists</string>
+    <string name="_pqc_generate_pgp_error">Error while generating PGP key: %1$s</string>
+
+    <string name="_pqc_algorithm_unknown">Algorithm: Unknown</string>
+    <string name="_pqc_generate_keypair">🛠 Generate key pair</string>
+    <string name="_pqc_export">📤 Export</string>
+    <string name="_pqc_import">📥 Import</string>
+    <string name="_pqc_no_icon">❌</string>
+    <string name="_pqc_no_keypair">No key pair available</string>
+    <string name="_pqc_send_key">🔐 Send key</string>
+    <string name="_pqc_public_key_label">Public key:</string>
+    <string name="_pqc_no_public_key">No public key</string>
+
+    <string name="pqc_encryption">PQC Encryption</string>
+    <string name="pqc_encryption_enabled_error_title">Hybrid Encryption Not Possible</string>
+    <string name="pqc_encryption_enabled_error_msg">Some selected recipients are not compatible with hybrid post-quantum encryption.</string>
+    <string name="pqc_encryption_enable">Enable Hybrid Encryption</string>
+    <string name="pqc_encryption_disable">Disable Hybrid Encryption</string>
+    <string name="pqc_encryption_description_text1">Encrypting messages with hybrid algorithms ensures forward secrecy against future quantum adversaries.</string>
+    <string name="pqc_encryption_description_text2">Tap the lock icon to toggle hybrid encryption on or off.</string>
+    <string name="pqc_encryption_description_text3">Hybrid encryption is only possible if all recipients support both PGP and PQC.</string>
+    <string name="pqc_encryption_enabled_error_gotit">Got it</string>
+    <string name="pqc_encryption_enabled_error_back">Back</string>
+    <string name="pqc_encryption_enabled_error_disable">Disable Hybrid Encryption</string>
+    <string name="pqc_encryption_label">PQC/PGP Hybrid Encryption</string>
+
+    <string name="pqc_sig_encryption_label">PQC/PGP Hybrid Encryption and Signing</string>
+    <string name="pqc_sig_encryption_description_text1">Encrypting and signing messages with hybrid algorithms ensures forward secrecy against future quantum adversaries.</string>
+    <string name="pqc_sig_encryption_description_text2">Tap the lock icon to toggle hybrid encryption/signing on or off.</string>
+    <string name="pqc_sig_encryption_description_text3">Hybrid encryption/singing is only possible if all recipients support both PGP and PQC.</string>
+
+    <string name="crypto_msg_title_pqc_encrypted_sig">Hybrid Encrypted and Signed</string>
+    <string name="crypto_msg_pqc_encrypted_sig_verified">This message was successfully decrypted and verified using hybrid post-quantum encryption (PQC + PGP).</string>
+    <string name="crypto_msg_pqc_encrypted_sig_error">The message could not be decrypted using hybrid PQC encryption.</string>
+
+    <string name="crypto_msg_title_pqc_encrypted">Hybrid Encrypted</string>
+    <string name="crypto_msg_pqc_encrypted_verified">This message was successfully decrypted using hybrid post-quantum encryption (PQC + PGP).</string>
+    <string name="crypto_msg_pqc_encrypted_error">The message could not be decrypted using hybrid PQC encryption.</string>
+
+
+    <string name="crypto_msg_title_mixed_signed">Hybrid Signature</string>
+    <string name="crypto_msg_mixed_sign_verified">The message has been successfully verified using both classical (RSA/OpenPGP) and post-quantum signatures.</string>
+    <string name="crypto_msg_mixed_sign_pqc_failed">The message was signed using both classical and post-quantum methods, but PQC signature verification failed.</string>
+    <string name="crypto_msg_title_mixed_signed_error">Hybrid Signature Error</string>
+
+    <string name="crypto_msg_pqc_signed_error">Post-quantum signature verification failed.</string>
+
+    <string name="crypto_msg_hint_pqc_experimental">This message is protected using experimental post-quantum cryptography (PQC).</string>
+
+    <string name="enable_pqc_encryption">Enable PQC/PGP Encryption</string>
+    <string name="disable_pqc_encryption">Disable PQC/PGP Encryption</string>
+    <string name="enable_sign_pqc_only">Enable PQC/PGP Sign-Only</string>
+    <string name="disable_sign_pqc_only">Disable PQC/PGP Sign-Only</string>
+    // --- End PQC Integration ---
 </resources>

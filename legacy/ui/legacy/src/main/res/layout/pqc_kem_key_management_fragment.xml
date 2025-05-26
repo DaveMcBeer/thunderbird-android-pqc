@@ -2,6 +2,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
+
     <ScrollView
         android:id="@+id/scrollView"
         android:layout_width="match_parent"
@@ -13,24 +14,23 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:gravity="center_horizontal">
+
             <TextView
                 android:id="@+id/algorithm_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Algorithmus: Unbekannt"
+                android:text="@string/_pqc_algorithm_unknown"
                 android:textAppearance="?android:attr/textAppearanceMedium"
                 android:layout_marginBottom="12dp"
                 android:textStyle="italic" />
 
-            <!-- DYNAMIC Button: Generieren ODER Löschen -->
             <Button
                 android:id="@+id/dynamic_action_button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="🛠 Key-Paar generieren"
+                android:text="@string/_pqc_generate_keypair"
                 android:layout_marginBottom="16dp" />
 
-            <!-- Horizontal: Export / Import -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -42,17 +42,16 @@
                     android:id="@+id/export_keys_button"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="📤 Exportieren"
+                    android:text="@string/_pqc_export"
                     android:layout_marginEnd="12dp" />
 
                 <Button
                     android:id="@+id/import_keys_button"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="📥 Importieren" />
+                    android:text="@string/_pqc_import" />
             </LinearLayout>
 
-            <!-- Key Pair Status -->
             <LinearLayout
                 android:id="@+id/key_status_container"
                 android:layout_width="wrap_content"
@@ -65,7 +64,7 @@
                     android:id="@+id/key_status_icon"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="❌"
+                    android:text="@string/_pqc_no_icon"
                     android:textSize="18sp"
                     android:layout_marginEnd="8dp" />
 
@@ -73,16 +72,15 @@
                     android:id="@+id/key_status_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Kein Key-Paar vorhanden"
+                    android:text="@string/_pqc_no_keypair"
                     android:textSize="16sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
-            <!-- Public Key -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Öffentlicher Schlüssel:"
+                android:text="@string/_pqc_public_key_label"
                 android:textAppearance="?android:attr/textAppearanceMedium"
                 android:layout_marginBottom="4dp" />
 
@@ -90,7 +88,7 @@
                 android:id="@+id/public_key_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Kein öffentlicher Schlüssel"
+                android:text="@string/_pqc_no_public_key"
                 android:padding="12dp"
                 android:background="@android:color/darker_gray"
                 android:textIsSelectable="true"
@@ -99,7 +97,6 @@
         </LinearLayout>
     </ScrollView>
 
-    <!-- LOADING OVERLAY -->
     <FrameLayout
         android:id="@+id/loadingOverlay"
         android:layout_width="match_parent"
