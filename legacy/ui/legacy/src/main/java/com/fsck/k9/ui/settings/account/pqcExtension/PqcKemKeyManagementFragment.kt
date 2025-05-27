@@ -54,14 +54,7 @@ class PqcKemKeyManagementFragment : Fragment(), ConfirmationDialogFragmentListen
                 val algorithm = viewModel.getCurrentAlgorithm() ?: "None"
                 viewModel.generatePqcKemKeyPair(context, accountId, algorithm)
             } else {
-                AlertDialog.Builder(requireContext())
-                    .setTitle("Warning: Public Key changes")
-                    .setMessage("You are about to replace your existing PQC KEM public key. You will have to send the new key to every recipient you want to exchange keys with in future. Proceed?")
-                    .setPositiveButton("Yes") { _, _ ->
-                        viewModel.generatePqcKemKeyPair()
-                    }
-                    .setNegativeButton("No", null)
-                    .show()
+                showConfirmResetDialog()
             }
             updateKeyTexts()
         }
