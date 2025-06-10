@@ -157,12 +157,14 @@ public class PQCBenchmarkRunner {
         Runtime rt = Runtime.getRuntime();
         for (int i = 0; i < ITERATIONS; i++) {
             long memBefore = rt.totalMemory() - rt.freeMemory();
-            long t0 = System.nanoTime();
             KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
             kpg.initialize(2048);
+
+            long t0 = System.nanoTime();
             KeyPair rsaKp = kpg.generateKeyPair();
-            JcaPGPKeyPair pgpKeyPair = new JcaPGPKeyPair(PGPPublicKey.RSA_SIGN, rsaKp, new Date());
             long t1 = System.nanoTime();
+
+            JcaPGPKeyPair pgpKeyPair = new JcaPGPKeyPair(PGPPublicKey.RSA_SIGN, rsaKp, new Date());
             long memAfter = rt.totalMemory() - rt.freeMemory();
             long kgMem = memAfter - memBefore;
 
@@ -170,18 +172,22 @@ public class PQCBenchmarkRunner {
             PGPPublicKey pgpPub = pgpKeyPair.getPublicKey();
 
             long signMemBefore = rt.totalMemory() - rt.freeMemory();
-            long signT0 = System.nanoTime();
+
             PGPSignatureGenerator pgpGen = new PGPSignatureGenerator(
                 new JcaPGPContentSignerBuilder(pgpPub.getAlgorithm(), HashAlgorithmTags.SHA512).setProvider( new BouncyCastleProvider())
             );
             pgpGen.init(PGPSignature.BINARY_DOCUMENT, pgpPriv);
             pgpGen.update(SAMPLE_MESSAGE);
             ByteArrayOutputStream pgpBos = new ByteArrayOutputStream();
+
+            long signT0 = System.nanoTime();
             PGPSignature signature = pgpGen.generate();
+            long signT1 = System.nanoTime();
+
             try (ArmoredOutputStream aos = new ArmoredOutputStream(pgpBos)) {
                 signature.encode(aos);
             }
-            long signT1 = System.nanoTime();
+
             long signMem = (rt.totalMemory() - rt.freeMemory()) - signMemBefore;
             byte[] pgpSig = pgpBos.toByteArray();
             int sigSz = pgpSig.length;
