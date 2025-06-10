@@ -1,9 +1,11 @@
 package com.fsck.k9.ui.settings.account.pqcExtension.benchmark;
 
+
 import android.content.ContentValues;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Debug;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
@@ -16,7 +18,6 @@ import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPSignatureGenerator;
-import org.bouncycastle.openpgp.PGPSignatureVerifier;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentVerifierBuilderProvider;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyPair;
@@ -52,7 +53,22 @@ public class PQCBenchmarkRunner {
         SAMPLE_MESSAGE_SIZE = sizeInBytes;
         regenerateSampleMessage();
     }
+    private static long[] measureMemoryUsage(Runnable action) {
+        long beforeHeap = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+        long beforeNative = Debug.getNativeHeapAllocatedSize();
+        action.run();
+        long afterHeap = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+        long afterNative = Debug.getNativeHeapAllocatedSize();
+        return new long[]{afterHeap - beforeHeap, afterNative - beforeNative};
+    }
 
+    static {
+        try {
+            System.loadLibrary("oqs-jni");
+        } catch (UnsatisfiedLinkError e) {
+            System.err.println("oqs-jni native library konnte nicht geladen werden: " + e.getMessage());
+        }
+    }
 
     /**
      * Führt alle verfügbaren Benchmark-Tests in einem Durchlauf aus.
@@ -67,8 +83,8 @@ public class PQCBenchmarkRunner {
             runPqcSignatureOnly(context);
             runPqcKemOnly(context);
             runClassicPgpSignatureOnly(context);
-            runHybridSignature(context);
-            runHybridEncryptionWithAesVariants(context);
+            //runHybridSignature(context); -> noch ausgelassen, vllt später testen
+            //runHybridEncryptionWithAesVariants(context);  -> noch ausgelassen, vllt später testen
             return "All benchmarks completed.";
         } catch (Exception e) {
             Log.e("PQCBenchmarkRunner", "Error during benchmarks", e);
@@ -87,53 +103,43 @@ public class PQCBenchmarkRunner {
     private static void runPqcSignatureOnly(Context context) throws IOException {
         List<String> algorithms = Sigs.get_supported_sigs();
         Writer writer = initCsv(context, "sig_benchmark.csv", new String[]{
-            "Algorithm","Iter", "KG_ns","KG_mem", "Sign_ns","Sign_mem","Sig_bytes",
-            "Ver_ns","Ver_mem", "PubKey_bytes","PrivKey_bytes","Valid"
+            "Algorithm","Iter","KG_ns","KG_heap","KG_native","Sign_ns","Sign_heap","Sign_native","Sig_bytes",
+            "Ver_ns","Ver_heap","Ver_native","PubKey_bytes","PrivKey_bytes","Valid"
         });
         Set<String> blacklist = new HashSet<>(Arrays.asList("cross-rsdp-256-small"));
-        Runtime rt = Runtime.getRuntime();
         for (String alg : algorithms) {
             if (blacklist.contains(alg)) continue;
             Signature signer = new Signature(alg);
-            Timber.d("Aktueller algorithmus:" + alg);
 
             for (int i = 0; i < ITERATIONS; i++) {
-
-                long beforeMem = rt.totalMemory() - rt.freeMemory();
                 long t0 = System.nanoTime();
-                signer.generate_keypair();
+                long[] kgMem = measureMemoryUsage(() -> signer.generate_keypair());
                 long t1 = System.nanoTime();
-                long afterMem = rt.totalMemory() - rt.freeMemory();
-                long kgMem = afterMem - beforeMem;
 
                 byte[] pub = signer.export_public_key();
                 byte[] priv = signer.export_secret_key();
                 int pubSz = pub.length;
                 int privSz = priv.length;
 
-                beforeMem = rt.totalMemory() - rt.freeMemory();
                 long t2 = System.nanoTime();
-                byte[] sig = signer.sign(SAMPLE_MESSAGE);
+                final byte[][] sig = new byte[1][];
+                long[] signMem = measureMemoryUsage(() -> sig[0] = signer.sign(SAMPLE_MESSAGE));
                 long t3 = System.nanoTime();
-                afterMem = rt.totalMemory() - rt.freeMemory();
-                long signMem = afterMem - beforeMem;
-                int sigSz = sig.length;
+                int sigSz = sig[0].length;
 
-                beforeMem = rt.totalMemory() - rt.freeMemory();
                 long t4 = System.nanoTime();
-                boolean valid = signer.verify(SAMPLE_MESSAGE, sig, pub);
+                final boolean[] valid = new boolean[1];
+                long[] verMem = measureMemoryUsage(() -> valid[0] = signer.verify(SAMPLE_MESSAGE, sig[0], pub));
                 long t5 = System.nanoTime();
-                afterMem = rt.totalMemory() - rt.freeMemory();
-                long verMem = afterMem - beforeMem;
 
                 writer.append(String.format(Locale.US,
-                    "%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%b\n",
+                    "%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%b\n",
                     alg, i,
-                    t1 - t0, kgMem,
-                    t3 - t2, signMem, sigSz,
-                    t5 - t4, verMem,
+                    t1 - t0, kgMem[0], kgMem[1],
+                    t3 - t2, signMem[0], signMem[1], sigSz,
+                    t5 - t4, verMem[0], verMem[1],
                     pubSz, privSz,
-                    valid
+                    valid[0]
                 ));
             }
             signer.dispose_sig();
@@ -151,60 +157,65 @@ public class PQCBenchmarkRunner {
     private static void runClassicPgpSignatureOnly(Context context) throws Exception {
         Security.addProvider(new BouncyCastleProvider());
         Writer writer = initCsv(context, "pgp_signature_benchmark.csv", new String[]{
-            "Iter", "KG_ns", "KG_mem", "Sign_ns", "Sign_mem", "Sig_bytes", "Ver_ns", "Ver_mem", "Valid"
+            "Iter", "KG_ns", "KG_heap", "KG_native", "Sign_ns", "Sign_heap", "Sign_native", "Sig_bytes", "Ver_ns", "Ver_heap", "Ver_native", "Valid"
         });
 
-        Runtime rt = Runtime.getRuntime();
         for (int i = 0; i < ITERATIONS; i++) {
-            long memBefore = rt.totalMemory() - rt.freeMemory();
-            KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-            kpg.initialize(2048);
-
             long t0 = System.nanoTime();
-            KeyPair rsaKp = kpg.generateKeyPair();
+            long[] kgMem = measureMemoryUsage(() -> {
+                try {
+                    KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+                    kpg.initialize(2048);
+                    kpg.generateKeyPair();
+                } catch (Exception e) { e.printStackTrace(); }
+            });
             long t1 = System.nanoTime();
 
+            KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+            kpg.initialize(2048);
+            KeyPair rsaKp = kpg.generateKeyPair();
             JcaPGPKeyPair pgpKeyPair = new JcaPGPKeyPair(PGPPublicKey.RSA_SIGN, rsaKp, new Date());
-            long memAfter = rt.totalMemory() - rt.freeMemory();
-            long kgMem = memAfter - memBefore;
-
             PGPPrivateKey pgpPriv = pgpKeyPair.getPrivateKey();
             PGPPublicKey pgpPub = pgpKeyPair.getPublicKey();
 
-            long signMemBefore = rt.totalMemory() - rt.freeMemory();
-
-            PGPSignatureGenerator pgpGen = new PGPSignatureGenerator(
-                new JcaPGPContentSignerBuilder(pgpPub.getAlgorithm(), HashAlgorithmTags.SHA512).setProvider( new BouncyCastleProvider())
-            );
-            pgpGen.init(PGPSignature.BINARY_DOCUMENT, pgpPriv);
-            pgpGen.update(SAMPLE_MESSAGE);
-            ByteArrayOutputStream pgpBos = new ByteArrayOutputStream();
-
             long signT0 = System.nanoTime();
-            PGPSignature signature = pgpGen.generate();
+            final byte[][] pgpSig = new byte[1][];
+            final PGPSignature[] signatureHolder = new PGPSignature[1];
+            long[] signMem = measureMemoryUsage(() -> {
+                try {
+                    PGPSignatureGenerator pgpGen = new PGPSignatureGenerator(
+                        new JcaPGPContentSignerBuilder(pgpPub.getAlgorithm(), HashAlgorithmTags.SHA512).setProvider(new BouncyCastleProvider()));
+                    pgpGen.init(PGPSignature.BINARY_DOCUMENT, pgpPriv);
+                    pgpGen.update(SAMPLE_MESSAGE);
+                    ByteArrayOutputStream pgpBos = new ByteArrayOutputStream();
+                    PGPSignature signature = pgpGen.generate();
+                    signatureHolder[0] = signature;
+                    try (ArmoredOutputStream aos = new ArmoredOutputStream(pgpBos)) {
+                        signature.encode(aos);
+                    }
+                    pgpSig[0] = pgpBos.toByteArray();
+                } catch (Exception e) { e.printStackTrace(); }
+            });
             long signT1 = System.nanoTime();
+            int sigSz = pgpSig[0].length;
 
-            try (ArmoredOutputStream aos = new ArmoredOutputStream(pgpBos)) {
-                signature.encode(aos);
-            }
-
-            long signMem = (rt.totalMemory() - rt.freeMemory()) - signMemBefore;
-            byte[] pgpSig = pgpBos.toByteArray();
-            int sigSz = pgpSig.length;
-
-            // Verification
-            long verMemBefore = rt.totalMemory() - rt.freeMemory();
             long verT0 = System.nanoTime();
-            PGPSignatureVerifier verifier = new PGPSignatureVerifier(pgpPub, signature);
-            boolean valid = verifier.verify(SAMPLE_MESSAGE);
+            final boolean[] valid = new boolean[1];
+            long[] verMem = measureMemoryUsage(() -> {
+                try {
+                    PGPSignature signature = signatureHolder[0];
+                    signature.init(new JcaPGPContentVerifierBuilderProvider().setProvider(new BouncyCastleProvider()), pgpPub);
+                    signature.update(SAMPLE_MESSAGE);
+                    valid[0] = signature.verify();
+                } catch (Exception e) { e.printStackTrace(); }
+            });
             long verT1 = System.nanoTime();
-            long verMem = (rt.totalMemory() - rt.freeMemory()) - verMemBefore;
 
             writer.append(String.format(Locale.US,
-                "%d,%d,%d,%d,%d,%d,%d,%d,%b\n",
-                i, t1 - t0, kgMem,
-                signT1 - signT0, signMem, sigSz,
-                verT1 - verT0, verMem, valid
+                "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%b\n",
+                i, t1 - t0, kgMem[0], kgMem[1],
+                signT1 - signT0, signMem[0], signMem[1], sigSz,
+                verT1 - verT0, verMem[0], verMem[1], valid[0]
             ));
         }
         writer.flush(); writer.close();
@@ -219,54 +230,45 @@ public class PQCBenchmarkRunner {
     private static void runPqcKemOnly(Context context) throws Exception {
         List<String> algorithms = KEMs.get_supported_KEMs();
         Writer writer = initCsv(context, "kem_benchmark.csv", new String[]{
-            "Algorithm","Iter", "KG_ns","KG_mem", "Enc_ns","Enc_mem","CT_bytes","SS_bytes",
-            "Dec_ns","Dec_mem","Match"
+            "Algorithm","Iter","KG_ns","KG_heap","KG_native","Enc_ns","Enc_heap","Enc_native","CT_bytes","SS_bytes",
+            "Dec_ns","Dec_heap","Dec_native","Match"
         });
         Set<String> blacklist = new HashSet<>(Arrays.asList("Classic-McEliece-6688128","Classic-McEliece-6688128f","Classic-McEliece-6960119","Classic-McEliece-6960119f","Classic-McEliece-8192128","Classic-McEliece-8192128f"));
-        Runtime rt = Runtime.getRuntime();
         for (String alg : algorithms) {
             if (blacklist.contains(alg)) continue;
-            Timber.d("Aktueller KEM algorithmus:" + alg);
             KeyEncapsulation kem = new KeyEncapsulation(alg);
 
-
             for (int i = 0; i < ITERATIONS; i++) {
-                long beforeMem = rt.totalMemory() - rt.freeMemory();
                 long t0 = System.nanoTime();
-                kem.generate_keypair();
+                long[] kgMem = measureMemoryUsage(() -> kem.generate_keypair());
                 long t1 = System.nanoTime();
-                long afterMem = rt.totalMemory() - rt.freeMemory();
-                long kgMem = afterMem - beforeMem;
 
                 byte[] pub = kem.export_public_key();
 
-                beforeMem = rt.totalMemory() - rt.freeMemory();
+                final Pair<byte[], byte[]>[] pair = new Pair[1];
                 long t2 = System.nanoTime();
-                Pair<byte[],byte[]> pair = kem.encap_secret(pub);
+                long[] encMem = measureMemoryUsage(() -> pair[0] = kem.encap_secret(pub));
                 long t3 = System.nanoTime();
-                afterMem = rt.totalMemory() - rt.freeMemory();
-                long encMem = afterMem - beforeMem;
-                byte[] ct = pair.getLeft();
-                byte[] ssEnc = pair.getRight();
+
+                byte[] ct = pair[0].getLeft();
+                byte[] ssEnc = pair[0].getRight();
                 int ctSz = ct.length;
                 int ssSz = ssEnc.length;
 
-                beforeMem = rt.totalMemory() - rt.freeMemory();
+                final byte[][] ssDec = new byte[1][];
                 long t4 = System.nanoTime();
-                byte[] ssDec = kem.decap_secret(ct);
+                long[] decMem = measureMemoryUsage(() -> ssDec[0] = kem.decap_secret(ct));
                 long t5 = System.nanoTime();
-                afterMem = rt.totalMemory() - rt.freeMemory();
-                long decMem = afterMem - beforeMem;
-                boolean match = java.util.Arrays.equals(ssEnc, ssDec);
+
+                boolean match = java.util.Arrays.equals(ssEnc, ssDec[0]);
 
                 writer.append(String.format(Locale.US,
-                    "%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%b\n",
+                    "%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%b\n",
                     alg, i,
-                    t1 - t0, kgMem,
-                    t3 - t2, encMem, ctSz, ssSz,
-                    t5 - t4, decMem, match
+                    t1 - t0, kgMem[0], kgMem[1],
+                    t3 - t2, encMem[0], encMem[1], ctSz, ssSz,
+                    t5 - t4, decMem[0], decMem[1], match
                 ));
-
             }
             kem.dispose_KEM();
         }
