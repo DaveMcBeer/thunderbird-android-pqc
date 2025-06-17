@@ -150,7 +150,7 @@ public class PQCBenchmarkRunner {
 
 
     /**
-     * Misst die Performance klassischer PGP-Signaturen (RSA 2048) zur Vergleichbarkeit mit PQC-Verfahren.
+     * Misst die Performance klassischer PGP-Signaturen (RSA 4096) zur Vergleichbarkeit mit PQC-Verfahren.
      * Enthält: Zeitmessung für KeyGen, Signaturerstellung und -verifikation, Speichernutzung, Signaturgröße.
      *
      * Ergebnisse werden in `pgp_signature_benchmark.csv` geschrieben.
