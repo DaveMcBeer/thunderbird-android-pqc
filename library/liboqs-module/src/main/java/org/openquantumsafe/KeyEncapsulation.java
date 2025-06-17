@@ -52,6 +52,15 @@ public class KeyEncapsulation {
      */
     private KeyEncapsulationDetails alg_details_;
 
+    public String[] getVersionAndNistLevel() {
+        if (alg_details_ == null) {
+            alg_details_ = get_KEM_details();
+        }
+        return new String[] {
+            alg_details_.alg_version,
+            String.valueOf(alg_details_.claimed_nist_level)
+        };
+    }
     /**
      * \brief Constructs an instance of oqs::KeyEncapsulation
      * \param alg_name Cryptographic algorithm method_name

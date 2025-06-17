@@ -5,31 +5,15 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Build;
-import android.os.Debug;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
 
-import com.fsck.k9.logging.Timber;
-import org.bouncycastle.bcpg.ArmoredOutputStream;
-import org.bouncycastle.bcpg.HashAlgorithmTags;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.openpgp.PGPPrivateKey;
-import org.bouncycastle.openpgp.PGPPublicKey;
-import org.bouncycastle.openpgp.PGPSignature;
-import org.bouncycastle.openpgp.PGPSignatureGenerator;
-import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentSignerBuilder;
-import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentVerifierBuilderProvider;
-import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyPair;
 import org.openquantumsafe.*;
 
-import javax.crypto.Cipher;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import org.openquantumsafe.Signature;
 
 import java.io.*;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.interfaces.RSAPrivateKey;
@@ -53,22 +37,6 @@ public class PQCBenchmarkRunner {
     public static void setSampleMessageSize(int sizeInBytes) {
         SAMPLE_MESSAGE_SIZE = sizeInBytes;
         regenerateSampleMessage();
-    }
-    private static long[] measureMemoryUsage(Runnable action) {
-        long beforeHeap = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-        long beforeNative = Debug.getNativeHeapAllocatedSize();
-        action.run();
-        long afterHeap = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-        long afterNative = Debug.getNativeHeapAllocatedSize();
-        return new long[]{afterHeap - beforeHeap, afterNative - beforeNative};
-    }
-
-    static {
-        try {
-            System.loadLibrary("oqs-jni");
-        } catch (UnsatisfiedLinkError e) {
-            System.err.println("oqs-jni native library konnte nicht geladen werden: " + e.getMessage());
-        }
     }
 
     /**
@@ -102,13 +70,20 @@ public class PQCBenchmarkRunner {
     private static void runPqcSignatureOnly(Context context) throws IOException {
         List<String> algorithms = Sigs.get_supported_sigs();
         Writer writer = initCsv(context, "sig_benchmark.csv", new String[]{
-            "Algorithm","Iter","KG_ns","Sign_ns","Sig_bytes",
-            "Ver_ns","PubKey_bytes","PrivKey_bytes","Valid"
+            "Algorithm", "Version", "NIST_Level", "Iter",
+            "KG_ns", "Sign_ns", "Sig_bytes",
+            "Ver_ns", "PubKey_bytes", "PrivKey_bytes", "Valid"
         });
+
         Set<String> blacklist = new HashSet<>(Arrays.asList("cross-rsdp-256-small"));
         for (String alg : algorithms) {
             if (blacklist.contains(alg)) continue;
             Signature signer = new Signature(alg);
+
+            // Einmalig Algorithmus-Metadaten auslesen
+            String[] details = signer.getVersionAndNistLevel();
+            String version = details[0];
+            String nistLevel = details[1];
 
             for (int i = 0; i < ITERATIONS; i++) {
                 long t0 = System.nanoTime();
@@ -132,8 +107,8 @@ public class PQCBenchmarkRunner {
                 long t5 = System.nanoTime();
 
                 writer.append(String.format(Locale.US,
-                    "%s,%d,%d,%d,%d,%d,%d,%d,%b\n",
-                    alg, i,
+                    "%s,%s,%s,%d,%d,%d,%d,%d,%d,%d,%b\n",
+                    alg, version, nistLevel, i,
                     t1 - t0,
                     t3 - t2,
                     sigSz,
@@ -146,6 +121,7 @@ public class PQCBenchmarkRunner {
         }
         writer.flush(); writer.close();
     }
+
 
 
     /**
@@ -222,13 +198,25 @@ public class PQCBenchmarkRunner {
     private static void runPqcKemOnly(Context context) throws Exception {
         List<String> algorithms = KEMs.get_supported_KEMs();
         Writer writer = initCsv(context, "kem_benchmark.csv", new String[]{
-            "Algorithm","Iter","KG_ns","Enc_ns","CT_bytes","SS_bytes",
-            "Dec_ns","PubKey_bytes","PrivKey_bytes","Match"
+            "Algorithm", "Version", "NIST_Level", "Iter",
+            "KG_ns", "Enc_ns", "CT_bytes", "SS_bytes",
+            "Dec_ns", "PubKey_bytes", "PrivKey_bytes", "Match"
         });
-        Set<String> blacklist = new HashSet<>(Arrays.asList("Classic-McEliece-6688128","Classic-McEliece-6688128f","Classic-McEliece-6960119","Classic-McEliece-6960119f","Classic-McEliece-8192128","Classic-McEliece-8192128f"));
+
+        Set<String> blacklist = new HashSet<>(Arrays.asList(
+            "Classic-McEliece-6688128", "Classic-McEliece-6688128f",
+            "Classic-McEliece-6960119", "Classic-McEliece-6960119f",
+            "Classic-McEliece-8192128", "Classic-McEliece-8192128f"
+        ));
+
         for (String alg : algorithms) {
             if (blacklist.contains(alg)) continue;
             KeyEncapsulation kem = new KeyEncapsulation(alg);
+
+            // Algorithmus-Details einlesen
+            String[] details = kem.getVersionAndNistLevel();
+            String version = details[0];
+            String nistLevel = details[1];
 
             for (int i = 0; i < ITERATIONS; i++) {
                 long t0 = System.nanoTime();
@@ -236,34 +224,33 @@ public class PQCBenchmarkRunner {
                 long t1 = System.nanoTime();
 
                 byte[] pub = kem.export_public_key();
-                int pubSize=pub.length;
                 byte[] priv = kem.export_secret_key();
+                int pubSize = pub.length;
                 int privSize = priv.length;
-                final Pair<byte[], byte[]>[] pair = new Pair[1];
+
                 long t2 = System.nanoTime();
-                pair[0] = kem.encap_secret(pub);
+                Pair<byte[], byte[]> pair = kem.encap_secret(pub);
                 long t3 = System.nanoTime();
 
-                byte[] ct = pair[0].getLeft();
-                byte[] ssEnc = pair[0].getRight();
+                byte[] ct = pair.getLeft();
+                byte[] ssEnc = pair.getRight();
                 int ctSz = ct.length;
                 int ssSz = ssEnc.length;
 
-                final byte[][] ssDec = new byte[1][];
                 long t4 = System.nanoTime();
-                ssDec[0] = kem.decap_secret(ct);
+                byte[] ssDec = kem.decap_secret(ct);
                 long t5 = System.nanoTime();
 
-                boolean match = java.util.Arrays.equals(ssEnc, ssDec[0]);
+                boolean match = Arrays.equals(ssEnc, ssDec);
 
                 writer.append(String.format(Locale.US,
-                    "%s,%d,%d,%d,%d,%d,%d,%d,%d,%b\n",
-                    alg, i,
+                    "%s,%s,%s,%d,%d,%d,%d,%d,%d,%d,%d,%b\n",
+                    alg, version, nistLevel, i,
                     t1 - t0,
                     t3 - t2,
                     ctSz, ssSz,
                     t5 - t4,
-                    pubSize,privSize,
+                    pubSize, privSize,
                     match
                 ));
             }
@@ -271,6 +258,7 @@ public class PQCBenchmarkRunner {
         }
         writer.flush(); writer.close();
     }
+
 
     // --- Utility methods ---
 
@@ -293,19 +281,4 @@ public class PQCBenchmarkRunner {
         }
     }
 
-    private static class PGPSignatureVerifier {
-        private final PGPPublicKey publicKey;
-        private final PGPSignature signature;
-
-        PGPSignatureVerifier(PGPPublicKey publicKey, PGPSignature signature) {
-            this.publicKey = publicKey;
-            this.signature = signature;
-        }
-
-        public boolean verify(byte[] message) throws Exception {
-            signature.init(new JcaPGPContentVerifierBuilderProvider().setProvider( new BouncyCastleProvider()), publicKey);
-            signature.update(message);
-            return signature.verify();
-        }
-    }
 }
