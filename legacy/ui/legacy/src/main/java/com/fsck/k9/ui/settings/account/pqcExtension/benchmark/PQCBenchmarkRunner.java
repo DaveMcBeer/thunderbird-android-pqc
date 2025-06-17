@@ -164,7 +164,7 @@ public class PQCBenchmarkRunner {
         for (int i = 0; i < ITERATIONS; i++) {
 
             KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-            kpg.initialize(2048);
+            kpg.initialize(4096);
             long t0 = System.nanoTime();
             KeyPair rsaKp = kpg.generateKeyPair();
             long t1 = System.nanoTime();
