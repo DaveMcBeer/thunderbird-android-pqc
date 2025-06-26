@@ -52,6 +52,7 @@ public class PQCBenchmarkRunner {
             runPqcSignatureOnly(context);
             runPqcKemOnly(context);
             runPureJavaRsaSignatureBenchmark(context);
+            runSignatureSizeScaling(context);
             return "All benchmarks completed.";
         } catch (Exception e) {
             Log.e("PQCBenchmarkRunner", "Error during benchmarks", e);
@@ -120,6 +121,116 @@ public class PQCBenchmarkRunner {
             signer.dispose_sig();
         }
         writer.flush(); writer.close();
+    }
+
+    /**
+     * Führt einen Skalierungsbenchmark für PQC- und klassische RSA-Signaturen durch.
+     * Es wird untersucht, wie sich die Signaturdauer mit wachsender Nachrichtenlänge verändert –
+     * von 1 Byte bis zu 100 MB. Getestet werden alle unterstützten PQC-Signaturalgorithmen
+     * sowie RSA-4096 als klassische Referenz.
+     *
+     * Pro Algorithmus und Nachrichtengröße werden standardmäßig 1000 Iterationen durchgeführt.
+     * Die Ergebnisse werden im CSV-Format gespeichert und können z.B. für Visualisierungen verwendet werden.
+     *
+     * Output-Datei: PQCBenchmarks/sig_scaling_benchmark.csv
+     *
+     * Spalten im CSV:
+     *   Algorithm, Version, NIST_Level, PayloadBytes, Iter, Sign_ns, Valid
+     */
+    public static void runSignatureSizeScaling(Context context) throws IOException {
+        int[] messageSizes = {
+            1, 10, 100, 1_000, 10_000, 100_000,
+            1_000_000, 10_000_000, 100_000_000
+        };
+
+        Writer writer = initCsv(context, "sig_scaling_benchmark.csv", new String[]{
+            "Algorithm", "Version", "NIST_Level", "PayloadBytes", "Iter", "Sign_ns","Verifying_ns", "Valid"
+        });
+
+        Set<String> blacklist = new HashSet<>(Arrays.asList("cross-rsdp-256-small"));
+
+        // === PQC Signaturalgorithmen
+        List<String> pqcAlgs = Sigs.get_supported_sigs();
+        for (String alg : pqcAlgs) {
+            if (blacklist.contains(alg)) continue;
+
+            Signature signer = new Signature(alg);
+            String[] details = signer.getVersionAndNistLevel();
+            String version = details[0];
+            String nistLevel = details[1];
+
+            signer.generate_keypair();
+            byte[] pub = signer.export_public_key();
+
+            for (int size : messageSizes) {
+                byte[] message = new byte[size];
+                new SecureRandom().nextBytes(message);
+
+                for (int i = 0; i < ITERATIONS; i++) {
+                    long t1 = System.nanoTime();
+                    byte[] sig = signer.sign(message);
+                    long t2 = System.nanoTime();
+
+                    long verT1 = System.nanoTime();
+                    boolean valid = signer.verify(message, sig, pub);
+                    long verT0 = System.nanoTime();
+                    writer.append(String.format(Locale.US,
+                        "%s,%s,%s,%d,%d,%d,%d,%b\n",
+                        alg, version, nistLevel, size, i, t2 - t1,verT1 - verT0, valid
+                    ));
+                }
+            }
+            signer.dispose_sig();
+        }
+
+        // === Klassisches RSA (4096 Bit)
+        String rsaAlg = "RSA-4096";
+        String rsaVersion = "Java";
+        String rsaLevel = "RSA";
+
+        for (int size : messageSizes) {
+            byte[] message = new byte[size];
+            new SecureRandom().nextBytes(message);
+
+            for (int i = 0; i < ITERATIONS; i++) {
+                try {
+                    KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+                    kpg.initialize(4096);
+                    KeyPair keyPair = kpg.generateKeyPair();
+
+                    java.security.Signature signer = java.security.Signature.getInstance("SHA512withRSA");
+                    signer.initSign(keyPair.getPrivate());
+                    signer.update(message);
+
+                    long t1 = System.nanoTime();
+                    byte[] sig = signer.sign();
+                    long t2 = System.nanoTime();
+
+                    java.security.Signature verifier = java.security.Signature.getInstance("SHA512withRSA");
+                    verifier.initVerify(keyPair.getPublic());
+                    verifier.update(message);
+
+                    long verT1 = System.nanoTime();
+                    boolean valid = verifier.verify(sig);
+                    long verT0 = System.nanoTime();
+
+
+                    writer.append(String.format(Locale.US,
+                        "%s,%s,%s,%d,%d,%d,%d,%b\n",
+                        rsaAlg, rsaVersion, rsaLevel, size, i, t2 - t1,verT1 - verT0, valid
+                    ));
+                } catch (Exception e) {
+                    Log.e("PQCBenchmarkRunner", "RSA error", e);
+                    writer.append(String.format(Locale.US,
+                        "%s,%s,%s,%d,%d,-1,false\n",
+                        rsaAlg, rsaVersion, rsaLevel, size, i
+                    ));
+                }
+            }
+        }
+
+        writer.flush();
+        writer.close();
     }
 
 
