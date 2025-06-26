@@ -50,6 +50,15 @@ public class Signature {
      */
     private SignatureDetails alg_details_;
 
+    public String[] getVersionAndNistLevel() {
+        if (alg_details_ == null) {
+            alg_details_ = get_sig_details();
+        }
+        return new String[] {
+            alg_details_.alg_version,
+            String.valueOf(alg_details_.claimed_nist_level)
+        };
+    }
     /**
      * \brief Constructs an instance of oqs::Signature
      * \param alg_name Cryptographic algorithm method_name
