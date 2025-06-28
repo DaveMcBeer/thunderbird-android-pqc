@@ -73,7 +73,7 @@ public class PQCBenchmarkRunner {
     private static void runPqcSignatureOnly(Context context) throws IOException {
         List<String> algorithms = Sigs.get_supported_sigs();
         Writer writer = initCsv(context, "sig_benchmark.csv", new String[]{
-            "Algorithm", "Version", "NIST_Level", "Iter",
+            "Algorithm", "Iter",
             "KG_ns", "Sign_ns", "Sig_bytes",
             "Ver_ns", "PubKey_bytes", "PrivKey_bytes", "Valid"
         });
@@ -82,11 +82,6 @@ public class PQCBenchmarkRunner {
         for (String alg : algorithms) {
             if (blacklist.contains(alg)) continue;
             Signature signer = new Signature(alg);
-
-            // Einmalig Algorithmus-Metadaten auslesen
-            String[] details = signer.getVersionAndNistLevel();
-            String version = details[0];
-            String nistLevel = details[1];
 
             for (int i = 0; i < ITERATIONS; i++) {
                 long t0 = System.nanoTime();
@@ -110,8 +105,8 @@ public class PQCBenchmarkRunner {
                 long t5 = System.nanoTime();
 
                 writer.append(String.format(Locale.US,
-                    "%s,%s,%s,%d,%d,%d,%d,%d,%d,%d,%b\n",
-                    alg, version, nistLevel, i,
+                    "%s,%d,%d,%d,%d,%d,%d,%d,%b\n",
+                    alg, i,
                     t1 - t0,
                     t3 - t2,
                     sigSz,
@@ -146,7 +141,7 @@ public class PQCBenchmarkRunner {
         };
 
         Writer writer = initCsv(context, "sig_scaling_benchmark.csv", new String[]{
-            "Algorithm", "Version", "NIST_Level", "PayloadBytes", "Iter", "Sign_ns","Verifying_ns", "Valid"
+            "Algorithm", "PayloadBytes", "Iter", "Sign_ns","Verifying_ns", "Valid"
         });
 
         Set<String> blacklist = new HashSet<>(Arrays.asList("cross-rsdp-256-small"));
@@ -157,9 +152,6 @@ public class PQCBenchmarkRunner {
             if (blacklist.contains(alg)) continue;
 
             Signature signer = new Signature(alg);
-            String[] details = signer.getVersionAndNistLevel();
-            String version = details[0];
-            String nistLevel = details[1];
 
             signer.generate_keypair();
             byte[] pub = signer.export_public_key();
@@ -177,8 +169,8 @@ public class PQCBenchmarkRunner {
                     boolean valid = signer.verify(message, sig, pub);
                     long verT1 = System.nanoTime();
                     writer.append(String.format(Locale.US,
-                        "%s,%s,%s,%d,%d,%d,%d,%b\n",
-                        alg, version, nistLevel, size, i, t2 - t1,verT1 - verT0, valid
+                        "%s,%d,%d,%d,%d,%b\n",
+                        alg, size, i, t2 - t1,verT1 - verT0, valid
                     ));
                 }
             }
@@ -387,7 +379,7 @@ public class PQCBenchmarkRunner {
     private static void runPqcKemOnly(Context context) throws Exception {
         List<String> algorithms = KEMs.get_supported_KEMs();
         Writer writer = initCsv(context, "kem_benchmark.csv", new String[]{
-            "Algorithm", "Version", "NIST_Level", "Iter",
+            "Algorithm", "Iter",
             "KG_ns", "Enc_ns", "CT_bytes", "SS_bytes",
             "Dec_ns", "PubKey_bytes", "PrivKey_bytes", "Match"
         });
@@ -402,10 +394,6 @@ public class PQCBenchmarkRunner {
             if (blacklist.contains(alg)) continue;
             KeyEncapsulation kem = new KeyEncapsulation(alg);
 
-            // Algorithmus-Details einlesen
-            String[] details = kem.getVersionAndNistLevel();
-            String version = details[0];
-            String nistLevel = details[1];
 
             for (int i = 0; i < ITERATIONS; i++) {
                 long t0 = System.nanoTime();
@@ -433,8 +421,8 @@ public class PQCBenchmarkRunner {
                 boolean match = Arrays.equals(ssEnc, ssDec);
 
                 writer.append(String.format(Locale.US,
-                    "%s,%s,%s,%d,%d,%d,%d,%d,%d,%d,%d,%b\n",
-                    alg, version, nistLevel, i,
+                    "%s,%d,%d,%d,%d,%d,%d,%d,%d,%b\n",
+                    alg, i,
                     t1 - t0,
                     t3 - t2,
                     ctSz, ssSz,
