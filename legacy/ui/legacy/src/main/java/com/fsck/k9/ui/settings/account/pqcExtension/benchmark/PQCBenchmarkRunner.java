@@ -171,9 +171,9 @@ public class PQCBenchmarkRunner {
                     byte[] sig = signer.sign(message);
                     long t2 = System.nanoTime();
 
-                    long verT1 = System.nanoTime();
-                    boolean valid = signer.verify(message, sig, pub);
                     long verT0 = System.nanoTime();
+                    boolean valid = signer.verify(message, sig, pub);
+                    long verT1 = System.nanoTime();
                     writer.append(String.format(Locale.US,
                         "%s,%s,%s,%d,%d,%d,%d,%b\n",
                         alg, version, nistLevel, size, i, t2 - t1,verT1 - verT0, valid
@@ -210,9 +210,9 @@ public class PQCBenchmarkRunner {
                     verifier.initVerify(keyPair.getPublic());
                     verifier.update(message);
 
-                    long verT1 = System.nanoTime();
-                    boolean valid = verifier.verify(sig);
                     long verT0 = System.nanoTime();
+                    boolean valid = verifier.verify(sig);
+                    long verT1 = System.nanoTime();
 
 
                     writer.append(String.format(Locale.US,
