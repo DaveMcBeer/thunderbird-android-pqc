@@ -9,6 +9,7 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
 
+import javax.crypto.Cipher;
 import org.openquantumsafe.*;
 
 import org.openquantumsafe.Signature;
@@ -52,6 +53,7 @@ public class PQCBenchmarkRunner {
             runPqcSignatureOnly(context);
             runPqcKemOnly(context);
             runPureJavaRsaSignatureBenchmark(context);
+            runRsaKemBenchmark(context);
             runSignatureSizeScaling(context);
             return "All benchmarks completed.";
         } catch (Exception e) {
@@ -299,6 +301,82 @@ public class PQCBenchmarkRunner {
         writer.close();
     }
 
+    /**
+     * Führt einen Benchmark durch, bei dem RSA 4096 zur Schlüsselkapselung verwendet wird.
+     * Dies simuliert ein klassisches KEM-Szenario, bei dem ein zufälliger symmetrischer Schlüssel
+     * generiert, mit dem öffentlichen Schlüssel verschlüsselt und anschließend wieder entschlüsselt wird.
+     *
+     * Hinweis: Auch wenn RSA formal kein KEM im modernen Sinn ist, lässt sich diese Verwendung
+     * als Näherung zu Vergleichszwecken heranziehen.
+     *
+     * Ergebnisse werden in `rsa_kem_benchmark.csv` geschrieben.
+     *
+     * Spalten im CSV:
+     *   Iter, KG_ns, Enc_ns, Dec_ns, Cipher_bytes, Secret_bytes, Match
+     */
+    public static void runRsaKemBenchmark(Context context) throws Exception {
+        Writer writer = initCsv(context, "rsa_kem_benchmark.csv", new String[]{
+            "Iter", "KG_ns", "Enc_ns", "Dec_ns", "Cipher_bytes", "Secret_bytes","PubKey_bytes", "PrivKey_bytes", "Match"
+        });
+
+        for (int i = 0; i < ITERATIONS; i++) {
+            try {
+                // RSA-Keypair erzeugen (4096 Bit)
+                long t0 = System.nanoTime();
+                KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+                kpg.initialize(4096);
+                KeyPair kp = kpg.generateKeyPair();
+                long t1 = System.nanoTime();
+
+                PublicKey pub = kp.getPublic();
+                PrivateKey priv = kp.getPrivate();
+
+                // Effektive Schlüssellängen: Modulus-Länge in Bytes (für Vergleichbarkeit mit PQC)
+                int pubKeySz = ((RSAPublicKey) pub).getModulus().bitLength() / 8;
+                int privKeySz = ((RSAPrivateKey) priv).getModulus().bitLength() / 8;
+
+                // Zufälligen symmetrischen Schlüssel (z. B. AES-Key) generieren
+                byte[] sharedSecret = new byte[32]; // 256 Bit
+                new SecureRandom().nextBytes(sharedSecret);
+
+                // Kapseln: Verschlüsselung des symmetrischen Schlüssels
+                Cipher rsaEnc = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
+                rsaEnc.init(Cipher.ENCRYPT_MODE, pub);
+                long t2 = System.nanoTime();
+                byte[] cipher = rsaEnc.doFinal(sharedSecret);
+                long t3 = System.nanoTime();
+
+                // Dekapseln: Entschlüsselung
+                Cipher rsaDec = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
+                rsaDec.init(Cipher.DECRYPT_MODE, priv);
+                long t4 = System.nanoTime();
+                byte[] recovered = rsaDec.doFinal(cipher);
+                long t5 = System.nanoTime();
+
+                boolean match = Arrays.equals(sharedSecret, recovered);
+
+                writer.append(String.format(Locale.US,
+                    "%d,%d,%d,%d,%d,%d,%d,%d,%b\n",
+                    i,
+                    t1 - t0,
+                    t3 - t2,
+                    t5 - t4,
+                    cipher.length,
+                    sharedSecret.length,
+                    pubKeySz,
+                    privKeySz,
+                    match
+                ));
+            } catch (Exception e) {
+                Log.e("PQCBenchmarkRunner", "RSA-KEM error", e);
+                writer.append(String.format(Locale.US,
+                    "%d,-1,-1,-1,0,0,false\n", i
+                ));
+            }
+        }
+        writer.flush();
+        writer.close();
+    }
 
     /**
      * Benchmarkt Key Encapsulation Mechanisms (KEM) aus dem PQC-Bereich.
