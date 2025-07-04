@@ -27,7 +27,6 @@ public class PqcMessageHelper {
      */
     public static String armor(String content, String header, String algorithm) {
         return "-----BEGIN " + header + "-----\n" +
-            "Algorithm: " + algorithm + "\n\n" +
             content + "\n" +
             "-----END " + header + "-----";
     }

@@ -26,6 +26,10 @@ import org.bouncycastle.openpgp.PGPSecretKeyRing;
 import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyConverter;
 import org.bouncycastle.openpgp.operator.jcajce.JcePBESecretKeyDecryptorBuilder;
+import org.bouncycastle.crypto.generators.HKDFBytesGenerator;
+import org.bouncycastle.crypto.params.HKDFParameters;
+import org.bouncycastle.crypto.digests.SHA256Digest;
+
 import org.json.JSONObject;
 import org.openquantumsafe.KeyEncapsulation;
 
@@ -39,6 +43,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.security.PrivateKey;
+import java.security.SecureRandom;
 import java.security.Security;
 import java.util.Base64;
 
@@ -128,16 +133,41 @@ public class PqcDecryptionHelper {
 
         return cipher.doFinal(ciphertext);
     }
-
     /**
-     * Combines RSA and PQC shared secrets using HMAC to derive a session key.
+     * Leitet aus zwei Shared Secrets (z. B. RSA + PQC) einen 32-Byte AES-Session-Key ab,
+     * unter Verwendung von HKDF (RFC 5869) mit Salt und Info.
+     *
+     * @param s1    Erstes Shared Secret (z. B. aus RSA)
+     * @param s2    Zweites Shared Secret (z. B. aus PQC KEM)
+     * @return      Abgeleiteter Session Key (AES-256: 32 Byte)
      */
     public static byte[] deriveSessionKey(byte[] s1, byte[] s2) throws Exception {
-        byte[] input = ByteBuffer.allocate(s1.length + s2.length).put(s1).put(s2).array();
-        SecretKeySpec keySpec = new SecretKeySpec("hybrid-key-ctx".getBytes(), "HmacSHA256");
-        Mac mac = Mac.getInstance("HmacSHA256");
-        mac.init(keySpec);
-        return mac.doFinal(input);
+        // Kombiniere beide Shared Secrets (z. B. RSA + PQC)
+        byte[] inputKeyMaterial = ByteBuffer.allocate(s1.length + s2.length).put(s1).put(s2).array();
+
+        // Optional: Nutze ein Salt (hier null = kein Salt, aber du kannst auch random nehmen)
+        byte[] salt = generateRandomSalt();
+
+        // Info-Feld zur Kontextbindung (ähnlich wie dein "hybrid-key-ctx")
+        byte[] info = "hybrid-key-ctx".getBytes();
+
+        // Initialisiere den HKDF Generator
+        HKDFBytesGenerator hkdf = new HKDFBytesGenerator(new SHA256Digest());
+        hkdf.init(new HKDFParameters(inputKeyMaterial, salt, info));
+
+        // Ziel: 32 Byte AES-256 Schlüssel
+        byte[] sessionKey = new byte[32];
+        hkdf.generateBytes(sessionKey, 0, sessionKey.length);
+
+        return sessionKey;
+    }
+    /**
+     * Erstellt ein zufälliges 32-Byte-Salt für die Session.
+     */
+    private static byte[] generateRandomSalt() {
+        byte[] salt = new byte[32]; // 256-bit
+        new SecureRandom().nextBytes(salt);
+        return salt;
     }
 
     /**
