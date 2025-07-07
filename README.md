@@ -24,30 +24,26 @@ Dieses Projekt ist ein Fork von Mozillas [thunderbird-android](https://github.co
 ### 1. PQC-Einstellungen öffnen  
 `Einstellungen > Konten > Dein Konto > Post-Quantum-Cryptography`  
 <img src="docs/PQC%20einstellungen%20und%20Schl%C3%BCsselverwaltung.png" width="500"/>
-
+---
+### 2. Schlüssel erzeugen, exportieren oder importieren  
+<img src="docs/PQC%20einstellungen%20und%20Schl%C3%BCsselverwaltung.png" width="500"/>
 ---
 
-### 2. PQC-Verschlüsselung oder -Signatur aktivieren  
+### 3. PQC-Verschlüsselung oder -Signatur aktivieren  
 - **KEM aktivieren** für Verschlüsselung  
 - **Sign-Only aktivieren** für digitale Signatur  
-- Wunschalgorithmus auswählen (z. B. Dilithium, Falcon)  
+- Wunschalgorithmus auswählen (z. B. Dilithium, Falcon)
+   Im E-Mail-Editor PQC aktivieren  
+Öffne eine neue Nachricht und aktiviere PQC/PGP-Modi:  
+<img src="docs/Activate%20PQC%20in%20Maileditor.jpg" width="300"/>
+
+ Wenn aktiv:
 <img src="docs/Email%20signieren.jpg" width="300"/>
 <img src="docs/E Mail verschlüsseln.jpg" width="300"/>
 
 ---
 
-### 3. Schlüssel erzeugen, exportieren oder importieren  
-<img src="docs/PQC%20einstellungen%20und%20Schl%C3%BCsselverwaltung.png" width="500"/>
-
----
-
-### 4. Im E-Mail-Editor PQC aktivieren  
-Öffne eine neue Nachricht und aktiviere PQC/PGP-Modi:  
-<img src="docs/Activate%20PQC%20in%20Maileditor.jpg" width="300"/>
-
----
-
-### 5. Nachricht absenden – Ergebnisanzeige
+### 4. Nachricht absenden – Ergebnisanzeige
 
 - ✅ **Hybrid-verschlüsselte Nachricht erfolgreich entschlüsselt:**  
   <img src="docs/Email%20entschl%C3%BCsselt.jpg" width="400"/>
@@ -57,7 +53,7 @@ Dieses Projekt ist ein Fork von Mozillas [thunderbird-android](https://github.co
 
 ---
 
-### 6. Fehlermeldungen bei Problemen
+### 5. Fehlermeldungen bei Problemen
 
 - ❌ **Entschlüsselung fehlgeschlagen:**  
   <img src="docs/failed_encryption.jpg" width="400"/>
