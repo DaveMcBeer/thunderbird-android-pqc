@@ -70,3 +70,27 @@ Mit dem Aufkommen von Quantencomputern stehen klassische asymmetrische Kryptover
 - **Thunderbird E-Mail-Stack**: PGP-Integration mit Bouncycastle.
 
 Durch das hybride Vorgehen bleibt die Kompatibilität mit heutigen Clients erhalten – bei gleichzeitigem Schutz vor zukünftigen Bedrohungen.
+
+
+---
+
+## 📦 Build & Installation
+
+> 🛠️ **Voraussetzungen:**
+>
+> - **Android Studio (Empfohlen)** – inklusive korrekt konfiguriertem Android SDK
+> - Alternativ: Manuelles Setzen des SDK-Pfads in `local.properties`:
+>   ```properties
+>   sdk.dir=/Pfad/zum/android/sdk
+>   ```
+>   Beispiel für Windows:
+>   ```properties
+>   sdk.dir=C:\\Users\\dein-benutzername\\AppData\\Local\\Android\\Sdk
+>   ```
+
+### 🔧 Kompilierung (Debug-Build):
+
+```bash
+git clone https://github.com/DaveMcBeer/thunderbird-android-pqc.git
+cd thunderbird-android-pqc
+./gradlew assembleDebug
