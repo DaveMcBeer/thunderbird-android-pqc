@@ -19,44 +19,51 @@ Dieses Projekt ist ein Fork von Mozillas [thunderbird-android](https://github.co
 
 > ⚙️ Du kannst die PQC-Features in den Einstellungen von Thunderbird aktivieren. Hier ist eine kurze Schritt-für-Schritt-Anleitung mit Screenshots:
 
-1. **Einstellungen öffnen:**  
-   `Einstellungen > Konten > Dein Konto > Post-Quantum-Cryptography`
-   ![](docs/PQC%20Schl%C3%BCssel%20verwaltung.png)
+---
 
-2. **PQC-Verschlüsselung und/oder -Signatur aktivieren:**  
-   - KEM aktivieren für Verschlüsselung  
-   - Sign-Only aktivieren für Signatur  
-   - Gewünschten Algorithmus auswählen  
-   ![](docs/pqc_signature_and_encryption.jpg)
+### 1. PQC-Einstellungen öffnen  
+`Einstellungen > Konten > Dein Konto > Post-Quantum-Cryptography`  
+<img src="docs/PQC%20einstellungen%20und%20Schl%C3%BCsselverwaltung.png" width="500"/>
 
-3. **PQC-Schlüsselpaar erzeugen, exportieren oder importieren:**  
-   ![](docs/PQC%20Schl%C3%BCssel%20verwaltung.png)
+---
 
-4. **PQC im Mail-Editor aktivieren:**
-   - Nur Verschlüsselung:  
-     ![](docs/pqc_encryption.jpg)
+### 2. PQC-Verschlüsselung oder -Signatur aktivieren  
+- **KEM aktivieren** für Verschlüsselung  
+- **Sign-Only aktivieren** für digitale Signatur  
+- Wunschalgorithmus auswählen (z. B. Dilithium, Falcon)  
+<img src="docs/Email%20signieren.jpg" width="300"/>
+<img src="docs/Email%20verschl%C3%BCsseln.jpg" width="300"/>
 
-   - Nur Signatur:  
-     ![](docs/pqc_signature.jpg)
+---
 
-   - Kombination aus beidem:  
-     ![](docs/pqc_signature_and_encryption.jpg)
+### 3. Schlüssel erzeugen, exportieren oder importieren  
+<img src="docs/PQC%20einstellungen%20und%20Schl%C3%BCsselverwaltung.png" width="500"/>
 
-5. **E-Mail schreiben und absenden.**  
-   Bei Erfolg sieht das z. B. so aus:
+---
 
-   - 📧 **Erfolgreich verschlüsselte Nachricht:**  
-     ![](docs/Email%20entschl%C3%BCsselt.jpg)
+### 4. Im E-Mail-Editor PQC aktivieren  
+Öffne eine neue Nachricht und aktiviere PQC/PGP-Modi:  
+<img src="docs/Activate%20PQC%20in%20Maileditor.jpg" width="300"/>
 
-   - ✅ **Erfolgreich verifizierte Signatur:**  
-     ![](docs/Email%20verifiziert.jpg)
+---
 
-6. **Fehlermeldungen bei Problemen:**  
-   - 🔴 Verschlüsselung fehlgeschlagen:  
-     ![](docs/failed_encryption.jpg)
+### 5. Nachricht absenden – Ergebnisanzeige
 
-   - 🔴 Signaturprüfung fehlgeschlagen:  
-     ![](docs/failed_signature.jpg)
+- ✅ **Hybrid-verschlüsselte Nachricht erfolgreich entschlüsselt:**  
+  <img src="docs/Email%20entschl%C3%BCsselt.jpg" width="400"/>
+
+- ✅ **Hybrid-Signatur erfolgreich verifiziert:**  
+  <img src="docs/Email%20verifiziert.jpg" width="400"/>
+
+---
+
+### 6. Fehlermeldungen bei Problemen
+
+- ❌ **Entschlüsselung fehlgeschlagen:**  
+  <img src="docs/failed_encryption.jpg" width="400"/>
+
+- ❌ **Signaturprüfung fehlgeschlagen:**  
+  <img src="docs/failed_signature.jpg" width="400"/>
 
 ---
 
