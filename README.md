@@ -36,7 +36,7 @@ Dieses Projekt ist ein Fork von Mozillas [thunderbird-android](https://github.co
 Mit dem Aufkommen von Quantencomputern stehen klassische asymmetrische Kryptoverfahren wie RSA und ECC langfristig vor dem Aus. Post-Quantum-Kryptografie (PQC) bietet Algorithmen, die auch gegen Angriffe durch Quantencomputer sicher sind. Dieses Projekt kombiniert:
 
 - **liboqs-java**: Bindings zu [Open Quantum Safe's](https://openquantumsafe.org/) C-Bibliothek `liboqs`.
-- **Thunderbird E-Mail-Stack**: PGP-Integration mit OpenKeychain.
+- **Thunderbird E-Mail-Stack**: PGP-Integration mit Bouncycastle.
 
 Durch das hybride Vorgehen bleibt die Kompatibilität mit heutigen Clients erhalten – bei gleichzeitigem Schutz vor zukünftigen Bedrohungen.
 
