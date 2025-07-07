@@ -22,19 +22,18 @@ Dieses Projekt ist ein Fork von Mozillas [thunderbird-android](https://github.co
 ---
 
 ### 1. PQC-Einstellungen öffnen  
-`Einstellungen > Konten > Dein Konto > Post-Quantum-Cryptography`  
-<img src="docs/PQC%20einstellungen%20und%20Schl%C3%BCsselverwaltung.png" width="500"/>
----
-### 2. Schlüssel erzeugen, exportieren oder importieren  
+`Einstellungen > Konten > Dein Konto > Post-Quantum-Cryptography`
+Feature aktivieren, Schlüsselgenerieren, Öffentliche Schlüssel an gewünschte Empfänger Mail senden
 <img src="docs/PQC%20einstellungen%20und%20Schl%C3%BCsselverwaltung.png" width="500"/>
 ---
 
-### 3. PQC-Verschlüsselung oder -Signatur aktivieren  
-- **KEM aktivieren** für Verschlüsselung  
-- **Sign-Only aktivieren** für digitale Signatur  
-- Wunschalgorithmus auswählen (z. B. Dilithium, Falcon)
-   Im E-Mail-Editor PQC aktivieren  
-Öffne eine neue Nachricht und aktiviere PQC/PGP-Modi:  
+### 2. PQC-Verschlüsselung oder -Signatur aktivieren  
+Nach
+    - **KEM aktivierung** für Verschlüsselung  
+    - **Sign-Only aktivierung** für digitale Signatur  
+    - Wunschalgorithmus auswählen (z. B. Dilithium, Falcon)
+Im E-Mail-Editor PQC aktivieren  
+    - Öffne eine neue Nachricht und aktiviere PQC/PGP-Modi:  
 <img src="docs/Activate%20PQC%20in%20Maileditor.jpg" width="300"/>
 
  Wenn aktiv:
