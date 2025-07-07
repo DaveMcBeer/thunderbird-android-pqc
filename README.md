@@ -32,7 +32,7 @@ Dieses Projekt ist ein Fork von Mozillas [thunderbird-android](https://github.co
 - **Sign-Only aktivieren** für digitale Signatur  
 - Wunschalgorithmus auswählen (z. B. Dilithium, Falcon)  
 <img src="docs/Email%20signieren.jpg" width="300"/>
-<img src="docs/Email%20verschl%C3%BCsseln.jpg" width="300"/>
+<img src="docs/Email%20verschlüsseln.jpg" width="300"/>
 
 ---
 
