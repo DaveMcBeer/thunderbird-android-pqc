@@ -44,6 +44,7 @@ Im E-Mail-Editor PQC aktivieren
 <img src="docs/Activate%20PQC%20in%20Maileditor.jpg" width="300"/>
 
  Wenn aktiv:
+ 
 <img src="docs/Email%20signieren.jpg" width="300"/>
 <img src="docs/E Mail verschlüsseln.jpg" width="300"/>
 
