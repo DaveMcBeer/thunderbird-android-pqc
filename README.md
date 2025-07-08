@@ -19,6 +19,7 @@ Zu finden sind die neu Entwicklungen unter:
 - library/liboqs-module
 
 Zusätzlich wurden einige Klassen angepasst umd die PQC verarbeitung erfolgreich zu gestalten.
+
 ---
 
 ## 🧪 Aktivierung der PQC-Funktionen
