@@ -13,6 +13,12 @@ Dieses Projekt ist ein Fork von Mozillas [thunderbird-android](https://github.co
 - 📱 **Nahtlose Thunderbird-UX**: Die gewohnte Benutzeroberfläche bleibt erhalten.
 - 🔌 **liboqs-java Integration**: Bindings zu liboqs via Java, nativ integriert in den Kryptografie-Stack.
 
+Zu finden sind die neu Entwicklungen unter:
+- legacy/core/src/main/java/com/fsck/k9/pqcExtension
+- legacy/ui/legacy/src/main/java/com/fsck/k9/ui/settings/account/pqcExtension
+- library/liboqs-module
+
+Zusätzlich wurden einige Klassen angepasst umd die PQC verarbeitung erfolgreich zu gestalten.
 ---
 
 ## 🧪 Aktivierung der PQC-Funktionen
